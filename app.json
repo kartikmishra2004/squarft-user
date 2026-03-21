@@ -31,6 +31,7 @@
         {
           "image": "./assets/icons/icon.png",
           "resizeMode": "cover",
+          "imageWidth": 200,
           "backgroundColor": "#4A43EC",
           "dark": {
             "backgroundColor": "#4A43EC"
@@ -41,6 +42,7 @@
     "splash": {
       "image": "./assets/icons/icon.png",
       "resizeMode": "cover",
+      "imageWidth": 200,
       "backgroundColor": "#4A43EC",
       "dark": {
         "backgroundColor": "#4A43EC"
