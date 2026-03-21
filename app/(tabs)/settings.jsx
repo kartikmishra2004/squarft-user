@@ -1,10 +1,10 @@
 import { Text, View } from "react-native";
 
-export default function Properties() {
+export default function Settings() {
     return (
         <View>
             <Text>
-                Properties
+                Settings
             </Text>
         </View>
     )

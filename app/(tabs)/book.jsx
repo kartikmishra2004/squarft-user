@@ -1,10 +1,10 @@
 import { Text, View } from "react-native";
 
-export default function Journey() {
+export default function Book() {
     return (
         <View>
             <Text>
-                Journey
+                Book
             </Text>
         </View>
     )
