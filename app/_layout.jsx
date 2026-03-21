@@ -16,6 +16,7 @@ export default function AuthLayout() {
     return (
         <Provider store={store}>
             <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
                 {/* Onboarding */}
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
                 {/* Main */}
