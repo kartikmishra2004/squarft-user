@@ -161,7 +161,7 @@ const EmptyState = ({ type }) => {
 };
 
 export default function Favourite() {
-  const [activeTab, setActiveTab] = useState("SEEN");
+  const [activeTab, setActiveTab] = useState("SAVED");
   return (
     <View className="flex-1 bg-white">
       <View className="flex-1 bg-white">
