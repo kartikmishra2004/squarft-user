@@ -2,8 +2,6 @@ import { Text, View, Image, Dimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link } from 'expo-router';
 
-const { width } = Dimensions.get("window");
-
 export default function Onboarding3() {
     return (
         <View className="flex-1 bg-white">
@@ -40,7 +38,7 @@ export default function Onboarding3() {
             </View>
             <View className="absolute bottom-0 left-0 right-0 overflow-hidden h-[50%] w-[100%]">
                 <Image
-                    source={require("../../assets/images/onboarding3.png")}
+                    source={require("../../assets/images/onboarding/onboarding3.png")}
                     className="w-full h-full"
                     resizeMode="contain"
                 />

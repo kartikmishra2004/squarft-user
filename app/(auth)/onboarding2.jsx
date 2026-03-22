@@ -38,7 +38,7 @@ export default function Onboarding2() {
             </View>
             <View className="absolute bottom-3 left-0 right-0 overflow-hidden h-[50%] w-[100%]">
                 <Image
-                    source={require("../../assets/images/onboarding2.png")}
+                    source={require("../../assets/images/onboarding/onboarding2.png")}
                     className="w-full h-full"
                     resizeMode="contain"
                 />
