@@ -9,7 +9,7 @@ const authSlice = createSlice({
         newPassword: '',
         confirmPassword: '',
         otp: ['', '', '', ''],
-        otpFlow: 'register', // 'register' | 'forgot-password'
+        otpFlow: 'register', 
         rememberMe: false,
         isLoggedIn: false,
     },
