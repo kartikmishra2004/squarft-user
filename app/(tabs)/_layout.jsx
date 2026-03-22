@@ -10,7 +10,7 @@ const icons = {
         inactive: require("../../assets/icons/tabs/fav.png"),
         active: require("../../assets/icons/tabs/fav-active.png"),
     },
-    book: {
+    visit: {
         inactive: require("../../assets/icons/tabs/book.png"),
         active: require("../../assets/icons/tabs/book-active.png"),
     },
@@ -78,12 +78,13 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="book"
+                name="visit"
                 options={{
-                    headerTitle: "Book",
+                    headerTitle: "Book a site visit",
+                    headerTitleAlign: "center",
                     tabBarIcon: ({ focused }) => (
                         <TabIcon
-                            name="book"
+                            name="visit"
                             focused={focused}
                             size={{
                                 active: { width: 64, height: 64, position: "absolute", bottom: 5 },
