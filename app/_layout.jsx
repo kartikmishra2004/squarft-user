@@ -11,6 +11,11 @@ import {
     Lato_300Light,
     Lato_900Black,
 } from "@expo-google-fonts/lato";
+import {
+    Manrope_400Regular,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+} from "@expo-google-fonts/manrope";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,7 +25,11 @@ export default function AuthLayout() {
         Lato_700Bold,
         Lato_300Light,
         Lato_900Black,
+        Manrope_400Regular,
+        Manrope_700Bold,
+        Manrope_800ExtraBold,
     });
+
 
     useEffect(() => {
         if (fontsLoaded) SplashScreen.hideAsync();
