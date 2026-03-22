@@ -39,13 +39,13 @@ export default function Login() {
 
             <View className="flex-1 bg-white px-6 pt-8">
 
-                {/* Mobile */}
+             
                 <Text className="text-gray-500 text-[13px] mb-1.5">Mobile Number</Text>
                 <View className="border border-gray-200 rounded-xl px-4 py-2 mb-5">
                     <TextInput
                         value={mobile}
                         onChangeText={(val) => dispatch(setMobile(val))}
-                        placeholder="+919988776655"
+                        placeholder="Number"
                         placeholderTextColor="#aaa"
                         keyboardType="phone-pad"
                         className="text-[15px] text-black"
@@ -72,7 +72,7 @@ export default function Login() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Remember me + Forgot password */}
+               
                 <View className="flex-row items-center justify-between mb-7">
                     <TouchableOpacity
                         className="flex-row items-center gap-2"
@@ -88,7 +88,7 @@ export default function Login() {
                     </Link>
                 </View>
 
-                {/* Login button */}
+        
                 <TouchableOpacity
                     onPress={handleLogin}
                     className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-8"
@@ -96,7 +96,7 @@ export default function Login() {
                     <Text className="text-white text-[16px] font-lato-bold">Log In</Text>
                 </TouchableOpacity>
 
-                {/* Social login */}
+        
               <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-3xl py-4 mb-4 relative">
     <Image 
         source={require('../../assets/icons/google.png')} 
