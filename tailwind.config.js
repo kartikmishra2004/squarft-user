@@ -8,7 +8,14 @@ module.exports = {
   ],
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        lato: ["Lato_400Regular"],
+        "lato-light": ["Lato_300Light"],
+        "lato-bold": ["Lato_700Bold"],
+        "lato-black": ["Lato_900Black"],
+      },
+    },
   },
   plugins: [],
 }
