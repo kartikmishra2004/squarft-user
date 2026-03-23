@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
+import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
 
 const PAST_VISITS_DATA = [
   {
@@ -43,6 +44,13 @@ const VISITS_DATA = [
 
 export default function Visit() {
   const [activeTab, setActiveTab] = useState("Upcoming");
+  const bottomSheetModalRef = useRef(null);
+
+  const openModal = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
+
+  const [sheetContent, setSheetContent] = useState('edit'); // 'edit' | 'success'
 
   return (
     <View className="flex-1 bg-white">
@@ -136,7 +144,13 @@ export default function Visit() {
                         Get Directions
                       </Text>
                     </Pressable>
-                    <Pressable className="flex-1 bg-[#F4F2FF] rounded-[12px] py-[13px] flex-row items-center justify-center ml-2">
+                    <Pressable 
+                      className="flex-1 bg-[#F4F2FF] rounded-[12px] py-[13px] flex-row items-center justify-center ml-2"
+                      onPress={() => {
+                        setSheetContent('edit');
+                        openModal();
+                      }}
+                    >
                       <Feather name="calendar" size={16} color="#4A43EC" />
                       <Text className="text-[#4A43EC] font-manrope-extrabold text-[14px] ml-2">
                         Reschedule
@@ -225,6 +239,12 @@ export default function Visit() {
           </View>
         )}
       </ScrollView>
+
+      <RescheduleBottomSheet 
+        ref={bottomSheetModalRef}
+        sheetContent={sheetContent}
+        setSheetContent={setSheetContent}
+      />
     </View>
   );
 }
