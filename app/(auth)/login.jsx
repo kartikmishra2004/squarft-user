@@ -52,7 +52,7 @@ export default function Login() {
                     />
                 </View>
 
-                {/* Password */}
+               
                 <Text className="text-gray-500 text-[13px] mb-1.5">Password</Text>
                 <View className="border border-gray-200 rounded-xl px-4 py-2 flex-row items-center mb-4">
                     <TextInput
