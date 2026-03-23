@@ -141,6 +141,8 @@ export default function Home() {
                                 placeholder="Search..."
                                 placeholderTextColor="#9CA3AF"
                                 className="flex-1 text-base text-gray-700"
+                                caretHidden
+                                showSoftInputOnFocus={false}
                                 onFocus={() => dispatch(setSearchActive(true))}
                             />
                         </View>
