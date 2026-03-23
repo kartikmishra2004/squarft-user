@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
+import { Link } from "expo-router";
 
 const PAST_VISITS_DATA = [
   {
@@ -50,7 +51,7 @@ export default function Visit() {
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const [sheetContent, setSheetContent] = useState('edit'); // 'edit' | 'success'
+  const [sheetContent, setSheetContent] = useState('edit');
 
   return (
     <View className="flex-1 bg-white">
@@ -144,7 +145,7 @@ export default function Visit() {
                         Get Directions
                       </Text>
                     </Pressable>
-                    <Pressable 
+                    <Pressable
                       className="flex-1 bg-[#F4F2FF] rounded-[12px] py-[13px] flex-row items-center justify-center ml-2"
                       onPress={() => {
                         setSheetContent('edit');
@@ -209,12 +210,14 @@ export default function Visit() {
 
                     {isCompleted ? (
                       <View className="w-full">
-                        <Pressable className="w-full bg-[#4A43EC] rounded-[12px] py-[13px] flex-row items-center justify-center mb-3">
-                          <Feather name="message-square" size={16} color="white" />
-                          <Text className="text-white font-manrope-extrabold text-[14px] ml-2">
-                            Write Review
-                          </Text>
-                        </Pressable>
+                        <Link href="/review" asChild>
+                          <Pressable className="w-full bg-[#4A43EC] rounded-[12px] py-[13px] flex-row items-center justify-center mb-3">
+                            <Feather name="message-square" size={16} color="white" />
+                            <Text className="text-white font-manrope-extrabold text-[14px] ml-2">
+                              Write Review
+                            </Text>
+                          </Pressable>
+                        </Link>
                         <Pressable className="w-full bg-white border border-gray-200 rounded-[12px] py-[13px] flex-row items-center justify-center">
                           <Feather name="eye" size={16} color="#374151" />
                           <Text className="text-[#374151] font-manrope-extrabold text-[14px] ml-2">
@@ -240,7 +243,7 @@ export default function Visit() {
         )}
       </ScrollView>
 
-      <RescheduleBottomSheet 
+      <RescheduleBottomSheet
         ref={bottomSheetModalRef}
         sheetContent={sheetContent}
         setSheetContent={setSheetContent}
