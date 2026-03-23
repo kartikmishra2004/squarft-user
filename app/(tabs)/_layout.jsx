@@ -44,6 +44,7 @@ export default function TabsLayout() {
                 headerShown: false,
                 tabBarShowLabel: false,
                 tabBarStyle: {
+                    position: "absolute",
                     borderTopRightRadius: 50,
                     borderTopLeftRadius: 50,
                     borderTopColor: "transparent",
@@ -73,6 +74,7 @@ export default function TabsLayout() {
                 name="favourite"
                 options={{
                     headerTitle: "Favourite",
+                    headerTitleAlign: "center",
                     tabBarIcon: ({ focused }) => <TabIcon name="favourite" focused={focused} />,
                 }}
             />

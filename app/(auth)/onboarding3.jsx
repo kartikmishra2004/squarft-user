@@ -7,7 +7,7 @@ export default function Onboarding3() {
         <View className="flex-1 bg-white">
             <StatusBar style="dark" />
             <View className="absolute top-16 right-5 z-10">
-                <Link href="/register">
+                <Link href="/login">
                     <View className="bg-[#4A43EC] px-5 py-1.5 rounded-full">
                         <Text className="text-white text-[15px] font-light">Skip</Text>
                     </View>
@@ -28,7 +28,7 @@ export default function Onboarding3() {
                     <View className="w-12 h-[5px] bg-[#D0CFEF]" />
                     <View className="w-12 h-[5px] rounded-l-full rounded-r-full bg-[#4A43EC]" />
                 </View>
-                <Link href="register">
+                <Link href="/login">
                     <View className="bg-[#4A43EC] rounded-2xl py-5 items-center w-[55%]">
                         <Text className="text-white text-[16px] font-semibold tracking-widest">
                             NEXT
