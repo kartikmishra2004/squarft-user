@@ -1,5 +1,5 @@
 import { Text, View, Pressable, ScrollView, Image, TextInput } from "react-native";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
 
@@ -146,11 +146,12 @@ export default function Review() {
                         style={{ height: 110, textAlignVertical: 'top' }}
                     />
                 </View>
-
-                <Pressable className="bg-[#4A43EC] py-[15px] rounded-[12px] flex-row items-center justify-center mb-4">
-                    <Text className="text-white font-manrope-extrabold text-[15px]" style={{ marginRight: 8 }}>Submit Feedback</Text>
-                    <Feather name="send" size={17} color="white" />
-                </Pressable>
+                <Link href="/rating-submitted" asChild>
+                    <Pressable className="bg-[#4A43EC] py-[15px] rounded-[12px] flex-row items-center justify-center mb-4">
+                        <Text className="text-white font-manrope-extrabold text-[15px]" style={{ marginRight: 8 }}>Submit Feedback</Text>
+                        <Feather name="send" size={17} color="white" />
+                    </Pressable>
+                </Link>
 
                 <Text className="text-center text-[11px] font-manrope font-medium text-[#9CA3AF] mb-8">
                     Your feedback helps SquarFT maintain quality listings.

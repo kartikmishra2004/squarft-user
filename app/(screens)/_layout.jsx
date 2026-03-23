@@ -32,6 +32,12 @@ export default function ScreensLayout() {
                     ),
                 }}
             />
+            <Stack.Screen
+                name="rating-submitted"
+                options={{
+                    headerShown: false
+                }}
+            />
         </Stack>
     );
 }

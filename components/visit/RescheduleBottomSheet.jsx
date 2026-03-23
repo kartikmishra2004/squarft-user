@@ -2,6 +2,7 @@ import React, { useMemo, useCallback } from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { Link } from "expo-router";
 
 const RescheduleBottomSheet = React.forwardRef(({ sheetContent, setSheetContent }, ref) => {
   const snapPoints = useMemo(() => ["82%"], []);
@@ -204,15 +205,17 @@ const RescheduleBottomSheet = React.forwardRef(({ sheetContent, setSheetContent 
                     </Text>
                   </Pressable>
 
-                  <Pressable 
-                    className="w-full bg-white border-[1.5px] border-[#4A43EC] rounded-[14px] py-[15px] flex-row items-center justify-center"
-                    onPress={closeModal}
-                  >
-                    <Feather name="home" size={18} color="#4A43EC" />
-                    <Text className="text-[#4A43EC] font-manrope-extrabold text-[15px] ml-2">
-                      Back to Home
-                    </Text>
-                  </Pressable>
+                  <Link href="/(tabs)/home" asChild>
+                    <Pressable 
+                      className="w-full bg-white border-[1.5px] border-[#4A43EC] rounded-[14px] py-[15px] flex-row items-center justify-center"
+                      onPress={closeModal}
+                    >
+                      <Feather name="home" size={18} color="#4A43EC" />
+                      <Text className="text-[#4A43EC] font-manrope-extrabold text-[15px] ml-2">
+                        Back to Home
+                      </Text>
+                    </Pressable>
+                  </Link>
                 </>
               )}
             </View>
