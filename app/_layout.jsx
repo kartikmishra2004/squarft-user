@@ -1,3 +1,4 @@
+import "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -84,6 +85,7 @@ export default function RootLayout() {
                         <Stack.Screen name="index" options={{ headerShown: false }} />
                         <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
                         <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
+                        <Stack.Screen name="(screens)" options={{ headerShown: false }} />
                     </Stack>
                 </BottomSheetModalProvider>
             </Provider>
