@@ -1,9 +1,14 @@
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome, Ionicons, MaterialCommunityIcons, MaterialIcons, AntDesign, Octicons } from "@expo/vector-icons";
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { recommendedProperties, featuredProperties } from "../../data/properties";
 import { currentUser } from "../../data/user";
-//import { toBePartiallyChecked } from "@testing-library/jest-dom/matchers";
+import FilterModal from "../../components/FilterModal";
+import SearchOverlay from "../../components/SearchOverlay";
+import { openFilter } from "../../store/slices/filterSlice";
+import { setSearchActive } from "../../store/slices/appSlice";
 
 const CATEGORIES = [
     { id: "1", label: "Flat", icon: "office-building" },
@@ -66,9 +71,27 @@ function FeaturedCard({ item }) {
 
 export default function Home() {
     const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const searchActive = useSelector((state) => state.app.searchActive);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    if (searchActive) {
+        return (
+            <>
+                <FilterModal />
+                <SearchOverlay
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onClose={() => { dispatch(setSearchActive(false)); setSearchQuery(''); }}
+                    insets={insets}
+                />
+            </>
+        );
+    }
 
     return (
         <View className="flex-1 bg-gray-50 pb-[100px]">
+            <FilterModal />
             <ScrollView showsVerticalScrollIndicator={false}>
 
                 {/* Header */}
@@ -118,9 +141,10 @@ export default function Home() {
                                 placeholder="Search..."
                                 placeholderTextColor="#9CA3AF"
                                 className="flex-1 text-base text-gray-700"
+                                onFocus={() => dispatch(setSearchActive(true))}
                             />
                         </View>
-                        <TouchableOpacity className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[46px] gap-2">
+                        <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[46px] gap-2">
                             <AntDesign name="spotify" size={18} color="#7F88E5" />
                             <Text className="text-white text-sm font-semibold">Filters</Text>
                         </TouchableOpacity>

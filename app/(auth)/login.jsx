@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, Image } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, router } from "expo-router";
 import { useState } from "react";
@@ -19,11 +19,11 @@ export default function Login() {
     };
 
     return (
-        <View className="flex-1">
-            <StatusBar style="light" />
-
-            {/*  */}
-            <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View className="flex-1">
+                    <StatusBar style="light" />
+                    <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
               
                 <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-6">
                     <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
@@ -37,7 +37,7 @@ export default function Login() {
                 </View>
             </View>
 
-            <View className="flex-1 bg-white px-6 pt-8">
+            <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24, paddingTop: 32 }} keyboardShouldPersistTaps="handled">
 
              
                 <Text className="text-gray-500 text-[13px] mb-1.5">Mobile Number</Text>
@@ -115,7 +115,9 @@ export default function Login() {
                     <Text className="text-black text-[15px] font-semibold">Continue With Apple</Text>
                 </TouchableOpacity>
 
-            </View>
-        </View>
+            </ScrollView>
+                </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 }

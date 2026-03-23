@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, Image } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { useRef } from "react";
@@ -43,58 +43,57 @@ export default function OtpVerification() {
     };
 
     return (
-        <View className="flex-1">
-            <StatusBar style="light" />
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View className="flex-1">
+                    <StatusBar style="light" />
 
-            <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
-                <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-6">
-                    <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
+                    <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
+                        <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-6">
+                            <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
+                        </View>
+                        <Text className="text-white text-[36px] font-bold mb-1">OTP Verification</Text>
+                        <Text className="text-white/80 text-[14px]">OTP has been sent to your registered mobile number</Text>
+                    </View>
+
+                    <View className="flex-1 bg-white px-6 pt-10">
+                        <View className="flex-row justify-between mb-10">
+                            {otp.map((digit, index) => (
+                                <TextInput
+                                    key={index}
+                                    ref={(ref) => (inputs.current[index] = ref)}
+                                    value={digit}
+                                    onChangeText={(text) => handleChange(text, index)}
+                                    onKeyPress={(e) => handleKeyPress(e, index)}
+                                    keyboardType="number-pad"
+                                    maxLength={1}
+                                    style={{
+                                        width: 70, height: 70,
+                                        borderWidth: 1,
+                                        borderColor: digit ? '#4A43EC' : '#E5E7EB',
+                                        borderRadius: 12,
+                                        textAlign: 'center',
+                                        fontSize: 22,
+                                        color: '#000',
+                                    }}
+                                />
+                            ))}
+                        </View>
+
+                        <TouchableOpacity onPress={handleVerify} className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-6">
+                            <Text className="text-white text-[16px] font-semibold">Submit</Text>
+                        </TouchableOpacity>
+
+                        <View className="flex-row justify-center items-center">
+                            <Text className="text-gray-500 text-[14px]">Didn't get the OTP?  </Text>
+                            <TouchableOpacity onPress={handleResend}>
+                                <Text className="text-[#4A43EC] text-[14px] font-semibold">Resend OTP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                 </View>
-                <Text className="text-white text-[36px] font-bold mb-1">OTP Verification</Text>
-                <Text className="text-white/80 text-[14px]">OTP has been sent to your registered mobile number</Text>
-            </View>
-
-            <View className="flex-1 bg-white px-6 pt-10">
-
-                <View className="flex-row justify-between mb-10">
-                    {otp.map((digit, index) => (
-                        <TextInput
-                            key={index}
-                            ref={(ref) => (inputs.current[index] = ref)}
-                            value={digit}
-                            onChangeText={(text) => handleChange(text, index)}
-                            onKeyPress={(e) => handleKeyPress(e, index)}
-                            keyboardType="number-pad"
-                            maxLength={1}
-                            style={{
-                                width: 70,
-                                height: 70,
-                                borderWidth: 1,
-                                borderColor: digit ? '#4A43EC' : '#E5E7EB',
-                                borderRadius: 12,
-                                textAlign: 'center',
-                                fontSize: 22,
-                                color: '#000',
-                            }}
-                        />
-                    ))}
-                </View>
-
-                <TouchableOpacity
-                    onPress={handleVerify}
-                    className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-6"
-                >
-                    <Text className="text-white text-[16px] font-semibold">Submit</Text>
-                </TouchableOpacity>
-
-                <View className="flex-row justify-center items-center">
-                    <Text className="text-gray-500 text-[14px]">Didn't get the OTP?  </Text>
-                    <TouchableOpacity onPress={handleResend}>
-                        <Text className="text-[#4A43EC] text-[14px] font-semibold">Resend OTP</Text>
-                    </TouchableOpacity>
-                </View>
-
-            </View>
-        </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 }
