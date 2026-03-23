@@ -37,7 +37,8 @@
             "backgroundColor": "#4A43EC"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "splash": {
       "image": "./assets/icons/icon.png",
