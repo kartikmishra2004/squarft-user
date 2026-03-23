@@ -25,7 +25,7 @@ function RecommendedCard({ item }) {
     return (
         <View
             className="bg-white rounded-3xl overflow-hidden mr-3 p-3"
-            style={{  width:171 ,...cardShadow }}
+            style={{ width: 171, ...cardShadow }}
         >
             <Image source={item.image} style={{ width: 150, height: 148, borderRadius: 20 }} resizeMode="cover" />
             <View className="px-1 pt-3 pb-3">
@@ -68,7 +68,7 @@ export default function Home() {
     const insets = useSafeAreaInsets();
 
     return (
-        <View className="flex-1 bg-gray-50">
+        <View className="flex-1 bg-gray-50 pb-[100px]">
             <ScrollView showsVerticalScrollIndicator={false}>
 
                 {/* Header */}
@@ -77,15 +77,15 @@ export default function Home() {
                     <Image
                         source={require("../../assets/images/blur (5).png")}
                         pointerEvents="none"
-                        style={{ position: "absolute" , left:216, top:23 ,width: 241, height: 241 , borderRadius:1000 , opacity:1}}
-                        //resizeMode="contain"
+                        style={{ position: "absolute", left: 216, top: 23, width: 241, height: 241, borderRadius: 1000, opacity: 1 }}
+                    //resizeMode="contain"
                     />
                     {/* Left blur shade */}
                     <Image
                         source={require("../../assets/images/blur (4).png")}
                         pointerEvents="none"
-                        style={{ position: "absolute", left: -40 , top:-30, width: 520, height: 360 , borderRadius: 9999, opacity: 0.99 }}
-                        //resizeMode="contain"
+                        style={{ position: "absolute", left: -40, top: -30, width: 520, height: 360, borderRadius: 9999, opacity: 0.99 }}
+                    //resizeMode="contain"
                     />
                     {/* Header Row */}
                     <View className="flex-row justify-between items-center px-5 pt-3 pb-4 mb-5">
@@ -96,7 +96,7 @@ export default function Home() {
                                     className="w-[54px] h-[54px] rounded-full border-2 border-white"
                                     resizeMode="cover"
                                 />
-                                
+
                             </View>
                             <View>
                                 <View className="flex-row items-center gap-2">
@@ -106,7 +106,7 @@ export default function Home() {
                                 <Text className="text-[12px] font-lato-regular text-gray-400 mt-1">{currentUser.joinedDate}</Text>
                             </View>
                         </View>
-                        
+
                     </View>
 
                     {/* Search */}
@@ -165,27 +165,27 @@ export default function Home() {
                             height: 267,
                             opacity: 0.98,
                             transform: [{ rotate: "180deg" }],
-                            
+
                             zIndex: 1,
                         }}
-                        //resizeMode="contain"
+                    //resizeMode="contain"
                     />
-                <View className="flex-row justify-between items-center px-4 mt-4 mb-4">
-                    <Text className="text-lg font-manrope-extrabold text-gray-900">Recommended Properties</Text>
-                    <TouchableOpacity className="flex-row items-center">
-                        <Text className="text-sm text-indigo-500 font-manrope-bold">See All</Text>
-                        <Octicons name="triangle-right" size={22} color="#6C3BFF" />
-                    </TouchableOpacity>
-                </View>
+                    <View className="flex-row justify-between items-center px-4 mt-4 mb-4">
+                        <Text className="text-lg font-manrope-extrabold text-gray-900">Recommended Properties</Text>
+                        <TouchableOpacity className="flex-row items-center">
+                            <Text className="text-sm text-indigo-500 font-manrope-bold">See All</Text>
+                            <Octicons name="triangle-right" size={22} color="#6C3BFF" />
+                        </TouchableOpacity>
+                    </View>
 
-                <FlatList
-                    data={recommendedProperties}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }}
-                    renderItem={({ item }) => <RecommendedCard item={item} />}
-                />
+                    <FlatList
+                        data={recommendedProperties}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12, paddingTop: 4 }}
+                        renderItem={({ item }) => <RecommendedCard item={item} />}
+                    />
                 </View>
 
                 {/* Featured Projects */}

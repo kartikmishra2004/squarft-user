@@ -41,7 +41,6 @@ export default function TabsLayout() {
     return (
         <Tabs
             screenOptions={{
-                headerShown: false,
                 tabBarShowLabel: false,
                 tabBarStyle: {
                     position: "absolute",
@@ -66,7 +65,7 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="home"
                 options={{
-                    headerTitle: "Home",
+                    headerShown: false,
                     tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
                 }}
             />
