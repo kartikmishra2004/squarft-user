@@ -90,9 +90,9 @@ export default function Home() {
     }
 
     return (
-        <View className="flex-1 bg-gray-50 pb-[100px]">
+        <View className="flex-1 bg-gray-50">
             <FilterModal />
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
 
                 {/* Header */}
                 <View style={{ paddingTop: insets.top + 10, position: "relative", overflow: "hidden", backgroundColor: "#F9FAFB" }}>
@@ -156,7 +156,7 @@ export default function Home() {
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20, gap: 12 }}
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 20, gap: 12 }}
                     >
                         {CATEGORIES.map((cat) => (
                             <TouchableOpacity
@@ -165,10 +165,10 @@ export default function Home() {
                                 style={{
                                     width: 76, height: 92,
                                     shadowColor: "#000000",
-                                    shadowOffset: { width: 0, height: 0 },
-                                    shadowOpacity: 0.15,
-                                    shadowRadius: 19.7,
-                                    elevation: 1,
+                                    shadowOffset: { width: 0, height: 3 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 8,
+                                    elevation: 4,
                                 }}
                             >
                                 <MaterialCommunityIcons name={cat.icon} size={26} color="#4F46E5" />
