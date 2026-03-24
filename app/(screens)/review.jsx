@@ -12,8 +12,8 @@ export default function Review() {
     const [comments, setComments] = useState('');
 
     return (
-        <View className="flex-1 bg-white pt-6">
-            <ScrollView className="flex-1 px-5 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <View className="flex-1 bg-white">
+            <ScrollView className="flex-1 px-5 pt-6 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
                 <Text className="text-[12px] font-manrope-extrabold tracking-[1px] text-[#4B5563] uppercase mb-[14px]">
                     VISIT SUMMARY
                 </Text>
