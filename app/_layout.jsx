@@ -13,7 +13,7 @@ import { Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
 import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
 import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
-import { store } from "expo-router/build/global-state/router-store";
+import { store } from "../store/store";
 
 SplashScreen.preventAutoHideAsync();
 

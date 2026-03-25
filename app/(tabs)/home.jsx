@@ -19,7 +19,7 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite, setSelectedCategory, setSearchQuery } from "../../store/slices/propertiesSlice";
+import { toggleFavourite } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
@@ -137,7 +137,7 @@ function FeaturedCard({ item, onToggleFav }) {
         >
           <Ionicons
             name={item.isFavourite ? "heart" : "heart-outline"}
-            size={17}
+            size={20}
             color={item.isFavourite ? "#EF4444" : "#9CA3AF"}
           />
         </TouchableOpacity>
@@ -473,7 +473,7 @@ export default function Home() {
                         >
                             <Ionicons
                                 name={item.isFavourite ? "heart" : "heart-outline"}
-                                size={17}
+                                size={20}
                                 color={item.isFavourite ? "#EF4444" : "#9CA3AF"}
                             />
                         </TouchableOpacity>
