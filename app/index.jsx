@@ -1,7 +1,8 @@
 import { Redirect } from "expo-router";
+import { useSelector } from "react-redux";
 
 export default function Index() {
-    const isLoggedIn = true;
+    const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
     if (isLoggedIn) {
         return <Redirect href="/(tabs)/home" />;

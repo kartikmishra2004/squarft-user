@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Image, Platform } from "react-native";
+import { useSelector } from "react-redux";
 
 const icons = {
     home: {
@@ -38,11 +39,13 @@ function TabIcon({ name, focused, size }) {
 }
 
 export default function TabsLayout() {
+    const searchActive = useSelector((state) => state.app.searchActive);
+
     return (
         <Tabs
             screenOptions={{
                 tabBarShowLabel: false,
-                tabBarStyle: {
+                tabBarStyle: searchActive ? { display: 'none' } : {
                     position: "absolute",
                     borderTopRightRadius: 50,
                     borderTopLeftRadius: 50,

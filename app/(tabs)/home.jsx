@@ -21,6 +21,11 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite, setSelectedCategory, setSearchQuery } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
+import FilterModal from "../../components/FilterModal";
+import SearchOverlay from "../../components/SearchOverlay";
+import { openFilter } from "../../store/slices/filterSlice";
+import { setSearchActive } from "../../store/slices/appSlice";
+import { useState } from "react";
 
 const CATEGORIES = [
   { id: "1", label: "Flat", icon: "office-building" },
@@ -152,14 +157,32 @@ function FeaturedCard({ item, onToggleFav }) {
 
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const dispatch = useDispatch();
-  const { recommended, featured, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
+    const dispatch = useDispatch();
+    const searchActive = useSelector((state) => state.app.searchActive);
+    const [searchQuery, setSearchQuery] = useState('');
+     const { recommended, featured, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
+    if (searchActive) {
+        return (
+            <>
+                <FilterModal />
+                <SearchOverlay
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onClose={() => { dispatch(setSearchActive(false)); setSearchQuery(''); }}
+                    insets={insets}
+                />
+            </>
+        );
+    }
+  
+ 
 
   const handleToggleFav = (id) => dispatch(toggleFavourite(id));
 
   return (
-    <View className="flex-1 bg-[#F9FAFB] pb-[100px]">
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <View className="flex-1 bg-[#F9FAFB]">
+            <FilterModal />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View
           style={{
@@ -232,9 +255,12 @@ export default function Home() {
                 placeholder="Search..."
                 placeholderTextColor="#9CA3AF"
                 className="flex-1 text-base text-gray-700"
+                                caretHidden
+                                showSoftInputOnFocus={false}
+                                onFocus={() => dispatch(setSearchActive(true))}
               />
             </View>
-            <TouchableOpacity className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[46px] gap-2">
+            <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[46px] gap-2">
               <AntDesign name="spotify" size={18} color="#7F88E5" />
               <Text className="text-white text-sm font-semibold">Filters</Text>
             </TouchableOpacity>
