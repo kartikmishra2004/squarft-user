@@ -8,65 +8,40 @@ import "../global.css";
 import { store } from "../store/store";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { FontAwesome, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather, Octicons, FontAwesome6 } from "@expo/vector-icons";
 
-// Lato
-import {
-    Lato_100Thin, Lato_100Thin_Italic,
-    Lato_300Light, Lato_300Light_Italic,
-    Lato_400Regular, Lato_400Regular_Italic,
-    Lato_700Bold, Lato_700Bold_Italic,
-    Lato_900Black, Lato_900Black_Italic,
-} from "@expo-google-fonts/lato";
-
-// Inter
-import {
-    Inter_100Thin, Inter_100Thin_Italic,
-    Inter_200ExtraLight, Inter_200ExtraLight_Italic,
-    Inter_300Light, Inter_300Light_Italic,
-    Inter_400Regular, Inter_400Regular_Italic,
-    Inter_500Medium, Inter_500Medium_Italic,
-    Inter_600SemiBold, Inter_600SemiBold_Italic,
-    Inter_700Bold, Inter_700Bold_Italic,
-    Inter_800ExtraBold, Inter_800ExtraBold_Italic,
-    Inter_900Black, Inter_900Black_Italic,
-} from "@expo-google-fonts/inter";
-
-// Manrope
-import {
-    Manrope_200ExtraLight,
-    Manrope_300Light,
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-} from "@expo-google-fonts/manrope";
+import { Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
+import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
+import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
+import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
     const [fontsLoaded] = useFonts({
-        Lato_100Thin, Lato_100Thin_Italic,
-        Lato_300Light, Lato_300Light_Italic,
-        Lato_400Regular, Lato_400Regular_Italic,
-        Lato_700Bold, Lato_700Bold_Italic,
-        Lato_900Black, Lato_900Black_Italic,
-        Inter_100Thin, Inter_100Thin_Italic,
-        Inter_200ExtraLight, Inter_200ExtraLight_Italic,
-        Inter_300Light, Inter_300Light_Italic,
-        Inter_400Regular, Inter_400Regular_Italic,
-        Inter_500Medium, Inter_500Medium_Italic,
-        Inter_600SemiBold, Inter_600SemiBold_Italic,
-        Inter_700Bold, Inter_700Bold_Italic,
-        Inter_800ExtraBold, Inter_800ExtraBold_Italic,
-        Inter_900Black, Inter_900Black_Italic,
-        Manrope_200ExtraLight,
-        Manrope_300Light,
+        ...FontAwesome.font,
+        ...Ionicons.font,
+        ...MaterialIcons.font,
+        ...MaterialCommunityIcons.font,
+        ...AntDesign.font,
+        ...Feather.font,
+        ...Octicons.font,
+        ...FontAwesome6.font,
+        Lato_400Regular,
+        Lato_700Bold,
+        Inter_400Regular,
+        Inter_600SemiBold,
+        Inter_700Bold,
+        Inter_800ExtraBold,
         Manrope_400Regular,
         Manrope_500Medium,
         Manrope_600SemiBold,
         Manrope_700Bold,
         Manrope_800ExtraBold,
+        PublicSans_400Regular,
+        PublicSans_600SemiBold,
+        PublicSans_700Bold,
+        PublicSans_800ExtraBold,
     });
 
     useEffect(() => {

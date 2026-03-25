@@ -14,6 +14,7 @@ export const properties = [
         location: "Vijay Nagar, Indore",
         image: apartmentImg,
         tags: ["recommended", "featured"],
+        isFavourite: false,
     },
     {
         id: "2",
@@ -28,6 +29,7 @@ export const properties = [
         location: "Bypass, Indore",
         image: apartmentImg,
         tags: ["recommended", "featured"],
+        isFavourite: false,
     },
     {
         id: "3",
@@ -42,6 +44,7 @@ export const properties = [
         location: "AB Road, Indore",
         image: apartmentImg,
         tags: ["featured"],
+        isFavourite: false,
     },
     {
         id: "4",
@@ -56,6 +59,7 @@ export const properties = [
         location: "Scheme 54, Indore",
         image: apartmentImg,
         tags: ["recommended"],
+        isFavourite: false,
     },
     {
         id: "5",
@@ -70,6 +74,7 @@ export const properties = [
         location: "Palasia, Indore",
         image: apartmentImg,
         tags: ["recommended"],
+        isFavourite: false,
     },
     {
         id: "6",
@@ -84,6 +89,7 @@ export const properties = [
         location: "Rajwada, Indore",
         image: apartmentImg,
         tags: ["recommended"],
+        isFavourite: false,
     },
     {
         id: "7",
@@ -98,6 +104,7 @@ export const properties = [
         location: "Nipania, Indore",
         image: apartmentImg,
         tags: ["featured"],
+        isFavourite: false,
     },
     {
         id: "8",
@@ -112,6 +119,7 @@ export const properties = [
         location: "Super Corridor, Indore",
         image: apartmentImg,
         tags: ["recommended", "featured"],
+        isFavourite: false,
     },
 ];
 
@@ -122,3 +130,117 @@ export const recommendedProperties = properties.filter((p) =>
 export const featuredProperties = properties.filter((p) =>
     p.tags.includes("featured")
 );
+
+export const projectsInFocus = [
+    {
+        id: "1",
+        tag: "UPCOMING PROJECT",
+        title: "The Helix Residences",
+        subtitle: "Luxury living in the heart of Pune",
+        price: "STARTING ₹45L",
+        image: apartmentImg,
+    },
+    {
+        id: "2",
+        tag: "NEW LAUNCH",
+        title: "Parkside Grand",
+        subtitle: "Eco-friendly community, Gurugram",
+        price: "STARTING ₹1.8CR",
+        image: apartmentImg,
+    },
+    {
+        id: "3",
+        tag: "UNDER CONSTRUCTION",
+        title: "Emerald Heights",
+        subtitle: "Premium flats in Baner, Pune",
+        price: "STARTING ₹72L",
+        image: apartmentImg,
+    },
+];
+
+export const highGrowthLocalities = [
+    {
+        id: "1",
+        title: "Palace View Estate",
+        location: "A.B. Road, Indore",
+        priceRange: "₹1.1 Cr - 1.8 Cr",
+        bhk: "3 BHK Only",
+        possession: "Poss: Jun 2025",
+        image: apartmentImg,
+    },
+    {
+        id: "2",
+        title: "The Zen Apartments",
+        location: "Kanadia Road, Indore",
+        priceRange: "₹45 L - 75 L",
+        bhk: "1, 2 BHK",
+        possession: "Poss: Dec 2027",
+        image: apartmentImg,
+    },
+    {
+        id: "3",
+        title: "Emerald Heights",
+        location: "Vijay Nagar, Indore",
+        priceRange: "₹80 L - 1.4 Cr",
+        bhk: "2, 3 BHK",
+        possession: "Poss: Mar 2026",
+        image: apartmentImg,
+    },
+    {
+        id: "4",
+        title: "Sunrise Towers",
+        location: "Scheme 78, Indore",
+        priceRange: "₹55 L - 90 L",
+        bhk: "2 BHK Only",
+        possession: "Poss: Aug 2026",
+        image: apartmentImg,
+    },
+    {
+        id: "5",
+        title: "Royal Greens",
+        location: "Super Corridor, Indore",
+        priceRange: "₹1.5 Cr - 2.2 Cr",
+        bhk: "3, 4 BHK",
+        possession: "Poss: Jan 2028",
+        image: apartmentImg,
+    },
+    {
+        id: "6",
+        title: "Skyline Vistas",
+        location: "Nipania, Indore",
+        priceRange: "₹38 L - 60 L",
+        bhk: "1, 2 BHK",
+        possession: "Poss: Sep 2025",
+        image: apartmentImg,
+    },
+];
+
+export const missedProperties = [
+    {
+        id: "m1",
+        title: "Skyline Residency",
+        location: "Worli, Mumbai",
+        priceINR: "₹2.4 Cr*",
+        badge: "TRENDING",
+        image: apartmentImg,
+        isFavourite: false,
+    },
+    {
+        id: "m2",
+        title: "The Emerald",
+        location: "Powai, Mumbai",
+        priceINR: "₹1.8 Cr*",
+        badge: null,
+        image: apartmentImg,
+        isFavourite: false,
+    },
+    {
+        id: "m3",
+        title: "Serene Valley",
+        location: "Baner, Pune",
+        priceINR: "₹95 L*",
+        badge: null,
+        image: apartmentImg,
+        isFavourite: false,
+    },
+];
