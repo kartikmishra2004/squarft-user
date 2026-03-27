@@ -5,13 +5,14 @@ import {
 } from "react-native";
 import Animated, {
     useSharedValue, useAnimatedStyle,
-    withTiming, withDelay, Easing, FadeIn, FadeOut, Layout,
+    withTiming, Easing, FadeIn, FadeOut, Layout,
 } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
-import { openFilter } from "../store/slices/filterSlice";
+import { router } from "expo-router";
+import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
 
-// ─── Static Data (unchanged) ────────────────────────────────────────────────
+
 
 const SEARCH_HISTORY = [
     { id: '1', icon: 'history', title: 'Indore 2 BHK', subtitle: '2 hours ago • Vijay Nagar Area' },
@@ -39,6 +40,11 @@ const ALL_SUGGESTIONS = [
     '1 BHK South Delhi', 'Independent House Delhi', 'Builder Floor Delhi',
     'Villas in Goa', 'Beach House Goa', 'Studio Goa',
     'Dubai Marina Apartment', 'London Zone 1 Flat', 'Singapore Condo',
+    'Serenity Reserve', 'Sumeru Sky Heights', 'The Grand Towers',
+    'Green Valley Residency', 'Nipania Crown', 'Palasia Pinnacle',
+    'Corridor Luxe', 'VN Comfort Homes', 'Casa Verde Villas', 'Rajwada Green Plots',
+    'Scheme No 140 Indore', 'Bypass Road Indore', 'AB Road Indore',
+    'Nipania Indore', 'Super Corridor Indore', 'Vijay Nagar Indore',
 ];
 
 const iconMap = {
@@ -49,7 +55,6 @@ const iconMap = {
 
 const TIMING = { duration: 250, easing: Easing.out(Easing.ease) };
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function HistoryIcon({ type }) {
     return (
@@ -71,10 +76,10 @@ function Divider({ left = 20 }) {
     return <View style={{ height: 0.5, backgroundColor: '#F3F4F6', marginLeft: left }} />;
 }
 
-function SearchHistoryItem({ item, index, total }) {
+function SearchHistoryItem({ item, index, total, onSelect }) {
     return (
         <Animated.View entering={FadeIn.delay(index * 40).duration(200)} layout={Layout.springify()}>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
+            <TouchableOpacity onPress={() => onSelect(item.title)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
                 <HistoryIcon type={item.icon} />
                 <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{item.title}</Text>
@@ -89,10 +94,10 @@ function SearchHistoryItem({ item, index, total }) {
     );
 }
 
-function TrendingItem({ item, index, total }) {
+function TrendingItem({ item, index, total, onSelect }) {
     return (
         <Animated.View entering={FadeIn.delay(index * 40).duration(200)} layout={Layout.springify()}>
-            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12 }}>
+            <TouchableOpacity onPress={() => onSelect(item)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12 }}>
                 <MaterialCommunityIcons name="trending-up" size={18} color="#4A43EC" />
                 <Text style={{ fontSize: 14, color: '#374151' }}>{item}</Text>
             </TouchableOpacity>
@@ -114,9 +119,8 @@ function SuggestionItem({ item, index, onPress }) {
     );
 }
 
-// ─── Animated content panels ─────────────────────────────────────────────────
 
-function HistoryPanel() {
+function HistoryPanel({ onSelect }) {
     const opacity = useSharedValue(1);
     const translateY = useSharedValue(10);
 
@@ -134,21 +138,21 @@ function HistoryPanel() {
             <SectionLabel text="SEARCH HISTORY" />
             <View style={{ backgroundColor: '#fff' }}>
                 {SEARCH_HISTORY.map((item, i) => (
-                    <SearchHistoryItem key={item.id} item={item} index={i} total={SEARCH_HISTORY.length} />
+                    <SearchHistoryItem key={item.id} item={item} index={i} total={SEARCH_HISTORY.length} onSelect={onSelect} />
                 ))}
             </View>
 
             <SectionLabel text="TRENDING SEARCHES" />
             <View style={{ backgroundColor: '#fff' }}>
                 {TRENDING_SEARCHES.map((item, i) => (
-                    <TrendingItem key={item} item={item} index={i} total={TRENDING_SEARCHES.length} />
+                    <TrendingItem key={item} item={item} index={i} total={TRENDING_SEARCHES.length} onSelect={onSelect} />
                 ))}
             </View>
 
             <SectionLabel text="TRENDING LOCATIONS" />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 }}>
                 {TRENDING_LOCATIONS.map((loc) => (
-                    <TouchableOpacity key={loc} style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff' }}>
+                    <TouchableOpacity key={loc} onPress={() => onSelect(loc)} style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff' }}>
                         <Text style={{ fontSize: 13, color: '#374151' }}>{loc}</Text>
                     </TouchableOpacity>
                 ))}
@@ -196,7 +200,6 @@ function SuggestionsPanel({ suggestions, onSelect }) {
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SearchOverlay({ value, onChangeText, onClose, insets }) {
     const dispatch = useDispatch();
@@ -217,7 +220,6 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         transform: [{ translateY: headerY.value }],
     }));
 
-    // Debounce input → update suggestions after 300ms
     useEffect(() => {
         clearTimeout(debounceRef.current);
         if (value.trim() === '') {
@@ -237,14 +239,14 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         : [];
 
     const handleSelect = useCallback((text) => {
+        dispatch(setSearchQuery(text));
         onChangeText(text);
-        inputRef.current?.blur();
+        router.push('/(screens)/property-listing');
     }, []);
 
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#F9FAFB' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
-            {/* Header */}
             <Animated.View style={[headerStyle, { paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#F9FAFB' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
@@ -280,7 +282,6 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 </View>
             </Animated.View>
 
-            {/* Content — animated swap between history and suggestions */}
             <FlatList
                 data={[]}
                 keyExtractor={() => 'dummy'}
@@ -290,7 +291,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 ListHeaderComponent={
                     showSuggestions
                         ? <SuggestionsPanel key="suggestions" suggestions={suggestions} onSelect={handleSelect} />
-                        : <HistoryPanel key="history" />
+                        : <HistoryPanel key="history" onSelect={handleSelect} />
                 }
             />
 

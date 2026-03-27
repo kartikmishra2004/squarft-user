@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    ScrollView, PanResponder, useWindowDimensions,
+    PanResponder, useWindowDimensions,
 } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useDispatch, useSelector } from "react-redux";
+import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
     closeFilter, setAddress, removeTag,
@@ -39,35 +41,73 @@ function RangeSlider({ min, max, values, onChange }) {
     const leftPct = useRef(toPercent(values[0]));
     const rightPct = useRef(toPercent(values[1]));
 
-    const makeResponder = useCallback((side) => PanResponder.create({
+    const leftX = useSharedValue(toPercent(values[0]) * TRACK_WIDTH);
+    const rightX = useSharedValue(toPercent(values[1]) * TRACK_WIDTH);
+
+    const leftThumbStyle = useAnimatedStyle(() => ({
+        position: 'absolute',
+        left: leftX.value - THUMB / 2,
+        width: THUMB, height: THUMB,
+        borderRadius: THUMB / 2,
+        backgroundColor: '#4A43EC',
+        borderWidth: 3, borderColor: '#fff',
+        shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+    }));
+
+    const rightThumbStyle = useAnimatedStyle(() => ({
+        position: 'absolute',
+        left: rightX.value - THUMB / 2,
+        width: THUMB, height: THUMB,
+        borderRadius: THUMB / 2,
+        backgroundColor: '#4A43EC',
+        borderWidth: 3, borderColor: '#fff',
+        shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+    }));
+
+    const activeTrackStyle = useAnimatedStyle(() => ({
+        position: 'absolute',
+        left: leftX.value,
+        width: rightX.value - leftX.value,
+        height: 4,
+        backgroundColor: '#4A43EC',
+        borderRadius: 2,
+    }));
+
+    const leftResponder = useRef(PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => { leftPct.current = toPercent(values[0]); },
         onPanResponderMove: (_, gs) => {
-            const delta = gs.dx / TRACK_WIDTH;
-            if (side === 'left') {
-                const next = Math.max(0, Math.min(leftPct.current + delta, rightPct.current - 0.01));
-                leftPct.current = next;
-                onChange([toValue(next), values[1]]);
-            } else {
-                const next = Math.min(1, Math.max(rightPct.current + delta, leftPct.current + 0.01));
-                rightPct.current = next;
-                onChange([values[0], toValue(next)]);
-            }
+            const next = Math.max(0, Math.min(leftPct.current + gs.dx / TRACK_WIDTH, rightPct.current - 0.02));
+            leftX.value = next * TRACK_WIDTH;
         },
-    }), [values, TRACK_WIDTH]);
+        onPanResponderRelease: (_, gs) => {
+            const next = Math.max(0, Math.min(leftPct.current + gs.dx / TRACK_WIDTH, rightPct.current - 0.02));
+            leftPct.current = next;
+            runOnJS(onChange)([toValue(next), values[1]]);
+        },
+    })).current;
 
-    const leftResponder = makeResponder('left');
-    const rightResponder = makeResponder('right');
-
-    const leftPos = toPercent(values[0]) * TRACK_WIDTH;
-    const rightPos = toPercent(values[1]) * TRACK_WIDTH;
+    const rightResponder = useRef(PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => { rightPct.current = toPercent(values[1]); },
+        onPanResponderMove: (_, gs) => {
+            const next = Math.min(1, Math.max(rightPct.current + gs.dx / TRACK_WIDTH, leftPct.current + 0.02));
+            rightX.value = next * TRACK_WIDTH;
+        },
+        onPanResponderRelease: (_, gs) => {
+            const next = Math.min(1, Math.max(rightPct.current + gs.dx / TRACK_WIDTH, leftPct.current + 0.02));
+            rightPct.current = next;
+            runOnJS(onChange)([values[0], toValue(next)]);
+        },
+    })).current;
 
     return (
         <View style={{ height: 40, justifyContent: 'center' }}>
             <View style={{ height: 4, backgroundColor: '#E5E7EB', borderRadius: 2 }}>
-                <View style={{ position: 'absolute', left: leftPos, width: rightPos - leftPos, height: 4, backgroundColor: '#4A43EC', borderRadius: 2 }} />
+                <Animated.View style={activeTrackStyle} />
             </View>
-            <View {...leftResponder.panHandlers} style={{ position: 'absolute', left: leftPos - THUMB / 2, width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: '#4A43EC', borderWidth: 3, borderColor: '#fff', shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4 }} />
-            <View {...rightResponder.panHandlers} style={{ position: 'absolute', left: rightPos - THUMB / 2, width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: '#4A43EC', borderWidth: 3, borderColor: '#fff', shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4 }} />
+            <Animated.View {...leftResponder.panHandlers} style={leftThumbStyle} />
+            <Animated.View {...rightResponder.panHandlers} style={rightThumbStyle} />
         </View>
     );
 }
@@ -196,7 +236,12 @@ export default function FilterModal() {
                 <TouchableOpacity onPress={() => dispatch(clearFilters())}>
                     <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => dispatch(closeFilter())} style={{ backgroundColor: '#4A43EC', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
+                <TouchableOpacity
+                    onPress={() => {
+                        dispatch(closeFilter());
+                        router.push('/(screens)/property-listing');
+                    }}
+                    style={{ backgroundColor: '#4A43EC', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
                     <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Apply Filters</Text>
                 </TouchableOpacity>
             </View>

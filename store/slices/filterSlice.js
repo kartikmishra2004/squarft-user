@@ -5,6 +5,7 @@ const filterSlice = createSlice({
     initialState: {
         isOpen: false,
         address: '',
+        searchQuery: '',
         tags: ['Sarthak Vinayak Real Built', 'Vijay Nagar'],
         propertyTypes: [],       // e.g. ['Flat/Apartment']
         propertySubTypes: [],    // e.g. ['2 BHK', '3 BHK']
@@ -16,6 +17,7 @@ const filterSlice = createSlice({
         openFilter: (state) => { state.isOpen = true; },
         closeFilter: (state) => { state.isOpen = false; },
         setAddress: (state, action) => { state.address = action.payload; },
+        setSearchQuery: (state, action) => { state.searchQuery = action.payload; },
         removeTag: (state, action) => {
             state.tags = state.tags.filter((t) => t !== action.payload);
         },
@@ -41,6 +43,7 @@ const filterSlice = createSlice({
         },
         clearFilters: (state) => {
             state.address = '';
+            state.searchQuery = '';
             state.tags = [];
             state.propertyTypes = [];
             state.propertySubTypes = [];
@@ -52,7 +55,7 @@ const filterSlice = createSlice({
 });
 
 export const {
-    openFilter, closeFilter, setAddress, removeTag,
+    openFilter, closeFilter, setAddress, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
     setAreaRange, togglePossession, clearFilters,
 } = filterSlice.actions;
