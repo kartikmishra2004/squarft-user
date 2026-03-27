@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
-import { Image, Platform } from "react-native";
+import { Platform } from "react-native";
 import { useSelector } from "react-redux";
+import { Image } from "expo-image";
 
 const icons = {
     home: {
@@ -33,7 +34,8 @@ function TabIcon({ name, focused, size }) {
         <Image
             source={focused ? icon.active : icon.inactive}
             style={[focused ? activeSize : inactiveSize]}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={0}
         />
     );
 }
