@@ -47,7 +47,7 @@ export default function TabsLayout() {
                 tabBarShowLabel: false,
                 tabBarStyle: searchActive ? { display: 'none' } : {
                     position: "absolute",
-                    bottom: -1,
+                    bottom: Platform.OS === "ios" ? 0 : -1,
                     borderTopRightRadius: 50,
                     borderTopLeftRadius: 50,
                     borderTopColor: "transparent",
@@ -55,14 +55,17 @@ export default function TabsLayout() {
                     paddingTop: 25,
                     paddingHorizontal: 15,
                     height: Platform.OS === "ios" ? 95 : 90,
-                    shadowColor: "#000",
-                    shadowOffset: {
-                        width: 0,
-                        height: 2,
-                    },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 3.84,
-                    elevation: 5,
+                    ...Platform.select({
+                        ios: {
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 4,
+                        },
+                        android: {
+                            elevation: 10,
+                        },
+                    }),
                 },
             }}
         >
