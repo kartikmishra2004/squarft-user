@@ -1,35 +1,23 @@
 import { createSlice } from '@reduxjs/toolkit';
-import {
-    recommendedProperties,
-    featuredProperties,
-    projectsInFocus,
-    missedProperties,
-    highGrowthLocalities,
-} from '../../data/properties';
-
-// helper - toggle isFavourite by id in any array
-function toggleInList(list, id) {
-    const item = list.find((p) => p.id === id);
-    if (item) item.isFavourite = !item.isFavourite;
-}
+import { properties, projectsInFocus, missedProperties, highGrowthLocalities } from '../../data/properties';
 
 const propertiesSlice = createSlice({
     name: 'properties',
     initialState: {
-        recommended: recommendedProperties,
-        featured: featuredProperties,
-        projectsInFocus,
-        missed: missedProperties,
-        highGrowthLocalities,
+        properties: properties.map((p) => ({ ...p })),
+        projectsInFocus: projectsInFocus.map((p) => ({ ...p })),
+        missed: missedProperties.map((p) => ({ ...p })),
+        highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         selectedCategory: 'all',
         searchQuery: '',
     },
     reducers: {
         toggleFavourite: (state, action) => {
-            const id = action.payload;
-            toggleInList(state.recommended, id);
-            toggleInList(state.featured, id);
-            toggleInList(state.missed, id);
+            const item = state.properties.find((p) => p.id === action.payload);
+            if (item) item.isFavourite = !item.isFavourite;
+
+            const missed = state.missed.find((p) => p.id === action.payload);
+            if (missed) missed.isFavourite = !missed.isFavourite;
         },
         setSelectedCategory: (state, action) => {
             state.selectedCategory = action.payload;

@@ -160,7 +160,9 @@ export default function Home() {
     const dispatch = useDispatch();
     const searchActive = useSelector((state) => state.app.searchActive);
     const [searchQuery, setSearchQuery] = useState('');
-     const { recommended, featured, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
+     const { properties: allProperties, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
+     const recommended = allProperties.filter((p) => p.tags.includes('recommended'));
+     const featured = allProperties.filter((p) => p.tags.includes('featured'));
     if (searchActive) {
         return (
             <>
@@ -323,7 +325,7 @@ export default function Home() {
               opacity: 0.98,
               transform: [{ rotate: "180deg" }],
 
-              zIndex: 1,
+              
             }}
             resizeMode="contain"
           />
@@ -341,6 +343,7 @@ export default function Home() {
 
           <FlatList
             data={recommended}
+            extraData={allProperties}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
@@ -493,7 +496,7 @@ export default function Home() {
         />
 
         {/* High Growth Localities */}
-        <View className="flex-row justify-between items-center px-5 mt-6 mb-3">
+        <View className="flex-row justify-between items-center px-5 mt-10 mb-5">
             <Text className="text-lg font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
             <TouchableOpacity>
                 <Text className="text-sm text-indigo-500 font-manrope-bold">View All</Text>
