@@ -7,7 +7,7 @@ const icons = {
         inactive: require("../../assets/icons/tabs/home.png"),
         active: require("../../assets/icons/tabs/home-active.png"),
     },
-    favourite: {
+    myActivity: {
         inactive: require("../../assets/icons/tabs/fav.png"),
         active: require("../../assets/icons/tabs/fav-active.png"),
     },
@@ -47,6 +47,7 @@ export default function TabsLayout() {
                 tabBarShowLabel: false,
                 tabBarStyle: searchActive ? { display: 'none' } : {
                     position: "absolute",
+                    bottom: -1,
                     borderTopRightRadius: 50,
                     borderTopLeftRadius: 50,
                     borderTopColor: "transparent",
@@ -73,11 +74,11 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="favourite"
+                name="myActivity"
                 options={{
-                    headerTitle: "Favourite",
+                    headerTitle: "My Activity",
                     headerTitleAlign: "center",
-                    tabBarIcon: ({ focused }) => <TabIcon name="favourite" focused={focused} />,
+                    tabBarIcon: ({ focused }) => <TabIcon name="myActivity" focused={focused} />,
                 }}
             />
             <Tabs.Screen
