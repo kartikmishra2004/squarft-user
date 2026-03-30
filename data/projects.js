@@ -52,6 +52,7 @@ export const allProjects = [
     },
     {
         id: "p3",
+        
         builder: "Grand Infra Projects",
         zeroBrokerage: true,
         possession: "Jun, 2025",

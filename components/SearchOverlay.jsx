@@ -11,6 +11,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icon
 import { useDispatch } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
+import { Image } from "react-native";
 
 
 
@@ -160,8 +161,10 @@ function HistoryPanel({ onSelect }) {
 
             <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 20, gap: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <MaterialCommunityIcons name="rhombus" size={20} color="#F97316" />
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#374151', letterSpacing: 1 }}>SquarFT</Text>
+                    <Image
+        source={require('../../squarft-user/assets/icons/squarlogo.png')} 
+      />
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 }}>SquarFT</Text>
                 </View>
                 <Text style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: 2 }}>PREMIUM REAL ESTATE ENGINE</Text>
             </View>
