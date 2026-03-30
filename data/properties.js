@@ -1,127 +1,31 @@
-const apartmentImg = require("../assets/images/Luxury Apartments.png");
+import { allProjects } from "./projects";
 
-export const properties = [
-    {
-        id: "1",
-        title: "Skyline Residency",
-        type: "Apartment",
-        category: "apartment",
-        price: "$267,000",
-        priceINR: "₹2.2 Cr",
-        area: "2000 sqft",
-        beds: 4,
-        baths: 2,
-        location: "Vijay Nagar, Indore",
-        image: apartmentImg,
-        tags: ["recommended", "featured"],
-        isFavourite: false,
-    },
-    {
-        id: "2",
-        title: "Sumeru Sky Heights",
-        type: "Apartment",
-        category: "apartment",
-        price: "$310,000",
-        priceINR: "₹45 L - 1.2 Cr",
-        area: "2500 sqft",
-        beds: 3,
-        baths: 2,
-        location: "Bypass, Indore",
-        image: apartmentImg,
-        tags: ["recommended", "featured"],
-        isFavourite: false,
-    },
-    {
-        id: "3",
-        title: "The Grand Towers",
-        type: "Apartment",
-        category: "apartment",
-        price: "$295,000",
-        priceINR: "₹2.5 Cr",
-        area: "1800 sqft",
-        beds: 3,
-        baths: 1,
-        location: "AB Road, Indore",
-        image: apartmentImg,
-        tags: ["featured"],
-        isFavourite: false,
-    },
-    {
-        id: "4",
-        title: "Green Valley Flat",
-        type: "Flat",
-        category: "flat",
-        price: "$120,000",
-        priceINR: "₹95 L",
-        area: "1200 sqft",
-        beds: 2,
-        baths: 1,
-        location: "Scheme 54, Indore",
-        image: apartmentImg,
-        tags: ["recommended"],
-        isFavourite: false,
-    },
-    {
-        id: "5",
-        title: "Prime Commercial Hub",
-        type: "Commercial",
-        category: "commercial",
-        price: "$450,000",
-        priceINR: "₹3.8 Cr",
-        area: "3500 sqft",
-        beds: 0,
-        baths: 2,
-        location: "Palasia, Indore",
-        image: apartmentImg,
-        tags: ["recommended"],
-        isFavourite: false,
-    },
-    {
-        id: "6",
-        title: "Cozy 1RK Studio",
-        type: "1 Rk",
-        category: "1rk",
-        price: "$45,000",
-        priceINR: "₹38 L",
-        area: "450 sqft",
-        beds: 1,
-        baths: 1,
-        location: "Rajwada, Indore",
-        image: apartmentImg,
-        tags: ["recommended"],
-        isFavourite: false,
-    },
-    {
-        id: "7",
-        title: "Golden Plot Sector 7",
-        type: "Plot",
-        category: "plot",
-        price: "$80,000",
-        priceINR: "₹65 L",
-        area: "1000 sqft",
-        beds: 0,
-        baths: 0,
-        location: "Nipania, Indore",
-        image: apartmentImg,
-        tags: ["featured"],
-        isFavourite: false,
-    },
-    {
-        id: "8",
-        title: "Luxury Penthouse",
-        type: "Apartment",
-        category: "apartment",
-        price: "$520,000",
-        priceINR: "₹4.3 Cr",
-        area: "4000 sqft",
-        beds: 5,
-        baths: 3,
-        location: "Super Corridor, Indore",
-        image: apartmentImg,
-        tags: ["recommended", "featured"],
-        isFavourite: false,
-    },
-];
+// Truncate name to 10 chars then ...
+function shortName(name) {
+    return name.length > 10 ? name.slice(0, 10) + "..." : name;
+}
+
+// If price is a range (has –), return only the lower value
+function lowerPrice(priceRange) {
+    if (!priceRange) return "";
+    return priceRange.includes("–") ? priceRange.split("–")[0].trim() : priceRange;
+}
+
+export const properties = allProjects.map((p) => ({
+    id: p.id,
+    title: p.name,
+    type: shortName(p.name),
+    category: p.propertyType.toLowerCase().replace("/", "-"),
+    price: lowerPrice(p.variants[0]?.priceRange ?? p.avgPricePerSqft),
+    priceINR: lowerPrice(p.variants[0]?.priceRange ?? p.avgPricePerSqft),
+    area: `${p.areaSqft} sqft`,
+    beds: parseInt(p.subTypes[0]) || 0,
+    baths: 2,
+    location: p.location,
+    image: p.imageMain,
+    tags: p.tags,
+    isFavourite: false,
+}));
 
 export const recommendedProperties = properties.filter((p) =>
     p.tags.includes("recommended")
@@ -131,116 +35,36 @@ export const featuredProperties = properties.filter((p) =>
     p.tags.includes("featured")
 );
 
-export const projectsInFocus = [
-    {
-        id: "1",
-        tag: "UPCOMING PROJECT",
-        title: "The Helix Residences",
-        subtitle: "Luxury living in the heart of Pune",
-        price: "STARTING ₹45L",
-        image: apartmentImg,
-    },
-    {
-        id: "2",
-        tag: "NEW LAUNCH",
-        title: "Parkside Grand",
-        subtitle: "Eco-friendly community, Gurugram",
-        price: "STARTING ₹1.8CR",
-        image: apartmentImg,
-    },
-    {
-        id: "3",
-        tag: "UNDER CONSTRUCTION",
-        title: "Emerald Heights",
-        subtitle: "Premium flats in Baner, Pune",
-        price: "STARTING ₹72L",
-        image: apartmentImg,
-    },
-];
+export const projectsInFocus = allProjects
+    .filter((p) => p.tags.includes("featured"))
+    .map((p) => ({
+        id: p.id,
+        tag: p.possessionStatus.toUpperCase(),
+        title: p.name,
+        subtitle: `${p.propertyType} · ${p.location}`,
+        price: `STARTING ${p.variants[0]?.priceRange?.split("–")[0]?.trim() ?? p.avgPricePerSqft}`,
+        image: p.imageMain,
+    }));
 
-export const highGrowthLocalities = [
-    {
-        id: "1",
-        title: "Palace View Estate",
-        location: "A.B. Road, Indore",
-        priceRange: "₹1.1 Cr - 1.8 Cr",
-        bhk: "3 BHK Only",
-        possession: "Poss: Jun 2025",
-        image: apartmentImg,
-    },
-    {
-        id: "2",
-        title: "The Zen Apartments",
-        location: "Kanadia Road, Indore",
-        priceRange: "₹45 L - 75 L",
-        bhk: "1, 2 BHK",
-        possession: "Poss: Dec 2027",
-        image: apartmentImg,
-    },
-    {
-        id: "3",
-        title: "Emerald Heights",
-        location: "Vijay Nagar, Indore",
-        priceRange: "₹80 L - 1.4 Cr",
-        bhk: "2, 3 BHK",
-        possession: "Poss: Mar 2026",
-        image: apartmentImg,
-    },
-    {
-        id: "4",
-        title: "Sunrise Towers",
-        location: "Scheme 78, Indore",
-        priceRange: "₹55 L - 90 L",
-        bhk: "2 BHK Only",
-        possession: "Poss: Aug 2026",
-        image: apartmentImg,
-    },
-    {
-        id: "5",
-        title: "Royal Greens",
-        location: "Super Corridor, Indore",
-        priceRange: "₹1.5 Cr - 2.2 Cr",
-        bhk: "3, 4 BHK",
-        possession: "Poss: Jan 2028",
-        image: apartmentImg,
-    },
-    {
-        id: "6",
-        title: "Skyline Vistas",
-        location: "Nipania, Indore",
-        priceRange: "₹38 L - 60 L",
-        bhk: "1, 2 BHK",
-        possession: "Poss: Sep 2025",
-        image: apartmentImg,
-    },
-];
+export const highGrowthLocalities = allProjects.map((p) => ({
+    id: p.id,
+    title: p.name,
+    location: p.location,
+    priceRange: p.variants[0]?.priceRange ?? p.avgPricePerSqft,
+    bhk: p.subTypes.length > 0 ? p.subTypes.join(", ") + " BHK" : p.propertyType,
+    possession: `Poss: ${p.possession}`,
+    image: p.imageMain,
+}));
 
-export const missedProperties = [
-    {
-        id: "m1",
-        title: "Skyline Residency",
-        location: "Worli, Mumbai",
-        priceINR: "₹2.4 Cr*",
-        badge: "TRENDING",
-        image: apartmentImg,
+export const missedProperties = allProjects
+    .filter((p) => p.tags.includes("recommended"))
+    .slice(0, 3)
+    .map((p, i) => ({
+        id: `m${i + 1}`,
+        title: p.name,
+        location: p.location,
+        priceINR: p.variants[0]?.priceRange ?? p.avgPricePerSqft,
+        badge: i === 0 ? "TRENDING" : null,
+        image: p.imageMain,
         isFavourite: false,
-    },
-    {
-        id: "m2",
-        title: "The Emerald",
-        location: "Powai, Mumbai",
-        priceINR: "₹1.8 Cr*",
-        badge: null,
-        image: apartmentImg,
-        isFavourite: false,
-    },
-    {
-        id: "m3",
-        title: "Serene Valley",
-        location: "Baner, Pune",
-        priceINR: "₹95 L*",
-        badge: null,
-        image: apartmentImg,
-        isFavourite: false,
-    },
-];
+    }));

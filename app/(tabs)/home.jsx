@@ -26,6 +26,7 @@ import SearchOverlay from "../../components/SearchOverlay";
 import { openFilter } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
 import { useState } from "react";
+import { router } from "expo-router";
 
 const CATEGORIES = [
   { id: "1", label: "Flat", icon: "office-building" },
@@ -45,7 +46,9 @@ const cardShadow = {
 
 function RecommendedCard({ item, onToggleFav }) {
   return (
-    <View
+    <TouchableOpacity
+      onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
+      activeOpacity={0.85}
       className="bg-white rounded-3xl overflow-hidden mr-3 p-3"
       style={{ width: 171, ...cardShadow }}
     >
@@ -102,13 +105,15 @@ function RecommendedCard({ item, onToggleFav }) {
           <Text className="text-[11px] text-gray-400">{item.baths}</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 function FeaturedCard({ item, onToggleFav }) {
   return (
-    <View
+    <TouchableOpacity
+      onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
+      activeOpacity={0.85}
       className="w-[300px] bg-white rounded-[16px] overflow-hidden mr-3.5"
       style={cardShadow}
     >
@@ -151,7 +156,7 @@ function FeaturedCard({ item, onToggleFav }) {
           {item.priceINR}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -250,7 +255,7 @@ export default function Home() {
 
           {/* Search */}
           <View className="flex-row px-5 gap-3 mb-8">
-            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-2xl px-4 h-[46px] gap-[8px]">
+            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-2xl px-4 h-[46px] gap-[8px]" style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
               <FontAwesome name="search" size={20} color="#4A43EC" />
               <View className="w-[0.5px] self-stretch my-3 bg-[#7974E7]" />
               <TextInput
@@ -276,6 +281,7 @@ export default function Home() {
               paddingHorizontal: 16,
               paddingBottom: 20,
               gap: 12,
+              paddingTop:10,
             }}
           >
             {CATEGORIES.map((cat) => (
@@ -286,16 +292,14 @@ export default function Home() {
                   width: 76,
                   height: 92,
                   backgroundColor: "#fff",
-                  borderRadius: 12,
-
-                  // iOS shadow (soft & clean)
-                  shadowColor: "#000",
+                  //borderRadius: 12,
+                  shadowColor: "#000000",
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 4,
-
-                  // Android
-                  elevation: 1,
+                  shadowOpacity: 0.0004,
+                  shadowRadius: 10,
+                  elevation: 10,
+                  
+                  
                 }}
               >
                 <MaterialCommunityIcons
@@ -412,7 +416,12 @@ export default function Home() {
         </View>
 
         {projectsInFocus.slice(0, 2).map((project) => (
-            <View key={project.id} className="mx-6 mb-4 rounded-2xl overflow-hidden h-[200px]">
+            <TouchableOpacity
+                key={project.id}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: project.id } })}
+                className="mx-6 mb-4 rounded-2xl overflow-hidden h-[200px]"
+            >
                 <Image source={project.image} className="w-full h-full zIndex-0" resizeMode="cover" />
                 {/* Dark overlay */}
                 <View className="absolute inset-0 bg-black/55" />
@@ -426,7 +435,7 @@ export default function Home() {
                     <Text className="text-2xl font-public-bold text-white mb-0">{project.title}</Text>
                     <Text className="text-[14px] font-public-regular text-[#CBD5E1]">{project.subtitle}</Text>
                 </View>
-            </View>
+            </TouchableOpacity>
         ))}
 
         {/* In case you missed */}
@@ -442,7 +451,11 @@ export default function Home() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 12 }}
             renderItem={({ item }) => (
-                <View style={{ width: 300 }}>
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
+                    style={{ width: 300 }}
+                >
                     <View
                         className="rounded-3xl overflow-hidden"
                         style={{
@@ -491,7 +504,7 @@ export default function Home() {
                             <Text className="text-[13px] font-inter-regular text-gray-400">{item.location}</Text>
                         </View>
                     </View>
-                </View>
+                </TouchableOpacity>
             )}
         />
 
@@ -504,8 +517,10 @@ export default function Home() {
         </View>
 
         {highGrowthLocalities.slice(0, 2).map((item) => (
-            <View
+            <TouchableOpacity
                 key={item.id}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
                 className="mx-5 mb-3 bg-white rounded-2xl flex-row items-center border border-slate-100 px-2.5 py-3"
                 style={{ minHeight: 110 }}
             >
@@ -530,7 +545,7 @@ export default function Home() {
                         <Text className="text-[11px] text-gray-400">{item.possession}</Text>
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         ))}
 
         {/* Like the app? Share the app */}

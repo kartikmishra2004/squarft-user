@@ -4,6 +4,7 @@ const img2 = require("../assets/images/unsplash_RFDP7_80v5A.png");
 export const allProjects = [
     {
         id: "p1",
+        rating: 8.8,
         builder: "Prakrati Realtors Private Limited",
         zeroBrokerage: true,
         possession: "Apr, 2027",
@@ -19,7 +20,7 @@ export const allProjects = [
         imageThumb: img2,
         totalImages: 28,
         propertyType: "Flat/Apartment",
-        subTypes: ["3 BHK", "4 BHK"],
+        subTypes: ["3", "4"],
         budgetMin: 25000000,
         budgetMax: 35000000,
         areaSqft: 2200,
@@ -28,6 +29,7 @@ export const allProjects = [
     },
     {
         id: "p2",
+        rating: 7.5,
         builder: "Sumeru Developers",
         zeroBrokerage: false,
         possession: "Dec, 2026",
@@ -52,6 +54,7 @@ export const allProjects = [
     },
     {
         id: "p3",
+        rating: 8.2,
         builder: "Grand Infra Projects",
         zeroBrokerage: true,
         possession: "Jun, 2025",
@@ -75,6 +78,7 @@ export const allProjects = [
     },
     {
         id: "p4",
+        rating: 6.9,
         builder: "Green Valley Builders",
         zeroBrokerage: false,
         possession: "Mar, 2026",
@@ -99,6 +103,7 @@ export const allProjects = [
     },
     {
         id: "p5",
+        rating: 9.1,
         builder: "Nipania Heights Pvt Ltd",
         zeroBrokerage: true,
         possession: "Sep, 2025",
@@ -123,6 +128,7 @@ export const allProjects = [
     },
     {
         id: "p6",
+        rating: 9.4,
         builder: "Palasia Prime Realty",
         zeroBrokerage: false,
         possession: "Jan, 2028",
@@ -147,6 +153,7 @@ export const allProjects = [
     },
     {
         id: "p7",
+        rating: 8.6,
         builder: "Super Corridor Developers",
         zeroBrokerage: true,
         possession: "Aug, 2026",
@@ -171,6 +178,7 @@ export const allProjects = [
     },
     {
         id: "p8",
+        rating: 7.8,
         builder: "Vijay Nagar Estates",
         zeroBrokerage: false,
         possession: "Ready",
@@ -195,6 +203,7 @@ export const allProjects = [
     },
     {
         id: "p9",
+        rating: 8.0,
         builder: "Indore Villa Crafters",
         zeroBrokerage: true,
         possession: "Dec, 2025",
@@ -219,6 +228,7 @@ export const allProjects = [
     },
     {
         id: "p10",
+        rating: 6.5,
         builder: "Rajwada Plot Authority",
         zeroBrokerage: false,
         possession: "Immediate",

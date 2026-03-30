@@ -11,7 +11,7 @@ const authSlice = createSlice({
         otp: ['', '', '', ''],
         otpFlow: 'register', 
         rememberMe: false,
-        isLoggedIn: false,
+        isLoggedIn: true,
     },
     reducers: {
         setName: (state, action) => { state.name = action.payload; },
