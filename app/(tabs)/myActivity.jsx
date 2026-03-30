@@ -1,21 +1,25 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useSelector } from "react-redux";
 
 import SavedTabContent from "../../components/myActivity/SavedTabContent";
 import SeenTabContent from "../../components/myActivity/SeenTabContent";
 import ContactedTabContent from "../../components/myActivity/ContactedTabContent";
 import RecentTabContent from "../../components/myActivity/RecentTabContent";
 
-const TABS = [
-  { id: "SAVED", title: "SAVED", icon: "heart", badge: "01" },
-  { id: "SEEN", title: "SEEN", icon: "eye", badge: "06" },
-  { id: "CONTACTED", title: "CONTACTED", icon: "phone-call", badge: "02" },
-  { id: "RECENT", title: "RECENT", icon: "clock", badge: "10" },
-];
-
 export default function Favourite() {
   const [activeTab, setActiveTab] = useState("SAVED");
+  const { properties } = useSelector((state) => state.properties);
+  const savedCount = properties.filter((p) => p.isFavourite).length;
+
+  const TABS = [
+    { id: "SAVED", title: "SAVED", icon: "heart", badge: savedCount.toString().padStart(2, '0') },
+    { id: "SEEN", title: "SEEN", icon: "eye", badge: "06" },
+    { id: "CONTACTED", title: "CONTACTED", icon: "phone-call", badge: "02" },
+    { id: "RECENT", title: "RECENT", icon: "clock", badge: "10" },
+  ];
+
   return (
     <View className="flex-1 bg-white">
       <View className="flex-1 bg-white">

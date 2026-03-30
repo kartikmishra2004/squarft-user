@@ -16,7 +16,7 @@ const icons = {
         inactive: require("../../assets/icons/tabs/book.png"),
         active: require("../../assets/icons/tabs/book-active.png"),
     },
-    discount: {
+    myDeals: {
         inactive: require("../../assets/icons/tabs/discount.png"),
         active: require("../../assets/icons/tabs/discount-active.png"),
     },
@@ -28,8 +28,8 @@ const icons = {
 
 function TabIcon({ name, focused, size }) {
     const icon = icons[name];
-    const activeSize = size?.active ?? { width: 54, height: 54 };
-    const inactiveSize = size?.inactive ?? { width: 28, height: 28 };
+    const activeSize = size?.active ?? { width: 48, height: 48 };
+    const inactiveSize = size?.inactive ?? { width: 26, height: 26 };
     return (
         <Image
             source={focused ? icon.active : icon.inactive}
@@ -50,13 +50,13 @@ export default function TabsLayout() {
                 tabBarStyle: searchActive ? { display: 'none' } : {
                     position: "absolute",
                     bottom: Platform.OS === "ios" ? 0 : -1,
-                    borderTopRightRadius: 50,
-                    borderTopLeftRadius: 50,
+                    borderTopRightRadius: 45,
+                    borderTopLeftRadius: 45,
                     borderTopColor: "transparent",
                     backgroundColor: "#fff",
-                    paddingTop: 25,
+                    paddingTop: 15,
                     paddingHorizontal: 15,
-                    height: Platform.OS === "ios" ? 95 : 90,
+                    height: Platform.OS === "ios" ? 85 : 80,
                     ...Platform.select({
                         ios: {
                             shadowColor: "#000",
@@ -96,18 +96,19 @@ export default function TabsLayout() {
                             name="visit"
                             focused={focused}
                             size={{
-                                active: { width: 64, height: 64, position: "absolute", bottom: 5 },
-                                inactive: { width: 64, height: 64, position: "absolute", bottom: 5 },
+                                active: { width: 62, height: 62, position: "absolute", bottom: 3 },
+                                inactive: { width: 62, height: 62, position: "absolute", bottom: 3 },
                             }}
                         />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="discount"
+                name="myDeals"
                 options={{
-                    headerTitle: "Discount",
-                    tabBarIcon: ({ focused }) => <TabIcon name="discount" focused={focused} />,
+                    headerTitle: "Deal manager",
+                    headerTitleAlign: "center",
+                    tabBarIcon: ({ focused }) => <TabIcon name="myDeals" focused={focused} />,
                 }}
             />
             <Tabs.Screen
