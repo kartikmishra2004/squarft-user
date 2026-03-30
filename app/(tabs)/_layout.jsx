@@ -16,7 +16,7 @@ const icons = {
         inactive: require("../../assets/icons/tabs/book.png"),
         active: require("../../assets/icons/tabs/book-active.png"),
     },
-    discount: {
+    myDeals: {
         inactive: require("../../assets/icons/tabs/discount.png"),
         active: require("../../assets/icons/tabs/discount-active.png"),
     },
@@ -104,10 +104,11 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="discount"
+                name="myDeals"
                 options={{
-                    headerTitle: "Discount",
-                    tabBarIcon: ({ focused }) => <TabIcon name="discount" focused={focused} />,
+                    headerTitle: "Deal manager",
+                    headerTitleAlign: "center",
+                    tabBarIcon: ({ focused }) => <TabIcon name="myDeals" focused={focused} />,
                 }}
             />
             <Tabs.Screen
