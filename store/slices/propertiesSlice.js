@@ -8,6 +8,7 @@ const propertiesSlice = createSlice({
         projectsInFocus: projectsInFocus.map((p) => ({ ...p })),
         missed: missedProperties.map((p) => ({ ...p })),
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
+        favouriteProjects: [],
         selectedCategory: 'all',
         searchQuery: '',
     },
@@ -18,6 +19,11 @@ const propertiesSlice = createSlice({
 
             const missed = state.missed.find((p) => p.id === action.payload);
             if (missed) missed.isFavourite = !missed.isFavourite;
+
+            // also toggle for projects
+            const idx = state.favouriteProjects.indexOf(action.payload);
+            if (idx === -1) state.favouriteProjects.push(action.payload);
+            else state.favouriteProjects.splice(idx, 1);
         },
         setSelectedCategory: (state, action) => {
             state.selectedCategory = action.payload;

@@ -27,6 +27,7 @@ import { openFilter } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
 import { useState } from "react";
 import { router } from "expo-router";
+import FeaturedCard from "../../components/FeaturedCard";
 
 const CATEGORIES = [
   { id: "1", label: "Flat", icon: "office-building" },
@@ -104,57 +105,6 @@ function RecommendedCard({ item, onToggleFav }) {
           <MaterialCommunityIcons name="shower" size={13} color="#F97316" />
           <Text className="text-[11px] text-gray-400">{item.baths}</Text>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function FeaturedCard({ item, onToggleFav }) {
-  return (
-    <TouchableOpacity
-      onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
-      activeOpacity={0.85}
-      className="w-[300px] bg-white rounded-[16px] overflow-hidden mr-3.5"
-      style={cardShadow}
-    >
-      <View className="relative">
-        <Image
-          source={item.image}
-          className="w-full h-[185px]"
-          resizeMode="cover"
-        />
-        <View className="absolute text-[10px] top-4 left-4 bg-indigo-600 px-3 py-1.5 rounded-[9999px]">
-          <Text className="text-white font-inter-bold text-[11px]">FEATURED</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => onToggleFav(item.id)}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            backgroundColor: "rgba(255,255,255,0.9)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons
-            name={item.isFavourite ? "heart" : "heart-outline"}
-            size={20}
-            color={item.isFavourite ? "#EF4444" : "#9CA3AF"}
-          />
-        </TouchableOpacity>
-      </View>
-      <View className="p-4">
-        <Text className="text-[16px] font-inter-bold text-[#1F2937] mb-0">
-          {item.title}
-        </Text>
-        <Text className="text-[12px] font-inter-regular mb-1 text-[#6B7280]">{item.location}</Text>
-        <Text className="text-[14px] font-inter-bold text-[#111827]">
-          {item.priceINR}
-        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -293,7 +243,7 @@ export default function Home() {
                   height: 92,
                   backgroundColor: "#fff",
                   //borderRadius: 12,
-                  shadowColor: "#000000",
+                  shadowColor: "#6B7280",
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.0004,
                   shadowRadius: 10,
