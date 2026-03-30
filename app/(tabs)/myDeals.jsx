@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import {
     View,
     Text,
@@ -9,6 +10,8 @@ import {
     Ionicons,
 } from "@expo/vector-icons";
 import { useState } from "react";
+import { Link } from "expo-router";
+import { dealsData } from "../../data/my-deals";
 
 const FILTERS = ["All Deals", "Payment Pending", "Closed"];
 const STEPS = ["Lead", "Visit", "Deal", "Payment", "Closure"];
@@ -23,7 +26,10 @@ const cardShadow = {
 
 export default function MyDeals() {
     const [activeFilter, setActiveFilter] = useState("All Deals");
-    const [currentStep, setCurrentStep] = useState(2);
+
+    const filteredDeals = activeFilter === "All Deals" 
+        ? dealsData 
+        : dealsData.filter(deal => deal.category === activeFilter);
 
     return (
         <View className="flex-1 bg-[#FCFCFD]">
@@ -63,67 +69,73 @@ export default function MyDeals() {
                         </ScrollView>
                     </View>
 
-                    {activeFilter === "All Deals" ? (
-                        <View className="bg-white rounded-[36px] p-5 border border-black/5" style={cardShadow}>
-                            <View className="w-full h-[210px] rounded-[28px] overflow-hidden relative">
-                                <Image
-                                    source={{ uri: "https://images.unsplash.com/photo-1425913397330-cf8af2ff40a1?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" }}
-                                    className="w-full h-full"
-                                    resizeMode="cover"
-                                />
-                                <View className="absolute top-3 left-3 bg-white/95 px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5">
-                                    <Ionicons name="checkmark-sharp" size={9} color="#1A5940" />
-                                    <Text className="text-[9px] font-manrope-semibold text-[#1A5940] tracking-[0.5px]">VERIFIED</Text>
+                    {filteredDeals.length > 0 ? (
+                        filteredDeals.map((deal) => (
+                            <View key={deal.id} className="bg-white rounded-[36px] p-5 border border-black/5 mb-6" style={cardShadow}>
+                                <View className="w-full h-[210px] rounded-[28px] overflow-hidden relative">
+                                    <Image
+                                        source={{ uri: deal.imageUri }}
+                                        className="w-full h-full"
+                                        resizeMode="cover"
+                                    />
+                                    {deal.isVerified && (
+                                        <View className="absolute top-3 left-3 bg-white/95 px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5">
+                                            <Ionicons name="checkmark-sharp" size={9} color="#1A5940" />
+                                            <Text className="text-[9px] font-manrope-semibold text-[#1A5940] tracking-[0.5px]">VERIFIED</Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                <View className="pt-6 px-1">
+                                    <View className="flex-row justify-between items-center mb-1">
+                                        <Text className="text-[21px] font-inter-extrabold text-[#1F2937] flex-1" numberOfLines={1}>{deal.title}</Text>
+                                        <Text className="text-[19px] font-inter-black text-[#6231FF]">{deal.price}</Text>
+                                    </View>
+
+                                    <View className="flex-row items-center gap-1 mb-5">
+                                        <Ionicons name="location-sharp" size={13} color="#9CA3AF" />
+                                        <Text className="text-[14px] font-inter-semibold text-[#9CA3AF]">{deal.location}</Text>
+                                    </View>
+
+                                    <View className="flex-row justify-end mb-8">
+                                        <View className="flex-row items-center bg-[#F4F1FF] px-3.5 py-2.5 rounded-full gap-2">
+                                            <View className="flex-row items-center w-5 h-3 relative">
+                                                <View className="w-3.5 h-3.5 rounded-full bg-[#6231FF] z-10" />
+                                                <View className="w-2.5 h-2.5 rounded-full bg-[#6231FF] opacity-25 absolute right-0" />
+                                            </View>
+                                            <Text className="text-[12px] font-inter-bold text-[#6231FF]">{deal.dealStatusText}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View className="mb-10 mx-1">
+                                        <View className="flex-row items-center justify-between relative h-7 px-3">
+                                            <View className="absolute left-3 right-3 h-full justify-center">
+                                                <View className="h-[1.5px] bg-[#E2E8F0]" />
+                                                <View
+                                                    className="h-[1.5px] bg-[#6231FF]"
+                                                    style={{ width: `${(deal.currentStep / (STEPS.length - 1)) * 100}%` }}
+                                                />
+                                            </View>
+                                            {STEPS.map((label, index) => (
+                                                <WorkflowStep
+                                                    key={label}
+                                                    label={label}
+                                                    isActive={index <= deal.currentStep}
+                                                    isCurrent={index === deal.currentStep}
+                                                />
+                                            ))}
+                                        </View>
+                                        <View className="h-4" />
+                                    </View>
+
+                                    <Link href="/assisted-journy" asChild>
+                                        <TouchableOpacity activeOpacity={0.8} className="bg-[#6231FF] py-4 rounded-2xl items-center">
+                                            <Text className="text-white text-[16px] font-inter-bold">View Details</Text>
+                                        </TouchableOpacity>
+                                    </Link>
                                 </View>
                             </View>
-
-                            <View className="pt-6 px-1">
-                                <View className="flex-row justify-between items-center mb-1">
-                                    <Text className="text-[21px] font-inter-extrabold text-[#1F2937] flex-1" numberOfLines={1}>Serenity Reserve</Text>
-                                    <Text className="text-[19px] font-inter-black text-[#6231FF]">₹2.5 Cr</Text>
-                                </View>
-
-                                <View className="flex-row items-center gap-1 mb-5">
-                                    <Ionicons name="location-sharp" size={13} color="#9CA3AF" />
-                                    <Text className="text-[14px] font-inter-semibold text-[#9CA3AF]">Scheme No 140, Indore</Text>
-                                </View>
-
-                                <View className="flex-row justify-end mb-8">
-                                    <View className="flex-row items-center bg-[#F4F1FF] px-3.5 py-2.5 rounded-full gap-2">
-                                        <View className="flex-row items-center w-5 h-3 relative">
-                                            <View className="w-3.5 h-3.5 rounded-full bg-[#6231FF] z-10" />
-                                            <View className="w-2.5 h-2.5 rounded-full bg-[#6231FF] opacity-25 absolute right-0" />
-                                        </View>
-                                        <Text className="text-[12px] font-inter-bold text-[#6231FF]">Deal Started</Text>
-                                    </View>
-                                </View>
-
-                                <View className="mb-10 mx-1">
-                                    <View className="flex-row items-center justify-between relative h-7 px-3">
-                                        <View className="absolute left-3 right-3 h-full justify-center">
-                                            <View className="h-[1.5px] bg-[#E2E8F0]" />
-                                            <View
-                                                className="h-[1.5px] bg-[#6231FF]"
-                                                style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                                            />
-                                        </View>
-                                        {STEPS.map((label, index) => (
-                                            <WorkflowStep
-                                                key={label}
-                                                label={label}
-                                                isActive={index <= currentStep}
-                                                isCurrent={index === currentStep}
-                                            />
-                                        ))}
-                                    </View>
-                                    <View className="h-4" />
-                                </View>
-
-                                <TouchableOpacity activeOpacity={0.8} className="bg-[#6231FF] py-4 rounded-2xl items-center">
-                                    <Text className="text-white text-[16px] font-inter-bold">View Details</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+                        ))
                     ) : (
                         <View className="flex-1 justify-center items-center py-20">
                             <Text className="text-gray-400 font-inter-medium">No deals for {activeFilter}</Text>
