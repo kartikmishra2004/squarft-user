@@ -4,42 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import EmptyState from "./EmptyState";
 
-const SEEN_PROPERTIES = [
-  {
-    id: "serenity_1",
-    builder: "Prakrati Realtors Private Limited",
-    zeroBrokerage: true,
-    mainImage: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    sideImage: "https://images.unsplash.com/photo-1756435292384-1bf32eff7baf?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageCount: 28,
-    possession: "Apr, 2027",
-    avgPrice: "₹9.25k",
-    title: "Serenity Reserve",
-    isRera: true,
-    location: "Scheme No 140, Indore",
-    options: [
-      { type: "3 BHK APARTMENT", price: "₹2.5 Cr - ₹2.6 Cr" },
-      { type: "4 BHK APARTMENT", price: "₹3.5 Cr" },
-    ]
-  },
-  {
-    id: "serenity_2",
-    builder: "Prakrati Realtors Private Limited",
-    zeroBrokerage: true,
-    mainImage: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    sideImage: "https://images.unsplash.com/photo-1756435292384-1bf32eff7baf?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    imageCount: 28,
-    possession: "Apr, 2027",
-    avgPrice: "₹9.25k",
-    title: "Serenity Reserve",
-    isRera: true,
-    location: "Scheme No 140, Indore",
-    options: [
-      { type: "3 BHK APARTMENT", price: "₹2.5 Cr - ₹2.6 Cr" },
-      { type: "4 BHK APARTMENT", price: "₹3.5 Cr" },
-    ]
-  },
-];
+const SEEN_PROPERTIES = [];
 
 const SeenTabContent = () => {
   if (SEEN_PROPERTIES.length === 0) {

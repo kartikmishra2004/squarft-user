@@ -2,11 +2,14 @@ import React from "react";
 import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
+import { useSelector } from "react-redux";
+import { router } from "expo-router";
 import EmptyState from "./EmptyState";
 
-const SAVED_PROPERTIES = [];
-
 const SavedTabContent = () => {
+  const { properties } = useSelector((state) => state.properties);
+  const SAVED_PROPERTIES = properties.filter((p) => p.isFavourite);
+
   if (SAVED_PROPERTIES.length === 0) {
     return <EmptyState type="SAVED" />;
   }
@@ -19,7 +22,7 @@ const SavedTabContent = () => {
           <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
             <View className="flex-row h-44 w-full">
               <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                <Image source={{ uri: property.mainImage }} className="w-full h-full" resizeMode="cover" />
+                <Image source={property.image} className="w-full h-full" resizeMode="cover" />
                 <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
                   <Text className="text-white text-[10px] font-manrope">{property.builder}</Text>
                 </View>
@@ -30,19 +33,19 @@ const SavedTabContent = () => {
                 )}
               </View>
               <View className="flex-[1] relative bg-gray-200">
-                <Image source={{ uri: property.sideImage }} className="w-full h-full" resizeMode="cover" />
+                <Image source={property.imageThumb} className="w-full h-full" resizeMode="cover" />
                 <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                  <Text className="text-white text-[10px] font-manrope">1/{property.imageCount}</Text>
+                  <Text className="text-white text-[10px] font-manrope">1/{property.totalImages}</Text>
                 </View>
               </View>
             </View>
             <View className="px-4 pt-4 pb-3">
               <Text className="text-[11px] text-[#6B7280] font-manrope mb-[6px]">
-                Possession: {property.possession}  •  Avg Price per sq ft: {property.avgPrice}
+                Possession: {property.possession}  •  Avg Price per sq ft: {property.avgPricePerSqft}
               </Text>
               <View className="flex-row items-center mb-1">
                 <Text className="text-[17px] font-manrope-extrabold text-[#111827]">{property.title}</Text>
-                {property.isRera && (
+                {property.rera && (
                   <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-3">
                     <Text className="text-[#00B67A] text-[9px] font-manrope-extrabold mr-1">RERA</Text>
                     <View className="w-[10px] h-[10px] bg-[#00B67A] rounded-full items-center justify-center">
@@ -56,16 +59,21 @@ const SavedTabContent = () => {
             <View className="mx-4 mb-3" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
             <View className="flex-row justify-between px-4 pb-4">
               <View>
-                <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.options[0].type}</Text>
-                <Text className="text-[15px] font-manrope-extrabold text-[#111827] mt-1">{property.options[0].price}</Text>
+                <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.variants[0]?.type}</Text>
+                <Text className="text-[15px] font-manrope-extrabold text-[#111827] mt-1">{property.variants[0]?.priceRange}</Text>
               </View>
-              <View className="items-end">
-                <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.options[1].type}</Text>
-                <Text className="text-[15px] font-manrope-extrabold text-[#111827] mt-1">{property.options[1].price}</Text>
-              </View>
+              {property.variants[1] && (
+                <View className="items-end">
+                  <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.variants[1].type}</Text>
+                  <Text className="text-[15px] font-manrope-extrabold text-[#111827] mt-1">{property.variants[1].priceRange}</Text>
+                </View>
+              )}
             </View>
             <View className="px-4 pb-4">
-              <Pressable className="w-full border border-[#4A43EC] rounded-xl py-3 items-center justify-center">
+              <Pressable
+                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: property.id } })}
+                className="w-full border border-[#4A43EC] rounded-xl py-3 items-center justify-center"
+              >
                 <Text className="text-[#4A43EC] font-manrope-extrabold text-[14px]">View details</Text>
               </Pressable>
             </View>
