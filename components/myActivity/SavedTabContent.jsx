@@ -17,9 +17,9 @@ const SavedTabContent = () => {
   return (
     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       <StatusBar style="dark" />
-      <View className="mt-4 px-4 mb-6">
+      <View className="mt-10 px-4 mb-6">
         {SAVED_PROPERTIES.map((property, index) => (
-          <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+          <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
             <View className="flex-row h-36 w-full">
               <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
                 <Image source={property.image} className="w-full h-full" resizeMode="cover" />
