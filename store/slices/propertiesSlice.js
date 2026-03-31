@@ -25,6 +25,18 @@ const propertiesSlice = createSlice({
             if (idx === -1) state.favouriteProjects.push(action.payload);
             else state.favouriteProjects.splice(idx, 1);
         },
+        toggleSeen: (state, action) => {
+            const item = state.properties.find((p) => p.id === action.payload);
+            if (item) item.isSeen = !item.isSeen;
+        },
+        toggleContacted: (state, action) => {
+            const item = state.properties.find((p) => p.id === action.payload);
+            if (item) item.isContacted = !item.isContacted;
+        },
+        toggleRecent: (state, action) => {
+            const item = state.properties.find((p) => p.id === action.payload);
+            if (item) item.isRecent = !item.isRecent;
+        },
         setSelectedCategory: (state, action) => {
             state.selectedCategory = action.payload;
         },
@@ -34,5 +46,5 @@ const propertiesSlice = createSlice({
     },
 });
 
-export const { toggleFavourite, setSelectedCategory, setSearchQuery } = propertiesSlice.actions;
+export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery } = propertiesSlice.actions;
 export default propertiesSlice.reducer;
