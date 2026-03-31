@@ -1,9 +1,11 @@
 import { View, Text, ScrollView, Image, TouchableOpacity, Dimensions, ImageBackground } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { useState } from "react";
 import { allProjects } from "../../data/projects";
 import FeaturedCard from "../FeaturedCard";
 import { getResaleByProject } from "../../data/resaleProperties";
+import BuilderModal from "./BuilderModal";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.55;
@@ -20,6 +22,7 @@ const cardShadow = {
 };
 
 export default function Overview({ project }) {
+    const [builderModalVisible, setBuilderModalVisible] = useState(false);
     return (
         <View>
             
@@ -68,10 +71,16 @@ export default function Overview({ project }) {
                         </TouchableOpacity>
                     </View>
                 </View>
-                <TouchableOpacity className="border border-indigo-500 rounded-xl px-4 py-2.5 ml-3">
+                <TouchableOpacity onPress={() => setBuilderModalVisible(true)} className="border border-indigo-500 rounded-xl px-4 py-2.5 ml-3">
                     <Text className="text-[12px] font-manrope-bold text-indigo-600">View Details</Text>
                 </TouchableOpacity>
             </View>
+
+            <BuilderModal
+                visible={builderModalVisible}
+                onClose={() => setBuilderModalVisible(false)}
+                project={project}
+            />
 
             {/* Other details */}
             <Text className="text-[15px] font-manrope-bold text-gray-900 mx-5 mb-6">Other details</Text>

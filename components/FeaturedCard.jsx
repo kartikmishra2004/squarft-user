@@ -20,13 +20,13 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
         <TouchableOpacity
             onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
             activeOpacity={0.85}
-            className="w-[280px] bg-white rounded-2xl overflow-hidden mr-3.5"
+            className="w-[278px] bg-white rounded-2xl overflow-hidden mr-3.5"
             style={cardShadow}
         >
             <View className="relative">
-                <Image source={image} className="w-full h-[185px]" resizeMode="cover" />
-                <View className="absolute top-4 left-4 bg-indigo-600 px-3 py-1.5 rounded-full">
-                    <Text className="text-white font-inter-bold text-[11px]">FEATURED</Text>
+                <Image source={image} className="w-[278px] h-[150px]" resizeMode="cover" />
+                <View className="absolute top-4 left-4 bg-[#6C3BFF] px-3 py-1.5 rounded-full">
+                    <Text className="text-white font-inter-bold text-[10px]">FEATURED</Text>
                 </View>
                 {onToggleFav && (
                     <TouchableOpacity
@@ -41,7 +41,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
                     </TouchableOpacity>
                 )}
             </View>
-            <View className="p-4">
+            <View className="px-4 py-2">
                 <Text className="text-[15px] font-inter-bold text-[#1F2937] mb-0.5">{title}</Text>
                 <Text className="text-[12px] font-inter-regular text-[#6B7280] mb-2">{item.location}</Text>
                 <View className="flex-row items-center justify-between">
