@@ -19,7 +19,7 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
@@ -45,7 +45,7 @@ const cardShadow = {
   elevation: 0.5,
 };
 
-function RecommendedCard({ item, onToggleFav }) {
+function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, onToggleRecent }) {
   return (
     <TouchableOpacity
       onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
@@ -135,6 +135,9 @@ export default function Home() {
  
 
   const handleToggleFav = (id) => dispatch(toggleFavourite(id));
+  const handleToggleSeen = (id) => dispatch(toggleSeen(id));
+  const handleToggleContacted = (id) => dispatch(toggleContacted(id));
+  const handleToggleRecent = (id) => dispatch(toggleRecent(id));
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
@@ -307,7 +310,15 @@ export default function Home() {
               paddingBottom: 12,
               paddingTop: 4,
             }}
-            renderItem={({ item }) => <RecommendedCard item={item} onToggleFav={handleToggleFav} />}
+            renderItem={({ item }) => (
+                <RecommendedCard 
+                    item={item} 
+                    onToggleFav={handleToggleFav}
+                    onToggleSeen={handleToggleSeen}
+                    onToggleContacted={handleToggleContacted}
+                    onToggleRecent={handleToggleRecent}
+                />
+            )}
           />
         </View>
 

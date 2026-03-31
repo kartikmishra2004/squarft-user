@@ -33,6 +33,9 @@ export const properties = allProjects.map((p) => ({
     variants: p.variants || [],
     tags: p.tags,
     isFavourite: false,
+    isSeen: false,
+    isContacted: false,
+    isRecent: false,
 }));
 
 export const recommendedProperties = properties.filter((p) =>
@@ -75,4 +78,7 @@ export const missedProperties = allProjects
         badge: i === 0 ? "TRENDING" : null,
         image: p.imageMain,
         isFavourite: false,
+        isSeen: false,
+        isContacted: false,
+        isRecent: false,
     }));
