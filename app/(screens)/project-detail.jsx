@@ -18,6 +18,7 @@ import Overview from "../../components/projectDetail/Overview";
 import Highlights from "../../components/projectDetail/Highlights";
 import PropertyTour from "../../components/projectDetail/PropertyTour";
 import BookVisitModal from "../../components/projectDetail/BookVisitModal";
+import DetailFooter from "../../components/projectDetail/DetailFooter";
 
 const frame260 = require("../../assets/images/Frame 26086854.png");
 const frame871 = require("../../assets/images/Frame 26086871.png");
@@ -248,28 +249,7 @@ export default function ProjectDetail() {
         className="absolute bottom-0 left-0 right-0 bg-white px-6 pt-3.5 border-t border-gray-100"
         style={{ paddingBottom: insets.bottom + 14 }}
       >
-        <View className="flex-row gap-3">
-          <TouchableOpacity className=" border border-1 px-10 border-[#4A43EC] rounded-2xl py-3 items-center">
-            <Text className="text-[#4A43EC] font-manrope-semibold text-[15px]">
-              Compare
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-[2] bg-indigo-600 rounded-2xl py-4 items-center"
-            onPress={() => setBookModalVisible(true)}
-            style={{
-              shadowColor: "#6C3BFF", 
-              shadowOffset: { width: 0, height: 10 }, 
-              shadowOpacity: 0.25, 
-              shadowRadius: 15, 
-              elevation: 8,
-            }}
-          >
-            <Text className="text-white text-[15px] font-manrope-semibold">
-              Book Site Visit
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <DetailFooter onBookVisit={() => setBookModalVisible(true)} />
       </View>
 
       <BookVisitModal

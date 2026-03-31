@@ -50,13 +50,13 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
     <TouchableOpacity
       onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
       activeOpacity={0.85}
-      className="bg-white rounded-3xl overflow-hidden mr-3 p-3"
-      style={{ width: 171, ...cardShadow }}
+      className="bg-white rounded-2xl overflow-hidden mr-3 p-2.5"
+      style={{ width: 166 }}
     >
       <View style={{ position: "relative" }}>
         <Image
           source={item.image}
-          style={{ width: 150, height: 148, borderRadius: 20 }}
+          style={{ width: 144, height: 140, borderRadius: 12 }}
           resizeMode="cover"
         />
         <TouchableOpacity
@@ -80,7 +80,7 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
           />
         </TouchableOpacity>
       </View>
-      <View className="px-1 pt-3 pb-3">
+      <View className="px-1 pt-2 pb-2">
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-[12px] font-manrope-semibold text-gray-900">
             {item.type}
@@ -93,16 +93,16 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
           <MaterialCommunityIcons
             name="vector-square"
             size={13}
-            color="#F97316"
+            color="#FE8A71"
           />
           <Text className="text-[11px] text-gray-400">{item.area}</Text>
           <MaterialCommunityIcons
             name="bed-outline"
             size={13}
-            color="#F97316"
+            color="#FE8A71"
           />
           <Text className="text-[11px] text-gray-400">{item.beds}</Text>
-          <MaterialCommunityIcons name="shower" size={13} color="#F97316" />
+          <MaterialCommunityIcons name="shower" size={13} color="#FE8A71" />
           <Text className="text-[11px] text-gray-400">{item.baths}</Text>
         </View>
       </View>
@@ -146,7 +146,7 @@ export default function Home() {
         {/* Header */}
         <View
           style={{
-            paddingTop: Platform.OS === "ios" ? insets.top : insets.top + 10 ,
+            paddingTop: Platform.OS === "ios" ? insets.top : insets.top + 7 ,
             position: "relative", 
             overflow: "hidden",
             backgroundColor: "#F9FAFB",
@@ -183,12 +183,12 @@ export default function Home() {
             //resizeMode="contain"
           />
           {/* Header Row */}
-          <View className="flex-row justify-between items-center px-5 pt-3 pb-4 mb-5">
-            <View className="flex-row items-center gap-6">
+          <View className="flex-row justify-between items-center px-5 pt-3 pb-4 mb-4">
+            <View className="flex-row items-center gap-4">
               <View className="w-[46px] h-[46px] relative">
                 <Image
                   source={currentUser.avatar}
-                  className="w-[54px] h-[54px] rounded-full border-2 border-white"
+                  className="w-[50px] h-[50px] rounded-full border-2 border-white"
                   resizeMode="cover"
                 />
               </View>
@@ -199,7 +199,7 @@ export default function Home() {
                   </Text>
                   <MaterialIcons name="verified" size={20} color="#3AFF08" />
                 </View>
-                <Text className="text-[12px] font-lato-regular text-gray-400 mt-1">
+                <Text className="text-[10px] font-lato-regular text-gray-400 mt-1">
                   {currentUser.joinedDate}
                 </Text>
               </View>
@@ -207,20 +207,21 @@ export default function Home() {
           </View>
 
           {/* Search */}
-          <View className="flex-row px-5 gap-3 mb-8">
-            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-2xl px-4 h-[46px] gap-[8px]" style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
+          <View className="flex-row px-5 gap-3 mb-5 ">
+            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-2xl px-4 h-[44px] gap-[8px]"  style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
               <FontAwesome name="search" size={20} color="#4A43EC" />
               <View className="w-[0.5px] self-stretch my-3 bg-[#7974E7]" />
               <TextInput
                 placeholder="Search..."
                 placeholderTextColor="#9CA3AF"
-                className="flex-1 text-base text-gray-700"
+                underlineColorAndroid="transparent"
+                className="flex-1 text-[14px] text-gray-700"
                                 caretHidden
                                 showSoftInputOnFocus={false}
                                 onFocus={() => dispatch(setSearchActive(true))}
               />
             </View>
-            <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[46px] gap-2">
+            <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[44px] gap-2">
               <AntDesign name="spotify" size={18} color="#7F88E5" />
               <Text className="text-white text-sm font-semibold">Filters</Text>
             </TouchableOpacity>
@@ -231,36 +232,36 @@ export default function Home() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingBottom: 20,
-              gap: 12,
+              paddingHorizontal: 21,
+              paddingBottom: 18,
+              gap: 13,
               paddingTop:10,
             }}
           >
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
-                className="items-center justify-center px-1 bg-white rounded-xl gap-4"
+                className="items-center justify-center bg-white rounded-xl gap-2"
                 style={{
-                  width: 76,
-                  height: 92,
+                  width: 64,
+                  height: 78,
                   backgroundColor: "#fff",
                   //borderRadius: 12,
                   shadowColor: "#6B7280",
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.0004,
-                  shadowRadius: 10,
-                  elevation: 10,
+                  shadowOpacity: 0.15,
+                  shadowRadius: 45,
+                  elevation: 8,
                   
                   
                 }}
               >
                 <MaterialCommunityIcons
                   name={cat.icon}
-                  size={26}
+                  size={22}
                   color="#4F46E5"
                 />
-                <Text className="text-[10.5px] text-black font-inter-regular">
+                <Text className="text-[9px] text-black font-inter-regular">
                   {cat.label}
                 </Text>
               </TouchableOpacity>
@@ -271,7 +272,7 @@ export default function Home() {
         {/* Recommended Properties */}
         <View style={{ position: "relative" }}>
           <Image
-            source={require("../../assets/images/Ellipse 70 (1).png")}
+            source={require("../../assets/images/Ellipse 70 (2).png")}
             pointerEvents="none"
             style={{
               position: "absolute",
@@ -286,12 +287,12 @@ export default function Home() {
             }}
             resizeMode="contain"
           />
-          <View className="flex-row justify-between items-center px-4 mt-3 mb-3">
-            <Text className="text-lg font-manrope-extrabold text-gray-900">
+          <View className="flex-row justify-between items-center px-4 mt-2 mb-3">
+            <Text className="text-[15px] font-manrope-extrabold text-gray-900">
               Recommended Properties
             </Text>
             <TouchableOpacity className="flex-row items-center">
-              <Text className="text-sm text-indigo-500 font-manrope-bold">
+              <Text className="text-[12px] text-indigo-500 font-manrope-bold">
                 See All
               </Text>
               <Octicons name="triangle-right" size={22} color="#6C3BFF" />
@@ -322,28 +323,39 @@ export default function Home() {
         </View>
 
         {/* Featured Projects */}
-        <View className="flex-row justify-between items-center px-5 mt-4 mb-6">
-          <Text className="text-lg font-manrope-extrabold text-gray-900">
-            Featured Projects
-          </Text>
-          <TouchableOpacity>
-            <Text className="text-sm text-indigo-500 font-manrope-bold">
-              View All
-            </Text>
-          </TouchableOpacity>
+        <View style={{ position: "relative" }}>
+          <Image
+            source={require("../../assets/images/Ellipse 70 (2).png")}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: 103,
+              top: 20,
+              width: 344,
+              height: 287,
+              opacity: 0.58,
+            }}
+            resizeMode="contain"
+          />
+          <View className="flex-row justify-between items-center px-5 mt-1 mb-5">
+            <Text className="text-[15px] font-manrope-extrabold text-gray-900">Featured Projects</Text>
+            <TouchableOpacity>
+              <Text className="text-[12px] text-indigo-500 font-manrope-bold">View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={featured}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}
+            renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
+          />
         </View>
 
-        <FlatList
-          data={featured}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}
-          renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
-        />
-
         {/* Cashback Banner */}
-        <View className="mx-6 mt-6 mb-2 rounded-3xl overflow-hidden opacity-74" style={{ backgroundColor: "#6A5AE0", height: 120 }}>
+        <View className="mx-6 mt-6 mb-2 rounded-3xl overflow-hidden opacity-74" style={{ backgroundColor: "#6A5AE0", height: 115 }}>
             {/* Dark circle behind building */}
             <View style={{
                 position: "absolute",
@@ -370,7 +382,7 @@ export default function Home() {
 
         {/* Project in Focus */}
         <View className="flex-row justify-between items-center px-5 mt-6 mb-6">
-            <Text className="text-lg font-manrope-extrabold text-gray-900">Project in focus</Text>
+            <Text className="text-[15px] font-manrope-extrabold text-gray-900">Project in focus</Text>
             <TouchableOpacity>
                 <Text className="text-sm text-indigo-500 font-manrope-bold">View All</Text>
             </TouchableOpacity>
@@ -392,8 +404,8 @@ export default function Home() {
                 </View>
                 {/* Text bottom left */}
                 <View className="absolute bottom-4 left-4">
-                    <Text className="text-[13px] font-public-bold text-[#e0733d] tracking-widest mb-1 zIndex-1">{project.tag}</Text>
-                    <Text className="text-2xl font-public-bold text-white mb-0">{project.title}</Text>
+                    <Text className="text-[12px] font-public-bold text-[#e0733d] tracking-widest mb-1 zIndex-1">{project.tag}</Text>
+                    <Text className="text-[20px] font-public-bold text-white mb-0">{project.title}</Text>
                     <Text className="text-[14px] font-public-regular text-[#CBD5E1]">{project.subtitle}</Text>
                 </View>
             </TouchableOpacity>
@@ -401,7 +413,7 @@ export default function Home() {
 
         {/* In case you missed */}
         <View className="px-5 mt-4 mb-3">
-            <Text className="text-lg font-manrope-extrabold text-[#0F172A]">In case you missed</Text>
+            <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">In case you missed</Text>
             <Text className="text-[13px] font-manrope-medium text-gray-400 mb-3 mt-0.5">{`3 Properties you liked but didn't contact`}</Text>
         </View>
 
@@ -471,7 +483,7 @@ export default function Home() {
 
         {/* High Growth Localities */}
         <View className="flex-row justify-between items-center px-5 mt-10 mb-5">
-            <Text className="text-lg font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
+            <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
             <TouchableOpacity>
                 <Text className="text-sm text-indigo-500 font-manrope-bold">View All</Text>
             </TouchableOpacity>
