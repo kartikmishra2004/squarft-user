@@ -26,7 +26,7 @@ export default function Favourite() {
   return (
     <View className="flex-1 bg-white">
       <View className="flex-1 bg-white">
-        <View className="flex-row justify-between items-center px-2 pt-4">
+        <View className="flex-row justify-between items-center px-2 pt-8">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const primaryColor = "#4A43EC";
