@@ -21,8 +21,8 @@ export default function AssistedJourny() {
                             <Ionicons name="arrow-back" size={20} color="#6231FF" />
                         </TouchableOpacity>
                         <View>
-                            <Text className="text-[17px] font-inter-bold text-[#111827]">Assisted Journey</Text>
-                            <Text className="text-[13px] font-inter-medium text-[#6B7280]">ID: {personInfo.id}</Text>
+                            <Text className="text-[15px] font-inter-bold text-[#111827]">Assisted Journey</Text>
+                            <Text className="text-[11px] font-inter-medium text-[#6B7280]">ID: {personInfo.id}</Text>
                         </View>
                     </View>
                     <View className="flex-row gap-2">
@@ -49,22 +49,22 @@ export default function AssistedJourny() {
 
                                 <View className="flex-1 pt-1">
                                     <View className="flex-row justify-between items-start mb-0.5">
-                                        <Text className="text-[17px] font-inter-bold text-[#111827]">{personInfo.name}</Text>
+                                        <Text className="text-[15px] font-inter-bold text-[#111827]">{personInfo.name}</Text>
                                         <View className="bg-[#F4F1FF] px-2 py-1 rounded-lg flex-row items-center gap-1">
-                                            <Ionicons name="star-outline" size={12} color="#6231FF" />
-                                            <Text className="text-[12px] font-inter-bold text-[#6231FF]">{personInfo.rating}</Text>
+                                            <Ionicons name="star-outline" size={10} color="#6231FF" />
+                                            <Text className="text-[11px] font-inter-bold text-[#6231FF]">{personInfo.rating}</Text>
                                         </View>
                                     </View>
-                                    <Text className="text-[13px] font-inter-medium text-[#6B7280] mb-3">{personInfo.role}</Text>
+                                    <Text className="text-[11px] font-inter-medium text-[#6B7280] mb-2">{personInfo.role}</Text>
 
-                                    <View className="flex-row gap-2.5 mt-2">
-                                        <TouchableOpacity activeOpacity={0.8} className="flex-1 bg-[#6231FF] py-2.5 rounded-xl flex-row justify-center items-center gap-1.5">
-                                            <Ionicons name="chatbubble-ellipses" size={15} color="white" />
-                                            <Text className="text-white text-[13px] font-inter-semibold">Message</Text>
+                                    <View className="flex-row gap-2 mt-2">
+                                        <TouchableOpacity activeOpacity={0.8} className="flex-1 bg-[#6231FF] py-2 rounded-xl flex-row justify-center items-center gap-1">
+                                            <Ionicons name="chatbubble-ellipses" size={13} color="white" />
+                                            <Text className="text-white text-[12px] font-inter-semibold">Message</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity activeOpacity={0.8} className="flex-1 bg-[#F3F4F6] py-2.5 rounded-xl flex-row justify-center items-center gap-1.5">
-                                            <Feather name="phone" size={14} color="#4B5563" />
-                                            <Text className="text-[#4B5563] text-[13px] font-inter-semibold">Call</Text>
+                                        <TouchableOpacity activeOpacity={0.8} className="flex-1 bg-[#F3F4F6] py-2 rounded-xl flex-row justify-center items-center gap-1">
+                                            <Feather name="phone" size={12} color="#4B5563" />
+                                            <Text className="text-[#4B5563] text-[12px] font-inter-semibold">Call</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -72,10 +72,10 @@ export default function AssistedJourny() {
                         </View>
                     </View>
 
-                    <View className="px-5 mt-8 mb-6 flex-row justify-between items-center">
-                        <Text className="text-[16px] font-inter-bold text-[#111827]">Timeline Progress</Text>
+                    <View className="px-5 mt-6 mb-5 flex-row justify-between items-center">
+                        <Text className="text-[14px] font-inter-bold text-[#111827]">Timeline Progress</Text>
                         <View className="bg-[#EBE5FF] px-3 py-1.5 rounded-full">
-                            <Text className="text-[12px] font-inter-semibold text-[#6231FF]">Stage 5 of 8</Text>
+                            <Text className="text-[11px] font-inter-semibold text-[#6231FF]">Stage 5 of 8</Text>
                         </View>
                     </View>
 
@@ -105,25 +105,25 @@ export default function AssistedJourny() {
                                         </View>
                                     )}
                                     {item.actionText && item.actionIcon && (
-                                        <View className="mt-3 flex-row items-center bg-[#F3F4F6] px-3 py-2 rounded-[10px] self-start gap-2">
-                                            <Feather name={item.actionIcon} size={13} color="#6231FF" />
-                                            <Text className="text-[12px] font-inter-semibold text-[#1F2937]">{item.actionText}</Text>
+                                        <View className="mt-3 flex-row items-center bg-[#F3F4F6] px-2 py-1.5 rounded-[8px] self-start gap-1.5">
+                                            <Feather name={item.actionIcon} size={12} color="#6231FF" />
+                                            <Text className="text-[11px] font-inter-semibold text-[#1F2937]">{item.actionText}</Text>
                                         </View>
                                     )}
                                     {item.description && (
                                         <>
-                                            <Text className="text-[13.5px] font-inter-medium text-[#6B7280] mt-1 pr-4 leading-5">
+                                            <Text className="text-[12px] font-inter-medium text-[#6B7280] mt-1 pr-4 leading-4 flex-1 mt-1 mb-1">
                                                 {item.description}
                                             </Text>
                                             {item.askingPrice && item.currentOffer && (
-                                                <View className="mt-4 bg-[#FCFAFF] border border-[#EBE5FF] rounded-2xl p-4">
-                                                    <View className="flex-row justify-between items-center mb-2.5">
-                                                        <Text className="text-[13px] font-inter-medium text-[#6B7280]">Asking Price:</Text>
-                                                        <Text className="text-[14px] font-inter-bold text-[#111827]">{item.askingPrice}</Text>
+                                                <View className="mt-3 bg-[#FCFAFF] border border-[#EBE5FF] rounded-xl p-3">
+                                                    <View className="flex-row justify-between items-center mb-1.5">
+                                                        <Text className="text-[11px] font-inter-medium text-[#6B7280]">Asking Price:</Text>
+                                                        <Text className="text-[13px] font-inter-bold text-[#111827]">{item.askingPrice}</Text>
                                                     </View>
                                                     <View className="flex-row justify-between items-center">
-                                                        <Text className="text-[13px] font-inter-medium text-[#6B7280]">Current Offer:</Text>
-                                                        <Text className="text-[14px] font-inter-bold text-[#6231FF]">{item.currentOffer}</Text>
+                                                        <Text className="text-[11px] font-inter-medium text-[#6B7280]">Current Offer:</Text>
+                                                        <Text className="text-[13px] font-inter-bold text-[#6231FF]">{item.currentOffer}</Text>
                                                     </View>
                                                 </View>
                                             )}
@@ -161,17 +161,17 @@ const TimelineItem = ({ status, title, time, badge, iconName, children }) => {
             </View>
             <View className="flex-1">
                 <View className="flex-row items-center gap-2">
-                    <Text className={`text-[15px] font-inter-bold ${status === 'current' ? 'text-[#6231FF]' : status === 'pending' ? 'text-[#9CA3AF]' : 'text-[#1F2937]'}`}>
+                    <Text className={`text-[14px] font-inter-bold ${status === 'current' ? 'text-[#6231FF]' : status === 'pending' ? 'text-[#9CA3AF]' : 'text-[#1F2937]'}`}>
                         {title}
                     </Text>
                     {badge && (
-                        <View className="bg-[#6231FF] px-2 py-0.5 rounded-full">
-                            <Text className="text-[9px] font-inter-bold text-white tracking-wider">{badge}</Text>
+                        <View className="bg-[#6231FF] px-1.5 py-0.5 rounded-full">
+                            <Text className="text-[8px] font-inter-bold text-white tracking-wider">{badge}</Text>
                         </View>
                     )}
                 </View>
                 {time && (
-                    <Text className={`text-[13px] mt-0.5 font-inter-medium ${status === 'pending' ? 'text-[#D1D5DB]' : 'text-[#6B7280]'}`}>
+                    <Text className={`text-[11px] mt-0.5 font-inter-medium ${status === 'pending' ? 'text-[#D1D5DB]' : 'text-[#6B7280]'}`}>
                         {time}
                     </Text>
                 )}

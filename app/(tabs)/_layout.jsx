@@ -28,8 +28,8 @@ const icons = {
 
 function TabIcon({ name, focused, size }) {
     const icon = icons[name];
-    const activeSize = size?.active ?? { width: 48, height: 48 };
-    const inactiveSize = size?.inactive ?? { width: 26, height: 26 };
+    const activeSize = size?.active ?? { width: 44, height: 44 };
+    const inactiveSize = size?.inactive ?? { width: 24, height: 24 };
     return (
         <Image
             source={focused ? icon.active : icon.inactive}
@@ -96,8 +96,8 @@ export default function TabsLayout() {
                             name="visit"
                             focused={focused}
                             size={{
-                                active: { width: 62, height: 62, position: "absolute", bottom: 3 },
-                                inactive: { width: 62, height: 62, position: "absolute", bottom: 3 },
+                                active: { width: 56, height: 56, position: "absolute", bottom: 0 },
+                                inactive: { width: 56, height: 56, position: "absolute", bottom: 0 },
                             }}
                         />
                     ),
