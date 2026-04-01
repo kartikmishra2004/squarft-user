@@ -41,26 +41,26 @@ export default function MyDeals() {
                 }}
             >
                 <View className="px-5">
-                    <View className="mb-6">
-                        <Text className="text-[10px] font-manrope-semibold text-[#6231FF] tracking-[1.5px] mb-1.5 uppercase">YOUR PORTFOLIO</Text>
-                        <Text className="text-[26px] font-manrope-semibold text-[#111827]">My Deals</Text>
+                    <View className="mb-4">
+                        <Text className="text-[9px] font-manrope-semibold text-[#6231FF] tracking-[1px] mb-1 uppercase">YOUR PORTFOLIO</Text>
+                        <Text className="text-[20px] font-manrope-semibold text-[#111827]">My Deals</Text>
                     </View>
 
-                    <View className="mb-8 -mx-5">
+                    <View className="mb-6 -mx-5">
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+                            contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
                         >
                             {FILTERS.map((f) => (
                                 <TouchableOpacity
                                     key={f}
                                     onPress={() => setActiveFilter(f)}
                                     activeOpacity={0.8}
-                                    className={`px-[24px] py-[13px] rounded-full ${activeFilter === f ? 'bg-[#EBE5FF]' : 'bg-[#F3F4F6]'}`}
+                                    className={`px-[16px] py-[8px] rounded-full ${activeFilter === f ? 'bg-[#EBE5FF]' : 'bg-[#F3F4F6]'}`}
                                 >
                                     <Text
-                                        className={`text-[13px] font-inter-bold ${activeFilter === f ? 'text-[#6231FF]' : 'text-[#6B7280]'}`}
+                                        className={`text-[12px] font-inter-bold ${activeFilter === f ? 'text-[#6231FF]' : 'text-[#6B7280]'}`}
                                     >
                                         {f}
                                     </Text>
@@ -71,44 +71,44 @@ export default function MyDeals() {
 
                     {filteredDeals.length > 0 ? (
                         filteredDeals.map((deal) => (
-                            <View key={deal.id} className="bg-white rounded-[36px] p-5 border border-black/5 mb-6" style={cardShadow}>
-                                <View className="w-full h-[210px] rounded-[28px] overflow-hidden relative">
+                            <View key={deal.id} className="bg-white rounded-[16px] p-4 border border-black/5 mb-4" style={cardShadow}>
+                                <View className="w-full h-[160px] rounded-[12px] overflow-hidden relative">
                                     <Image
                                         source={{ uri: deal.imageUri }}
                                         className="w-full h-full"
                                         resizeMode="cover"
                                     />
                                     {deal.isVerified && (
-                                        <View className="absolute top-3 left-3 bg-white/95 px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5">
-                                            <Ionicons name="checkmark-sharp" size={9} color="#1A5940" />
-                                            <Text className="text-[9px] font-manrope-semibold text-[#1A5940] tracking-[0.5px]">VERIFIED</Text>
+                                        <View className="absolute top-2 left-2 bg-white/95 px-2 py-1 rounded-lg flex-row items-center gap-1">
+                                            <Ionicons name="checkmark-sharp" size={8} color="#1A5940" />
+                                            <Text className="text-[8px] font-manrope-semibold text-[#1A5940] tracking-[0.5px]">VERIFIED</Text>
                                         </View>
                                     )}
                                 </View>
 
-                                <View className="pt-6 px-1">
+                                <View className="pt-4 px-1">
                                     <View className="flex-row justify-between items-center mb-1">
-                                        <Text className="text-[21px] font-inter-extrabold text-[#1F2937] flex-1" numberOfLines={1}>{deal.title}</Text>
-                                        <Text className="text-[19px] font-inter-black text-[#6231FF]">{deal.price}</Text>
+                                        <Text className="text-[15px] font-inter-extrabold text-[#1F2937] flex-1" numberOfLines={1}>{deal.title}</Text>
+                                        <Text className="text-[14px] font-inter-black text-[#6231FF]">{deal.price}</Text>
                                     </View>
 
-                                    <View className="flex-row items-center gap-1 mb-5">
-                                        <Ionicons name="location-sharp" size={13} color="#9CA3AF" />
-                                        <Text className="text-[14px] font-inter-semibold text-[#9CA3AF]">{deal.location}</Text>
+                                    <View className="flex-row items-center gap-1 mb-4">
+                                        <Ionicons name="location-sharp" size={12} color="#9CA3AF" />
+                                        <Text className="text-[11px] font-inter-semibold text-[#9CA3AF]">{deal.location}</Text>
                                     </View>
 
-                                    <View className="flex-row justify-end mb-8">
-                                        <View className="flex-row items-center bg-[#F4F1FF] px-3.5 py-2.5 rounded-full gap-2">
-                                            <View className="flex-row items-center w-5 h-3 relative">
-                                                <View className="w-3.5 h-3.5 rounded-full bg-[#6231FF] z-10" />
-                                                <View className="w-2.5 h-2.5 rounded-full bg-[#6231FF] opacity-25 absolute right-0" />
+                                    <View className="flex-row justify-end mb-6">
+                                        <View className="flex-row items-center bg-[#F4F1FF] px-3 py-1.5 rounded-full gap-2">
+                                            <View className="flex-row items-center w-4 h-2.5 relative">
+                                                <View className="w-2.5 h-2.5 rounded-full bg-[#6231FF] z-10" />
+                                                <View className="w-2 h-2 rounded-full bg-[#6231FF] opacity-25 absolute right-0" />
                                             </View>
-                                            <Text className="text-[12px] font-inter-bold text-[#6231FF]">{deal.dealStatusText}</Text>
+                                            <Text className="text-[11px] font-inter-bold text-[#6231FF]">{deal.dealStatusText}</Text>
                                         </View>
                                     </View>
 
-                                    <View className="mb-10 mx-1">
-                                        <View className="flex-row items-center justify-between relative h-7 px-3">
+                                    <View className="mb-6 mx-1">
+                                        <View className="flex-row items-center justify-between relative h-6 px-3">
                                             <View className="absolute left-3 right-3 h-full justify-center">
                                                 <View className="h-[1.5px] bg-[#E2E8F0]" />
                                                 <View
@@ -125,12 +125,12 @@ export default function MyDeals() {
                                                 />
                                             ))}
                                         </View>
-                                        <View className="h-4" />
+                                        <View className="h-2" />
                                     </View>
 
                                     <Link href="/assisted-journy" asChild>
-                                        <TouchableOpacity activeOpacity={0.8} className="bg-[#6231FF] py-4 rounded-2xl items-center">
-                                            <Text className="text-white text-[16px] font-inter-bold">View Details</Text>
+                                        <TouchableOpacity activeOpacity={0.8} className="bg-[#6231FF] py-[10px] rounded-xl items-center">
+                                            <Text className="text-white text-[13px] font-inter-bold">View Details</Text>
                                         </TouchableOpacity>
                                     </Link>
                                 </View>
@@ -152,22 +152,22 @@ export default function MyDeals() {
 function WorkflowStep({ label, isActive, isCurrent }) {
     return (
         <View className="items-center z-10">
-            <View className="h-7 mt-6 justify-center items-center">
+            <View className="h-6 mt-4 justify-center items-center">
                 {isCurrent ? (
                     <View
-                        className="w-[22px] h-[22px] rounded-full border-[4px] border-[#6231FF] bg-white justify-center items-center shadow-sm"
+                        className="w-[18px] h-[18px] rounded-full border-[3px] border-[#6231FF] bg-white justify-center items-center shadow-sm"
                         style={{ elevation: 3, shadowColor: '#6231FF', shadowOpacity: 0.25, shadowRadius: 3 }}
                     >
-                        <View className="w-2 h-2 rounded-full bg-[#6231FF]" />
+                        <View className="w-1.5 h-1.5 rounded-full bg-[#6231FF]" />
                     </View>
                 ) : (
-                    <View className={`w-5 h-5 rounded-full justify-center items-center ${isActive ? 'bg-[#EBE5FF]' : 'bg-[#f0f0f0]'}`}>
-                        <View className={`w-2.5 h-2.5 rounded-full ${isActive ? 'bg-[#6231FF]' : 'bg-[#bcc6d1]'}`} />
+                    <View className={`w-4 h-4 rounded-full justify-center items-center ${isActive ? 'bg-[#EBE5FF]' : 'bg-[#f0f0f0]'}`}>
+                        <View className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#6231FF]' : 'bg-[#bcc6d1]'}`} />
                     </View>
                 )}
             </View>
             <Text
-                className={`text-[10px] mt-2 font-bold ${isCurrent ? 'text-[#6231FF]' : 'text-[#6B7280]'}`}
+                className={`text-[9px] mt-1.5 font-bold ${isCurrent ? 'text-[#6231FF]' : 'text-[#6B7280]'}`}
             >
                 {label}
             </Text>
