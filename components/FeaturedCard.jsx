@@ -5,9 +5,9 @@ import { router } from "expo-router";
 const cardShadow = {
     shadowColor: "#6B7280",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.15,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 5,
 };
 
 // Works with both properties (item.image/title/priceINR) and projects (item.imageMain/name/variants)

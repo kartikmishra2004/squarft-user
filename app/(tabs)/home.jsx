@@ -169,7 +169,7 @@ export default function Home() {
           />
           {/* Left blur shade */}
           <Image
-            source={require("../../assets/images/blur (6).png")}
+            source={require("../../assets/images/blur (3).png")}
             pointerEvents="none"
             style={{
               position: "absolute",
@@ -177,7 +177,7 @@ export default function Home() {
               top: -30,
               width: 570,
               height: 360,
-              opacity: 1,
+              opacity: 0.7,
               zIndex: -1,
             }}
             //resizeMode="contain"
@@ -208,7 +208,7 @@ export default function Home() {
 
           {/* Search */}
           <View className="flex-row px-5 gap-3 mb-5 ">
-            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-2xl px-4 h-[44px] gap-[8px]"  style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
+            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-xl px-4 h-[44px] gap-[8px]"  style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
               <FontAwesome name="search" size={20} color="#4A43EC" />
               <View className="w-[0.5px] self-stretch my-3 bg-[#7974E7]" />
               <TextInput
@@ -221,7 +221,7 @@ export default function Home() {
                                 onFocus={() => dispatch(setSearchActive(true))}
               />
             </View>
-            <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-2xl px-5 h-[44px] gap-2">
+            <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-xl px-5 h-[44px] gap-2">
               <AntDesign name="spotify" size={18} color="#7F88E5" />
               <Text className="text-white text-sm font-semibold">Filters</Text>
             </TouchableOpacity>

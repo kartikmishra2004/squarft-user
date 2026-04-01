@@ -1,17 +1,23 @@
 import { View, Text, Image, TouchableOpacity, Modal, ScrollView } from "react-native";
 import { useState } from "react";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { allProjects } from "../../data/projects";
 import DetailFooter from "./DetailFooter";
 
 const POSSESSION_FILTERS = ["In 3 years", "Ready To Move", "Under Construction"];
 
+const FILTER_MAP = {
+    "In 3 years": (p) => p.possessionStatus === "Under Construction",
+    "Ready To Move": (p) => p.possessionStatus === "Ready to Move",
+    "Under Construction": (p) => p.possessionStatus === "Under Construction",
+};
+
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const [activeFilter, setActiveFilter] = useState("In 3 years");
 
     const builderProjects = allProjects.filter((p) => p.builder === project?.builder);
+    const filteredProjects = builderProjects.filter(FILTER_MAP[activeFilter] ?? (() => true));
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -55,30 +61,38 @@ export default function BuilderModal({ visible, onClose, project }) {
 
                         {/* Projects list */}
                         <View className="px-5 mt-4 mb-4">
-                            {builderProjects.map((p) => (
-                                <View
-                                    key={p.id}
-                                    className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
-                                    style={{ shadowColor: "#6B7280", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
-                                >
-                                    <View className="w-[116px] h-[116px] rounded-xl bg-gray-100 mr-5 overflow-hidden">
-                                        <Image source={p.imageMain} className="w-full h-full" resizeMode="cover" />
-                                    </View>
-                                    <View className="flex-1">
-                                        <Text className="text-[16px] font-bold text-gray-900 mb-0.5">
-                                            {p.variants[0]?.priceRange ?? p.avgPricePerSqft}
-                                        </Text>
-                                        <Text className="text-[14px] font-bold text-gray-800 mb-0.5">{p.name}</Text>
-                                        <Text className="text-[12px] text-gray-400 ">{p.subTypes.join(", ")} BHK {p.propertyType}</Text>
-                                        <Text className="text-[11px] text-gray-400 mb-3">{p.location}</Text>
-                                        {p.rera && (
-                                            <View className="self-start bg-green-100 rounded-md px-2 py-0.5">
-                                                <Text className="text-[10px] font-bold text-green-600">RERA</Text>
-                                            </View>
-                                        )}
-                                    </View>
+                            {filteredProjects.length === 0 ? (
+                                <View className="items-center py-10">
+                                    
+                                    <Text className="text-[14px] font-manrope-semibold text-gray-400 mt-3">No projects found</Text>
+                                    <Text className="text-[12px] text-gray-300 mt-1">No {activeFilter} projects by this builder</Text>
                                 </View>
-                            ))}
+                            ) : (
+                                filteredProjects.map((p) => (
+                                    <View
+                                        key={p.id}
+                                        className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
+                                        style={{ shadowColor: "#6B7280", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
+                                    >
+                                        <View className="w-[116px] h-[116px] rounded-xl bg-gray-100 mr-5 overflow-hidden">
+                                            <Image source={p.imageMain} className="w-full h-full" resizeMode="cover" />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-[16px] font-bold text-gray-900 mb-0.5">
+                                                {p.variants[0]?.priceRange ?? p.avgPricePerSqft}
+                                            </Text>
+                                            <Text className="text-[14px] font-bold text-gray-800 mb-0.5">{p.name}</Text>
+                                            <Text className="text-[12px] text-gray-400">{p.subTypes.join(", ")} BHK {p.propertyType}</Text>
+                                            <Text className="text-[11px] text-gray-400 mb-3">{p.location}</Text>
+                                            {p.rera && (
+                                                <View className="self-start bg-green-100 rounded-md px-2 py-0.5">
+                                                    <Text className="text-[10px] font-bold text-green-600">RERA</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                ))
+                            )}
                         </View>
                     </ScrollView>
 
