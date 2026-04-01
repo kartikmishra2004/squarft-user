@@ -106,8 +106,7 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="myDeals"
                 options={{
-                    headerTitle: "Deal manager",
-                    headerTitleAlign: "center",
+                    headerShown: false,
                     tabBarIcon: ({ focused }) => <TabIcon name="myDeals" focused={focused} />,
                 }}
             />
