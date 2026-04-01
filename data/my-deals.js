@@ -79,6 +79,7 @@ export const dealsData = [
         nextDue: "₹4.8 L",
         completionPercentage: 40,
         imageColor: "#5B3AF5",
+        image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=200&q=80",
         isActive: true,
         isPending: false,
     },
@@ -93,6 +94,7 @@ export const dealsData = [
         nextDue: "₹4.8 L",
         completionPercentage: 40,
         imageColor: "#2A2362",
+        image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200&q=80",
         isActive: false,
         isPending: true,
     }

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { Link } from "expo-router";
@@ -125,7 +125,7 @@ export default function MyDeals() {
                                 >
                                     {/* Top: Image + Title + Status */}
                                     <View className="flex-row items-center mb-2.5">
-                                        <View className="w-11 h-11 rounded-[8px] mr-2.5" style={{ backgroundColor: deal.imageColor }} />
+                                        <Image source={{ uri: deal.image }} className="w-11 h-11 rounded-[8px] mr-2.5 bg-gray-100" />
                                         <View className="flex-1">
                                             <Text className="text-[14px] font-manrope-bold text-[#111827] mb-0.5">{deal.title}</Text>
                                             <Text className="text-[11px] font-manrope-medium text-[#6B7280]">{deal.location}</Text>
@@ -159,7 +159,7 @@ export default function MyDeals() {
                                     {/* Progress Bar */}
                                     <View className="w-full h-[3px] bg-[#F3F4F6] rounded-full mb-2 overflow-hidden relative">
                                         <LinearGradient
-                                            colors={['#948FFF', '#4F48ED']}
+                                            colors={['#434EEC', '#434EEC']}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 0 }}
                                             style={{ width: `${deal.completionPercentage}%`, height: '100%', borderRadius: 9999, position: 'absolute', left: 0, top: 0 }}
