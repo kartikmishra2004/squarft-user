@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { useRef } from "react";
@@ -48,16 +48,20 @@ export default function OtpVerification() {
                 <View className="flex-1">
                     <StatusBar style="light" />
 
-                    <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
-                        <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-6">
-                            <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
+                    <ImageBackground
+                        source={require('../../assets/images/auth_grid_bg.png')}
+                        style={{ paddingTop: 70, paddingBottom: 20, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
+                        resizeMode="cover"
+                    >
+                        <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 1 }}>
+                            <Image source={logo} style={{ width: 110, height: 110, margin: -26,  }} resizeMode="contain" />
                         </View>
-                        <Text className="text-white text-[36px] font-bold mb-1">OTP Verification</Text>
-                        <Text className="text-white/80 text-[14px]">OTP has been sent to your registered mobile number</Text>
-                    </View>
+                        <Text className="text-white text-[26px] font-manrope-bold mb-5 ">OTP Verification</Text>
+                        <Text className="text-white/80 text-[14px] font-lato-regular">OTP has been sent to your registered mobile number</Text>
+                    </ImageBackground>
 
-                    <View className="flex-1 bg-white px-6 pt-10">
-                        <View className="flex-row justify-between mb-10">
+                    <View className="flex-1 bg-white px-8 pt-10 ">
+                        <View className="flex-row justify-center mb-10" style={{ gap: 25 }}>
                             {otp.map((digit, index) => (
                                 <TextInput
                                     key={index}
@@ -68,20 +72,22 @@ export default function OtpVerification() {
                                     keyboardType="number-pad"
                                     maxLength={1}
                                     style={{
-                                        width: 70, height: 70,
+                                        marginTop: 10,
+                                        marginBottom: 10,
+                                        width: 60, height: 65,
                                         borderWidth: 1,
                                         borderColor: digit ? '#4A43EC' : '#E5E7EB',
                                         borderRadius: 12,
                                         textAlign: 'center',
-                                        fontSize: 22,
+                                        fontSize: 20,
                                         color: '#000',
                                     }}
                                 />
                             ))}
                         </View>
 
-                        <TouchableOpacity onPress={handleVerify} className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-6">
-                            <Text className="text-white text-[16px] font-semibold">Submit</Text>
+                        <TouchableOpacity onPress={handleVerify} className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-10">
+                            <Text className="text-white text-[15px] font-semibold">Submit</Text>
                         </TouchableOpacity>
 
                         <View className="flex-row justify-center items-center">

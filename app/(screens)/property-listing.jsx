@@ -1,7 +1,8 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
@@ -42,58 +43,73 @@ function applyFilters(projects, filter) {
 
 function ProjectCard({ item }) {
     return (
-        <View style={{ backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 16, marginBottom: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
-            <View style={{ flexDirection: 'row', height: 160 }}>
-                <View style={{ flex: 1, position: 'relative' }}>
-                    <Image source={item.imageMain} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    <View style={{ position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3 }}>
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{item.builder}</Text>
+        <TouchableOpacity
+            activeOpacity={0.97}
+            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id } })}
+            className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 mx-4"
+        >
+            <View className="flex-row h-36 w-full">
+                <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
+                    <Image source={item.imageMain} className="w-full h-full" resizeMode="cover" />
+                    <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
+                        <Text className="text-white text-[10px] font-manrope">{item.builder}</Text>
                     </View>
                     {item.zeroBrokerage && (
-                        <View style={{ position: 'absolute', bottom: 0, left: 0, backgroundColor: '#16A34A', paddingHorizontal: 10, paddingVertical: 4 }}>
-                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>ZERO BROKERAGE</Text>
+                        <View className="absolute bottom-2 left-2 bg-[#00B67A] px-2 py-[4px] rounded">
+                            <Text className="text-white text-[10px] font-manrope-extrabold tracking-wide">ZERO BROKERAGE</Text>
                         </View>
                     )}
                 </View>
-                <View style={{ width: 100, position: 'relative' }}>
-                    <Image source={item.imageThumb} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: '#fff', fontSize: 10 }}>1/{item.totalImages}</Text>
+                <View className="flex-[1] relative bg-gray-200">
+                    <Image source={item.imageThumb} className="w-full h-full" resizeMode="cover" />
+                    <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
+                        <Text className="text-white text-[10px] font-manrope">1/{item.totalImages}</Text>
                     </View>
                 </View>
             </View>
 
-            <View style={{ padding: 14 }}>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>
-                    Possession: {item.possession}{'  •  '}Avg Price per sq ft: {item.avgPricePerSqft}
+            <View className="px-3 pt-3 pb-2">
+                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
+                    Possession: {item.possession}{'  •  '}Avg Price: {item.avgPricePerSqft}
                 </Text>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827' }}>{item.name}</Text>
+                <View className="flex-row items-center mb-1">
+                    <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{item.name}</Text>
                     {item.rera && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#16A34A', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, gap: 3 }}>
-                            <Text style={{ fontSize: 10, color: '#16A34A', fontWeight: '700' }}>RERA</Text>
-                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#16A34A' }} />
+                        <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
+                            <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
+                            <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
+                                <Feather name="check" size={6} color="white" />
+                            </View>
                         </View>
                     )}
                 </View>
+                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.location}</Text>
+            </View>
 
-                <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>{item.location}</Text>
+            <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
 
-                <View style={{ flexDirection: 'row', gap: 24, marginBottom: 14 }}>
-                    {item.variants.map((v, i) => (
-                        <View key={i}>
-                            <Text style={{ fontSize: 11, color: '#6B7280', fontWeight: '600', marginBottom: 2 }}>{v.type}</Text>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>{v.priceRange}</Text>
-                        </View>
-                    ))}
+            <View className="flex-row justify-between px-3 pb-3">
+                <View>
+                    <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{item.variants[0]?.type}</Text>
+                    <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[0]?.priceRange}</Text>
                 </View>
+                {item.variants[1] && (
+                    <View className="items-end">
+                        <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{item.variants[1].type}</Text>
+                        <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[1].priceRange}</Text>
+                    </View>
+                )}
+            </View>
 
-                <TouchableOpacity style={{ borderWidth: 1.5, borderColor: '#4A43EC', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ color: '#4A43EC', fontSize: 14, fontWeight: '600' }}>View details</Text>
+            <View className="px-3 pb-3">
+                <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id } })}
+                    className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
+                >
+                    <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -137,7 +153,7 @@ export default function PropertyListing() {
                         />
                     </View>
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
-                        <MaterialCommunityIcons name="tune-variant" size={20} color="#fff" />
+                        <AntDesign name="spotify" size={18} color="#7F88E5" />
                     </TouchableOpacity>
                     <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                         <MaterialCommunityIcons name="view-grid-outline" size={20} color="#374151" />
@@ -145,24 +161,25 @@ export default function PropertyListing() {
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity style={{ backgroundColor: '#4A43EC', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 }}>
+                    <TouchableOpacity style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}>
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Map View</Text>
                     </TouchableOpacity>
                     {['Budget', 'BHK', 'Possession'].map((f) => (
-                        <TouchableOpacity key={f} onPress={() => dispatch(openFilter())} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}>
+                        <TouchableOpacity key={f} onPress={() => dispatch(openFilter())} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}>
                             <Text style={{ fontSize: 12, color: '#374151' }}>{f}</Text>
                             <Ionicons name="chevron-down" size={12} color="#6B7280" />
                         </TouchableOpacity>
                     ))}
                 </View>
             </View>
+<View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center',  marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
                     <Text style={{ fontWeight: '700', color: '#111827' }}>{filtered.length}</Text> Premium Projects
                 </Text>
                 <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 12, color: '#4A43EC', fontWeight: '600' }}>SORT BY: RELEVANCE</Text>
+                    <Text style={{ fontSize: 12, color: '#9243ecff', fontWeight: '600' }}>SORT BY: RELEVANCE</Text>
                     <MaterialCommunityIcons name="sort" size={14} color="#4A43EC" />
                 </TouchableOpacity>
             </View>
@@ -172,7 +189,7 @@ export default function PropertyListing() {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <ProjectCard item={item} />}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 100, paddingTop: 4 }}
+                contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
                 ListEmptyComponent={
                     <View style={{ alignItems: 'center', marginTop: 60 }}>
                         <MaterialCommunityIcons name="home-search-outline" size={48} color="#D1D5DB" />

@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -25,16 +25,19 @@ export default function ChangePassword() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View className="flex-1">
                     <StatusBar style="light" />
-                    <View className="bg-[#4A43EC] pt-16 pb-10 px-6">
-                <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-6">
-                    <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
-                </View>
-                <Text className="text-white text-[36px] font-bold mb-1">Change Password</Text>
-                <Text className="text-white/80 text-[14px]">Set your new password</Text>
-            </View>
+                    <ImageBackground
+                        source={require('../../assets/images/auth_grid_bg.png')}
+                        style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
+                        resizeMode="cover"
+                    >
+                        <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 24 }}>
+                            <Image source={logo} style={{ width: 110, height: 110, margin: -20 }} resizeMode="contain" />
+                        </View>
+                        <Text className="text-white text-[36px] font-bold mb-1">Change Password</Text>
+                        <Text className="text-white/80 text-[14px]">Set your new password</Text>
+                    </ImageBackground>
 
-            {/* */}
-            <View className="flex-1 bg-white px-6 pt-8">
+                    <View className="flex-1 bg-white px-6 pt-8">
 
                 <Text className="text-gray-500 text-[13px] mb-1.5">New Password</Text>
                 <View className="border border-gray-200 rounded-xl px-4 py-3.5 flex-row items-center mb-5">

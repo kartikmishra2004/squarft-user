@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView, ImageBackground } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, router } from "expo-router";
 import { useState } from "react";
@@ -27,15 +27,19 @@ export default function Register() {
                 <View className="flex-1">
                     <StatusBar style="light" />
 
-                    <View className="bg-[#4A43EC] pt-16 pb-10 px-7">
-                        <View style={{ width: 60, height: 60, overflow: 'hidden' }} className="mb-5 mt-4" >
+                    <ImageBackground
+                        source={require('../../assets/images/auth_grid_bg.png')}
+                        style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 28, backgroundColor: '#4A43EC' }}
+                        resizeMode="cover"
+                    >
+                        <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 20, marginTop: 16 }}>
                             <Image source={logo} style={{ width: 110, height: 110, margin: -30 }} resizeMode="contain" />
                         </View>
                         <Text className="text-white text-[36px] font-bold mb-1">Register</Text>
                         <Link href="/login">
-                            <Text className="text-white text-[14px] underline ">Log in</Text>
+                            <Text className="text-white text-[14px] underline">Log in</Text>
                         </Link>
-                    </View>
+                    </ImageBackground>
 
                     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24, paddingTop: 32 }} keyboardShouldPersistTaps="handled">
 

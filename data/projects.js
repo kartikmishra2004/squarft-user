@@ -2,6 +2,47 @@ const img1 = require("../assets/images/Luxury Apartments.png");
 const img2 = require("../assets/images/unsplash_RFDP7_80v5A.png");
 const builderLogo = require("../assets/images/Prakrati Realtors Logo.png");
 
+export const defaultLandmarks = [
+    { id: 'l1', icon: 'school-outline', label: 'School', name: 'Agarwal Public School', distance: '700 m' },
+    { id: 'l2', icon: 'bus-outline', label: 'Bus Stand', name: 'Sector 150 Bus Stop', distance: '450 m' },
+    { id: 'l3', icon: 'medkit-outline', label: 'Hospital', name: 'Apollo Clinic', distance: '1.2 km' },
+    { id: 'l4', icon: 'cart-outline', label: 'Market', name: 'GIP Mall', distance: '3.5 km' },
+];
+
+export const defaultAmenities = [
+    { id: 'a1',  lib: 'MCI', icon: 'gazebo',                     label: 'Gazebo' },
+    { id: 'a2',  lib: 'MCI', icon: 'tree-outline',               label: 'Landscaping' },
+    { id: 'a3',  lib: 'MCI', icon: 'fire-extinguisher',          label: 'Fire Fighting' },
+    { id: 'a4',  lib: 'MCI', icon: 'dumbbell',                   label: 'Gymnasium' },
+    { id: 'a5',  lib: 'MCI', icon: 'car-outline',                label: 'Car Parking' },
+    { id: 'a6',  lib: 'MCI', icon: 'pool',                       label: 'Swimming Pool' },
+    { id: 'a7',  lib: 'MCI', icon: 'tennis',                     label: 'Sports Court' },
+    { id: 'a8',  lib: 'MCI', icon: 'wifi',                       label: 'Wi-Fi Zone' },
+    { id: 'a9',  lib: 'MCI', icon: 'cctv',                       label: 'CCTV Security' },
+    { id: 'a10', lib: 'MCI', icon: 'flower-outline',             label: 'Garden' },
+    { id: 'a11', lib: 'MCI', icon: 'home-group',                 label: 'Clubhouse' },
+    { id: 'a12', lib: 'MCI', icon: 'bicycle-outline',            label: 'Cycle Track' },
+    { id: 'a13', lib: 'MCI', icon: 'water-pump',                 label: 'Water Supply' },
+    { id: 'a14', lib: 'MCI', icon: 'lightning-bolt-outline',     label: 'Power Backup' },
+    { id: 'a15', lib: 'MCI', icon: 'elevator-passenger-outline', label: 'Lift' },
+    { id: 'a16', lib: 'MCI', icon: 'account-group-outline',      label: 'Community Hall' },
+    { id: 'a17', lib: 'MCI', icon: 'store-outline',              label: 'Retail Shops' },
+    { id: 'a18', lib: 'MCI', icon: 'medical-bag',                label: 'Medical Room' },
+    { id: 'a19', lib: 'MCI', icon: 'ferris-wheel',               label: 'Kids Play Area' },
+    { id: 'a20', lib: 'MCI', icon: 'silverware-fork-knife',      label: 'Cafeteria' },
+    { id: 'a21', lib: 'MCI', icon: 'desk-lamp-on',               label: 'Co-working' },
+    { id: 'a22', lib: 'MCI', icon: 'run-fast',                   label: 'Jogging Track' },
+    { id: 'a23', lib: 'MCI', icon: 'bed-outline',                label: 'Guest Rooms' },
+    { id: 'a24', lib: 'MCI', icon: 'tools',                      label: 'Maintenance' },
+    { id: 'a25', lib: 'MCI', icon: 'phone-classic',              label: 'Intercom' },
+    { id: 'a26', lib: 'MCI', icon: 'solar-panel',                label: 'Solar Panels' },
+    { id: 'a27', lib: 'MCI', icon: 'recycle',                    label: 'Waste Mgmt' },
+    { id: 'a28', lib: 'MCI', icon: 'compass-outline',            label: 'Vastu Compliant' },
+    { id: 'a29', lib: 'MCI', icon: 'paw-outline',                label: 'Pet Zone' },
+    { id: 'a30', lib: 'MCI', icon: 'party-popper',               label: 'Banquet Hall' },
+    { id: 'a31', lib: 'MCI', icon: 'yoga',                       label: 'Yoga Deck' },
+];
+
 export const allProjects = [
     {
         id: "p1",
