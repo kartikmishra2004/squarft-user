@@ -6,6 +6,7 @@ import { allProjects } from "../../data/projects";
 import FeaturedCard from "../FeaturedCard";
 import { getResaleByProject } from "../../data/resaleProperties";
 import BuilderModal from "./BuilderModal";
+import FloorPlanModal from "./FloorPlanModal";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.55;
@@ -23,6 +24,7 @@ const cardShadow = {
 
 export default function Overview({ project }) {
     const [builderModalVisible, setBuilderModalVisible] = useState(false);
+    const [floorPlanVisible, setFloorPlanVisible] = useState(false);
     return (
         <View>
             
@@ -49,7 +51,10 @@ export default function Overview({ project }) {
                                 <MaterialCommunityIcons name="floor-plan" size={13} color="#9CA3AF" />
                                 <Text className="text-[12px] font-public-regular text-[#64748B]">{project.areaSqft} sqft (Carpet Area)</Text>
                             </View>
-                            <TouchableOpacity className="bg-[#6C3BFF]/5 border border-[#dacff9] rounded-2xl mx-2 py-3 mb-1 items-center">
+                            <TouchableOpacity
+                                onPress={() => setFloorPlanVisible(true)}
+                                className="bg-[#6C3BFF]/5 border border-[#dacff9] rounded-2xl mx-2 py-3 mb-1 items-center"
+                            >
                                 <Text className="text-[12px] font-public-bold text-[#4A43EC] tracking-widest">SEE FLOOR PLAN</Text>
                             </TouchableOpacity>
                         </View>
@@ -79,6 +84,12 @@ export default function Overview({ project }) {
             <BuilderModal
                 visible={builderModalVisible}
                 onClose={() => setBuilderModalVisible(false)}
+                project={project}
+            />
+
+            <FloorPlanModal
+                visible={floorPlanVisible}
+                onClose={() => setFloorPlanVisible(false)}
                 project={project}
             />
 
