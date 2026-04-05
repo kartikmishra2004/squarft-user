@@ -17,10 +17,10 @@ export default function Favourite() {
   const recentCount = properties.filter((p) => p.isRecent).length;
 
   const TABS = [
-    { id: "SAVED", title: "SAVED", icon: "heart", badge: savedCount.toString().padStart(2, '0') },
-    { id: "SEEN", title: "SEEN", icon: "eye", badge: seenCount.toString().padStart(2, '0') },
-    { id: "CONTACTED", title: "CONTACTED", icon: "phone-call", badge: contactedCount.toString().padStart(2, '0') },
-    { id: "RECENT", title: "RECENT", icon: "clock", badge: recentCount.toString().padStart(2, '0') },
+    { id: "SAVED", title: "SAVED", icon: "heart", badge: savedCount.toString().padStart(2, '0'), count: savedCount },
+    { id: "SEEN", title: "SEEN", icon: "eye", badge: seenCount.toString().padStart(2, '0'), count: seenCount },
+    { id: "CONTACTED", title: "CONTACTED", icon: "phone-call", badge: contactedCount.toString().padStart(2, '0'), count: contactedCount },
+    { id: "RECENT", title: "RECENT", icon: "clock", badge: recentCount.toString().padStart(2, '0'), count: recentCount },
   ];
 
   return (
@@ -40,12 +40,14 @@ export default function Favourite() {
               >
                 <View className="relative">
                   <Feather name={tab.icon} size={20} color={isActive ? primaryColor : inactiveColor} />
-                  <View
-                    className="absolute -top-[4px] -right-[8px] bg-[#FF8A8A] rounded-full items-center justify-center z-10"
-                    style={{ minWidth: 16, height: 16, paddingHorizontal: 4 }}
-                  >
-                    <Text className="text-white text-[8px] font-bold" style={{ lineHeight: 10, marginTop: Platform.OS === 'ios' ? 1 : 0 }}>{tab.badge}</Text>
-                  </View>
+                  {tab.count > 0 && (
+                    <View
+                      className="absolute -top-[4px] -right-[8px] bg-[#FF8A8A] rounded-full items-center justify-center z-10"
+                      style={{ minWidth: 16, height: 16, paddingHorizontal: 4 }}
+                    >
+                      <Text className="text-white text-[8px] font-bold" style={{ lineHeight: 10, marginTop: Platform.OS === 'ios' ? 1 : 0 }}>{tab.badge}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text
                   className="mt-1 text-[9px] font-bold tracking-widest"
