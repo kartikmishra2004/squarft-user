@@ -1,0 +1,38 @@
+export const ALL_VISITS = [
+  {
+    id: "v1",
+    status: "SCHEDULED",
+    title: "SquarFT Prestige Towers",
+    location: "Sector 62, Gurgaon",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+    dateFull: "Wed, 12th June | 10:30 AM",
+    isoDate: "2026-06-12T10:30:00Z",
+  },
+  {
+    id: "v2",
+    status: "CONFIRMED",
+    title: "The Zenith Residency",
+    location: "Golf Course Road, Gurgaon",
+    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+    dateFull: "Fri, 14th June | 04:00 PM",
+    isoDate: "2026-06-14T16:00:00Z",
+  },
+  {
+    id: "p1",
+    status: "COMPLETED",
+    title: "SquarFT Prestige Towers",
+    location: "Sector 62, Gurgaon",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+    dateFull: "Mon, 5th June | 11:00 AM",
+    isoDate: "2025-06-05T11:00:00Z",
+  },
+  {
+    id: "p2",
+    status: "CANCELLED",
+    title: "The Zenith Residency",
+    location: "Golf Course Road, Gurgaon",
+    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+    dateFull: "Sat, 1st June | 02:30 PM",
+    isoDate: "2025-06-01T14:30:00Z",
+  }
+];

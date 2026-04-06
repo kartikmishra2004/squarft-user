@@ -1,50 +1,33 @@
-import React, { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, Image } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { View, Text, Pressable, ScrollView, Image, Dimensions } from "react-native";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
+import { useSelector, useDispatch } from "react-redux";
+import { removeSiteVisit } from "../../store/slices/propertiesSlice";
+import { ALL_VISITS } from "../../data/visits";
 
-const PAST_VISITS_DATA = [
-  {
-    id: "p1",
-    status: "COMPLETED",
-    title: "SquarFT Prestige Towers",
-    location: "Sector 62, Gurgaon",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    dateFull: "Mon, 5th June | 11:00 AM",
-  },
-  {
-    id: "p2",
-    status: "CANCELLED",
-    title: "The Zenith Residency",
-    location: "Golf Course Road, Gurgaon",
-    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    dateFull: "Sat, 1st June | 02:30 PM",
-  }
-];
-
-const VISITS_DATA = [
-  {
-    id: "v1",
-    status: "SCHEDULED",
-    title: "SquarFT Prestige Towers",
-    location: "Sector 62, Gurgaon",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    dateFull: "Wed, 12th June | 10:30 AM",
-  },
-  {
-    id: "v2",
-    status: "CONFIRMED",
-    title: "The Zenith Residency",
-    location: "Golf Course Road, Gurgaon",
-    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    dateFull: "Fri, 14th June | 04:00 PM",
-  }
-];
+const { width } = Dimensions.get('window');
 
 export default function Visit() {
-  const [activeTab, setActiveTab] = useState("Upcoming");
+  const { tab } = useLocalSearchParams();
+  const [activeTab, setActiveTab] = useState("Book visit");
+  const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (tab === "Book visit") {
+      setActiveTab("Book visit");
+    } else {
+      setActiveTab("Upcoming");
+    }
+  }, [tab]);
+
+  const now = new Date();
+  const upcomingVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) >= now);
+  const pastVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) < now);
+
   const bottomSheetModalRef = useRef(null);
 
   const openModal = useCallback(() => {
@@ -53,143 +36,131 @@ export default function Visit() {
 
   const [sheetContent, setSheetContent] = useState('edit');
 
+  const tabs = ["Book visit", "Upcoming", "Past"];
+
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#ffffff]">
       <StatusBar style="dark" />
-      <View className="flex-row items-center pt-2 mx-4">
-        {["Upcoming", "Past"].map((tab) => {
-          const isActive = activeTab === tab;
-          return (
-            <Pressable
-              key={tab}
-              className="flex-1 items-center py-3 relative"
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                className={`text-[14px] font-manrope-bold ${isActive ? "text-[#4A43EC]" : "text-[#9CA3AF]"
-                  }`}
+
+      {/* Header Tabs */}
+      <View className="px-4 pt-6 pb-4">
+        <View className="flex-row gap-2">
+          {tabs.map((tabItem) => {
+            const isActive = activeTab === tabItem;
+            return (
+              <Pressable
+                key={tabItem}
+                className={`flex-1 items-center py-2 rounded-lg border ${isActive ? "bg-[#4A43EC] border-[#4A43EC]" : "bg-white border-gray-100"}`}
+                onPress={() => setActiveTab(tabItem)}
               >
-                {tab}
-              </Text>
-              {isActive && (
-                <View className="absolute bottom-0 h-[2px] w-full bg-[#4A43EC]" />
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-      <View className="mx-4 h-[1px] bg-gray-100" />
-
-      <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        {activeTab === "Upcoming" && (
-          <>
-            <View className="mx-4 mt-4 bg-[#F8F7FF] rounded-[16px] border border-[#EBE9FF] p-[10px] flex-row items-center mb-1">
-              <View className="w-[40px] h-[40px] bg-[#4A43EC] rounded-[12px] items-center justify-center mr-3">
-                <Feather name="award" size={20} color="white" />
-              </View>
-              <View className="flex-1 justify-center">
-                <Text className="text-[14px] font-manrope-extrabold text-[#4A43EC] mb-[2px]">
-                  1 Property in deal
+                <Text
+                  className={`text-[12px] font-manrope-bold ${isActive ? "text-white" : "text-[#6B7280]"}`}
+                >
+                  {tabItem}
                 </Text>
-                <Text className="text-[11px] font-manrope font-medium text-[#948FF2]">
-                  See the update
-                </Text>
-              </View>
-              <Pressable className="bg-[#6A64F1] px-4 py-[8px] rounded-xl">
-                <Text className="text-white text-[11px] font-manrope-extrabold">VIEW</Text>
               </Pressable>
-            </View>
+            );
+          })}
+        </View>
+      </View>
 
-            {VISITS_DATA.map((visit) => (
-              <View key={visit.id} className="mx-4 mt-4 bg-white rounded-[16px] border border-gray-200 overflow-hidden shadow-sm" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}>
-                <View className="p-[14px]">
-                  <View className="flex-row mb-3">
-                    <Image
-                      source={{ uri: visit.image }}
-                      className="w-[72px] h-[72px] rounded-[8px] mr-3"
-                      resizeMode="cover"
-                    />
-                    <View className="flex-1 justify-center py-1">
-                      <View className="bg-[#EEECFF] self-start px-[8px] py-[4px] rounded-lg mb-[6px]">
-                        <Text className="text-[#4A43EC] text-[9px] font-manrope-extrabold tracking-widest uppercase">
-                          {visit.status}
-                        </Text>
-                      </View>
-                      <Text className="text-[15px] font-manrope-extrabold text-[#111827] mb-[2px] leading-5" numberOfLines={1}>
-                        {visit.title}
-                      </Text>
-                      <View className="flex-row items-center mt-1">
-                        <Feather name="map-pin" size={12} color="#9CA3AF" />
-                        <Text className="text-[#6B7280] text-[11px] font-manrope ml-1" numberOfLines={1}>
-                          {visit.location}
-                        </Text>
-                      </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+
+        {/* Book visit Tab */}
+        {activeTab === "Book visit" && (
+          <View className="flex-1 mt-1">
+            {bookedSiteVisits.length > 0 ? (
+              <>
+                <View className="flex-1 pb-[100px]">
+                  {bookedSiteVisits.map((visit) => {
+                    const fallbackId = visit.id.replace(/\d{13}$/, "");
+                    return (
+                    <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-200 relative">
+                      <Link href={`/project-detail?id=${visit.projectId || fallbackId}`} asChild>
+                        <Pressable className="p-4 flex-row items-center">
+                          <Image
+                            source={visit.image || visit.imageMain}
+                            className="w-[80px] h-[80px] rounded-lg mr-4"
+                            resizeMode="cover"
+                          />
+                          <View className="flex-1 justify-center pr-2">
+                            <Text className="text-[15px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                              {visit.title || visit.name}
+                            </Text>
+                            <Text className="text-[#6B7280] text-[12px] font-manrope mb-2" numberOfLines={1}>
+                              {visit.location}
+                            </Text>
+                            <Text className="text-[13px] font-manrope-bold text-[#4A43EC]">
+                              {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
+                            </Text>
+                          </View>
+                          <View className="items-center justify-center pl-2 pr-1">
+                            <Feather name="chevron-right" size={20} color="#9CA3AF" />
+                            <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
+                          </View>
+                        </Pressable>
+                      </Link>
+
+                      <Pressable 
+                        onPress={() => dispatch(removeSiteVisit(visit.id))}
+                        className="absolute right-0 top-0 w-8 h-8 items-center justify-center bg-gray-50 rounded-tr-xl rounded-bl-xl border-b border-l border-gray-200 z-10"
+                      >
+                         <Feather name="x" size={14} color="#6B7280" />
+                      </Pressable>
                     </View>
-                  </View>
+                    );
+                  })}
 
-                  <View className="mx-[-14px] mb-3" style={{ height: 1, backgroundColor: '#F3F4F6' }} />
-
-                  <View className="mb-[12px]">
-                    <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold tracking-[1px] uppercase mb-[2px]">
-                      DATE & TIME
-                    </Text>
-                    <Text className="text-[13px] font-manrope-extrabold text-[#374151]">
-                      {visit.dateFull}
-                    </Text>
-                  </View>
-
-                  <View className="flex-row justify-between w-full">
-                    <Pressable className="flex-1 bg-[#4A43EC] rounded-xl py-[10px] flex-row items-center justify-center mr-2">
-                      <Feather name="corner-up-right" size={14} color="white" />
-                      <Text className="text-white font-manrope-extrabold text-[13px] ml-2">
-                        Get Directions
+                  <Link href="/(tabs)/home" asChild>
+                    <Pressable className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
+                      <Feather name="plus-circle" size={18} color="#94A3B8" />
+                      <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
+                        Add more properties to visit
                       </Text>
                     </Pressable>
-                    <Pressable
-                      className="flex-1 bg-[#F4F2FF] rounded-xl py-[10px] flex-row items-center justify-center ml-2"
-                      onPress={() => {
-                        setSheetContent('edit');
-                        openModal();
-                      }}
-                    >
-                      <Feather name="calendar" size={14} color="#4A43EC" />
-                      <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px] ml-2">
-                        Reschedule
-                      </Text>
-                    </Pressable>
-                  </View>
+                  </Link>
                 </View>
+              </>
+            ) : (
+              <View className="flex-1 items-center justify-center pt-24 px-4">
+                <Text className="text-[14px] font-manrope-bold text-gray-900 text-center mb-4">No properties added for site visit yet</Text>
+                <Link href="/(tabs)/home" asChild>
+                  <Pressable className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
+                    <Feather name="plus-circle" size={18} color="#94A3B8" />
+                    <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
+                      Add properties to visit
+                    </Text>
+                  </Pressable>
+                </Link>
               </View>
-            ))}
-          </>
+            )}
+          </View>
         )}
 
-        {activeTab === "Past" && (
+        {/* Upcoming VISITS */}
+        {activeTab === "Upcoming" && (
           <View className="mt-1">
-            {PAST_VISITS_DATA.map((visit) => {
-              const isCompleted = visit.status === "COMPLETED";
-              return (
-                <View key={visit.id} className="mx-4 mt-4 bg-white rounded-[16px] border border-gray-200 overflow-hidden shadow-sm" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}>
-                  <View className="p-[14px]">
+            {upcomingVisits.length > 0 ? (
+              upcomingVisits.map((visit) => (
+                <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                  <View className="p-3.5">
                     <View className="flex-row mb-3">
                       <Image
                         source={{ uri: visit.image }}
-                        className="w-[72px] h-[72px] rounded-[8px] mr-3"
+                        className="w-16 h-16 rounded-lg mr-3"
                         resizeMode="cover"
                       />
-                      <View className="flex-1 justify-center py-1">
-                        <View className={`self-start px-[8px] py-[4px] rounded-lg mb-[6px] ${isCompleted ? 'bg-[#E5F7F1]' : 'bg-[#FEE2E2]'
-                          }`}>
-                          <Text className={`text-[9px] font-manrope-extrabold tracking-widest uppercase ${isCompleted ? 'text-[#00B67A]' : 'text-[#EF4444]'
-                            }`}>
+                      <View className="flex-1 justify-center">
+                        <View className="bg-[#EEECFF] self-start px-2 py-0.5 rounded-md mb-1.5">
+                          <Text className="text-[#4A43EC] text-[9px] font-manrope-bold tracking-wider uppercase">
                             {visit.status}
                           </Text>
                         </View>
-                        <Text className="text-[15px] font-manrope-extrabold text-[#111827] mb-[2px] leading-5" numberOfLines={1}>
+                        <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
                           {visit.title}
                         </Text>
-                        <View className="flex-row items-center mt-1">
-                          <Feather name="map-pin" size={12} color="#9CA3AF" />
+                        <View className="flex-row items-center">
+                          <Ionicons name="location-outline" size={11} color="#9CA3AF" />
                           <Text className="text-[#6B7280] text-[11px] font-manrope ml-1" numberOfLines={1}>
                             {visit.location}
                           </Text>
@@ -197,57 +168,172 @@ export default function Visit() {
                       </View>
                     </View>
 
-                    <View className="mx-[-14px] mb-3" style={{ height: 1, backgroundColor: '#F3F4F6' }} />
+                    <View className="h-[1px] bg-gray-50 mb-3" />
 
-                    <View className="mb-[12px]">
-                      <Text className="text-[10px] text-[#9CA3AF] font-manrope-extrabold tracking-[1px] uppercase mb-[2px]">
-                        DATE & TIME
-                      </Text>
-                      <Text className="text-[13px] font-manrope-extrabold text-[#374151]">
-                        {visit.dateFull}
-                      </Text>
+                    <View className="flex-row justify-between items-center mb-3 bg-gray-50 p-2.5 rounded-lg">
+                      <View>
+                        <Text className="text-[9px] text-[#9CA3AF] font-manrope-bold tracking-wider uppercase mb-1">
+                          DATE & TIME
+                        </Text>
+                        <Text className="text-[12px] font-manrope-bold text-gray-700">
+                          {visit.dateFull}
+                        </Text>
+                      </View>
+                      <View className="w-7 h-7 rounded-full bg-white items-center justify-center border border-gray-100">
+                        <Feather name="calendar" size={13} color="#4A43EC" />
+                      </View>
                     </View>
 
-                    {isCompleted ? (
-                      <View className="w-full">
-                        <Link href="/review" asChild>
-                          <Pressable className="w-full bg-[#4A43EC] rounded-xl py-[10px] flex-row items-center justify-center mb-2">
-                            <Feather name="message-square" size={14} color="white" />
-                            <Text className="text-white font-manrope-extrabold text-[13px] ml-2">
-                              Write Review
+                    <View className="flex-row gap-2">
+                      <Pressable className="flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center shadow-md shadow-indigo-200">
+                        <Feather name="map" size={13} color="white" />
+                        <Text className="text-white font-manrope-bold text-[12px] ml-2">
+                          Directions
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center"
+                        onPress={() => {
+                          setSheetContent('edit');
+                          openModal();
+                        }}
+                      >
+                        <Feather name="edit-3" size={13} color="#4A43EC" />
+                        <Text className="text-[#4A43EC] font-manrope-bold text-[12px] ml-2">
+                          Reschedule
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <EmptyState icon="calendar" message="No upcoming visits scheduled" />
+            )}
+          </View>
+        )}
+
+        {/* Past VISITS */}
+        {activeTab === "Past" && (
+          <View className="mt-1">
+            {pastVisits.length > 0 ? (
+              pastVisits.map((visit) => {
+                const isCompleted = visit.status === "COMPLETED";
+                return (
+                  <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                    <View className="p-3.5">
+                      <View className="flex-row mb-3">
+                        <Image
+                          source={{ uri: visit.image }}
+                          className="w-16 h-16 rounded-lg mr-3"
+                          resizeMode="cover"
+                        />
+                        <View className="flex-1 justify-center">
+                          <View className={`self-start px-2 py-0.5 rounded-md mb-1.5 ${isCompleted ? 'bg-[#E5F7F1]' : 'bg-[#FEE2E2]'}`}>
+                            <Text className={`text-[9px] font-manrope-bold tracking-wider uppercase ${isCompleted ? 'text-[#00B67A]' : 'text-[#EF4444]'}`}>
+                              {visit.status}
+                            </Text>
+                          </View>
+                          <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                            {visit.title}
+                          </Text>
+                          <View className="flex-row items-center">
+                            <Ionicons name="location-outline" size={11} color="#9CA3AF" />
+                            <Text className="text-[#6B7280] text-[11px] font-manrope ml-1" numberOfLines={1}>
+                              {visit.location}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View className="h-[1px] bg-gray-50 mb-3" />
+
+                      <View className="mb-3 bg-gray-50 p-2.5 rounded-lg">
+                        <Text className="text-[9px] text-[#9CA3AF] font-manrope-bold tracking-wider uppercase mb-1">
+                          VISITED ON
+                        </Text>
+                        <Text className="text-[12px] font-manrope-bold text-gray-700">
+                          {visit.dateFull}
+                        </Text>
+                      </View>
+
+                      {isCompleted ? (
+                        <View className="flex-row gap-2">
+                          <Link href="/review" asChild>
+                            <Pressable className="flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center">
+                              <Feather name="star" size={13} color="white" />
+                              <Text className="text-white font-manrope-bold text-[12px] ml-2">
+                                Rate Visit
+                              </Text>
+                            </Pressable>
+                          </Link>
+                          <Pressable className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center">
+                            <Feather name="info" size={13} color="#374151" />
+                            <Text className="text-[#374151] font-manrope-bold text-[12px] ml-2">
+                              Property
                             </Text>
                           </Pressable>
-                        </Link>
-                        <Pressable className="w-full bg-white border border-gray-200 rounded-xl py-[10px] flex-row items-center justify-center">
-                          <Feather name="eye" size={14} color="#374151" />
-                          <Text className="text-[#374151] font-manrope-extrabold text-[13px] ml-2">
-                            View Property Details
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <View className="w-full">
-                        <Pressable className="w-full bg-[#F4F2FF] rounded-xl py-[10px] flex-row items-center justify-center">
-                          <Feather name="calendar" size={14} color="#4A43EC" />
-                          <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px] ml-2">
+                        </View>
+                      ) : (
+                        <Pressable className="w-full bg-[#F4F2FF] rounded-lg py-2.5 flex-row items-center justify-center">
+                          <Feather name="refresh-cw" size={13} color="#4A43EC" />
+                          <Text className="text-[#4A43EC] font-manrope-bold text-[12px] ml-2">
                             Re-book Site Visit
                           </Text>
                         </Pressable>
-                      </View>
-                    )}
+                      )}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })
+            ) : (
+              <EmptyState icon="clock" message="No past visits found" />
+            )}
           </View>
         )}
       </ScrollView>
+
+      {/* Sticky Footer for Book visit tab */}
+      {activeTab === "Book visit" && bookedSiteVisits.length > 0 && (
+        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pt-6 pb-[110px]">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-[10px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">
+                TOTAL SELECTION
+              </Text>
+              <Text className="text-[16px] font-manrope-bold text-gray-900">
+                {bookedSiteVisits.length} Stops • {bookedSiteVisits.length * 1.5} hrs
+              </Text>
+            </View>
+            <Pressable className="bg-[#4A43EC] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
+              <Text className="text-white font-manrope-bold text-[14px] mr-2">
+                Book Site Visit
+              </Text>
+              <Feather name="calendar" size={16} color="white" />
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <RescheduleBottomSheet
         ref={bottomSheetModalRef}
         sheetContent={sheetContent}
         setSheetContent={setSheetContent}
       />
+    </View>
+  );
+}
+
+function EmptyState({ icon, message, subline }) {
+  return (
+    <View className="items-center justify-center py-16 px-8">
+      <View className="w-12 h-12 bg-gray-50 rounded-full items-center justify-center mb-3">
+        <Feather name={icon} size={18} color="#9CA3AF" />
+      </View>
+      <Text className="text-[14px] font-manrope-bold text-gray-900 text-center mb-1.5">{message}</Text>
+      {subline && (
+        <Text className="text-[11px] font-manrope text-gray-400 text-center px-4">{subline}</Text>
+      )}
     </View>
   );
 }

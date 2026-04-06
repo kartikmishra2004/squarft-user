@@ -2,15 +2,37 @@ import { View, Text, Image, TouchableOpacity, Modal, ScrollView } from "react-na
 import { useState } from "react";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDispatch } from "react-redux";
+import { addSiteVisit } from "../../store/slices/propertiesSlice";
+import { useRouter } from "expo-router";
 
 export default function BookVisitModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const [selected, setSelected] = useState([]);
+    const dispatch = useDispatch();
+    const router = useRouter();
 
     const toggle = (type) => {
         setSelected((prev) =>
             prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
         );
+    };
+
+    const handleContinue = () => {
+        if (selected.length === 0) return;
+
+        dispatch(addSiteVisit({
+            ...project,
+            selectedUnits: selected,
+            projectId: project.id,
+            id: project.id + Date.now().toString()
+        }));
+
+        onClose();
+        router.push({
+            pathname: "/visit",
+            params: { tab: "Book visit" }
+        });
     };
 
     return (
@@ -78,10 +100,12 @@ export default function BookVisitModal({ visible, onClose, project }) {
                             )}
                         </View>
                         <TouchableOpacity
-                            className="bg-indigo-600 rounded-2xl py-4 items-center"
-                            style={{ shadowColor: "#6C3BFF", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 15, elevation: 8 }}
+                            onPress={handleContinue}
+                            disabled={selected.length === 0}
+                            className={`rounded-2xl py-4 items-center ${selected.length > 0 ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            style={selected.length > 0 ? { shadowColor: "#6C3BFF", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 15, elevation: 8 } : {}}
                         >
-                            <Text className="text-white text-[16px] font-bold">Continue to Schedule →</Text>
+                            <Text className="text-white text-[16px] font-bold">Continue</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
