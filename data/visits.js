@@ -7,6 +7,9 @@ export const ALL_VISITS = [
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
     dateFull: "Wed, 12th June | 10:30 AM",
     isoDate: "2026-06-12T10:30:00Z",
+    bookingId: "SQF-88291",
+    visitorName: "John Doe",
+    duration: "60\nMinutes",
   },
   {
     id: "v2",
@@ -16,6 +19,9 @@ export const ALL_VISITS = [
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
     dateFull: "Fri, 14th June | 04:00 PM",
     isoDate: "2026-06-14T16:00:00Z",
+    bookingId: "SQF-44910",
+    visitorName: "Jane Smith",
+    duration: "45\nMinutes",
   },
   {
     id: "p1",
@@ -25,6 +31,9 @@ export const ALL_VISITS = [
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
     dateFull: "Mon, 5th June | 11:00 AM",
     isoDate: "2025-06-05T11:00:00Z",
+    bookingId: "SQF-11029",
+    visitorName: "Mike Johnson",
+    duration: "90\nMinutes",
   },
   {
     id: "p2",
@@ -34,5 +43,8 @@ export const ALL_VISITS = [
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
     dateFull: "Sat, 1st June | 02:30 PM",
     isoDate: "2025-06-01T14:30:00Z",
+    bookingId: "SQF-30232",
+    visitorName: "Sarah Williams",
+    duration: "30\nMinutes",
   }
 ];

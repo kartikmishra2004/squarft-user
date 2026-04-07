@@ -35,6 +35,7 @@ export default function Visit() {
   }, []);
 
   const [sheetContent, setSheetContent] = useState('edit');
+  const [selectedVisit, setSelectedVisit] = useState(null);
 
   const tabs = ["Book visit", "Upcoming", "Past"];
 
@@ -194,6 +195,7 @@ export default function Visit() {
                       <Pressable
                         className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center"
                         onPress={() => {
+                          setSelectedVisit(visit);
                           setSheetContent('edit');
                           openModal();
                         }}
@@ -319,6 +321,7 @@ export default function Visit() {
         ref={bottomSheetModalRef}
         sheetContent={sheetContent}
         setSheetContent={setSheetContent}
+        visitData={selectedVisit}
       />
     </View>
   );
