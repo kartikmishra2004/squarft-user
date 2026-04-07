@@ -6,7 +6,7 @@ const filterSlice = createSlice({
         isOpen: false,
         address: '',
         searchQuery: '',
-        tags: ['Sarthak Vinayak Real Built', 'Vijay Nagar'],
+        tags: [],
         propertyTypes: [],       // e.g. ['Flat/Apartment']
         propertySubTypes: [],    // e.g. ['2 BHK', '3 BHK']
         budgetRange: [2000000, 50000000],   // 20L - 5Cr in rupees

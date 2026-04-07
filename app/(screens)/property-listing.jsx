@@ -10,14 +10,31 @@ import FilterModal from "../../components/FilterModal";
 import { openFilter, setSearchQuery } from "../../store/slices/filterSlice";
 
 const BHK_MAP = {
-    "1 BHK": 1, "2 BHK": 2, "3 BHK": 3, "4 BHK": 4, "5+ BHK": 5,
+    "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
 };
+
+const BUDGET_MIN = 2000000;
+const BUDGET_MAX = 50000000;
+const AREA_MIN = 0;
+const AREA_MAX = 5000;
 
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
+        // address & landmark — matches name, location, or builder
+        if (filter.address) {
+            const q = filter.address.toLowerCase().trim();
+            const match =
+                p.name.toLowerCase().includes(q) ||
+                p.location.toLowerCase().includes(q) ||
+                p.builder.toLowerCase().includes(q);
+            if (!match) return false;
+        }
+
+        // search bar query
         if (filter.searchQuery) {
-            const q = filter.searchQuery.toLowerCase();
-            const match = p.name.toLowerCase().includes(q) ||
+            const q = filter.searchQuery.toLowerCase().trim();
+            const match =
+                p.name.toLowerCase().includes(q) ||
                 p.location.toLowerCase().includes(q) ||
                 p.builder.toLowerCase().includes(q) ||
                 p.subTypes.some(s => s.toLowerCase().includes(q));
@@ -27,13 +44,22 @@ function applyFilters(projects, filter) {
         if (filter.propertyTypes.length > 0 && !filter.propertyTypes.includes(p.propertyType)) return false;
 
         if (filter.propertySubTypes.length > 0) {
-            const match = filter.propertySubTypes.some((s) => p.subTypes.includes(s));
+            const selectedNums = filter.propertySubTypes.map((s) => BHK_MAP[s] ?? s);
+            const match = selectedNums.some((n) => p.subTypes.includes(n));
             if (!match) return false;
         }
 
-        if (p.budgetMax < filter.budgetRange[0] || p.budgetMin > filter.budgetRange[1]) return false;
+        // only apply budget bounds when slider has moved from its default
+        const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
+        const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
+        if (budgetLowerActive && p.budgetMax < filter.budgetRange[0]) return false;
+        if (budgetUpperActive && p.budgetMin > filter.budgetRange[1]) return false;
 
-        if (p.areaSqft < filter.areaRange[0] || p.areaSqft > filter.areaRange[1]) return false;
+        // only apply area bounds when slider has moved from its default
+        const areaLowerActive = filter.areaRange[0] > AREA_MIN;
+        const areaUpperActive = filter.areaRange[1] < AREA_MAX;
+        if (areaLowerActive && p.areaSqft < filter.areaRange[0]) return false;
+        if (areaUpperActive && p.areaSqft > filter.areaRange[1]) return false;
 
         if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(p.possessionStatus)) return false;
 
