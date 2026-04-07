@@ -28,7 +28,7 @@ const { width } = Dimensions.get("window");
 
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams();
+  const { id, from } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Overview");
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
@@ -245,12 +245,14 @@ export default function ProjectDetail() {
       </ScrollView>
 
       {/* Bottom CTA */}
-      <View
-        className="absolute bottom-0 left-0 right-0 bg-white px-6 pt-3.5 border-t border-gray-100"
-        style={{ paddingBottom: insets.bottom + 14 }}
-      >
-        <DetailFooter onBookVisit={() => setBookModalVisible(true)} />
-      </View>
+      {from !== "visit" && (
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white px-6 pt-3.5 border-t border-gray-100"
+          style={{ paddingBottom: insets.bottom + 14 }}
+        >
+          <DetailFooter onBookVisit={() => setBookModalVisible(true)} />
+        </View>
+      )}
 
       <BookVisitModal
         visible={bookModalVisible}

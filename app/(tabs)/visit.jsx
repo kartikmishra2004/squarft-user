@@ -3,10 +3,12 @@ import { View, Text, Pressable, ScrollView, Image, Dimensions } from "react-nati
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
+import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
-import { removeSiteVisit } from "../../store/slices/propertiesSlice";
+import { removeSiteVisit, addSiteVisit } from "../../store/slices/propertiesSlice";
 import { ALL_VISITS } from "../../data/visits";
+import { allProjects } from "../../data/projects";
 
 const { width } = Dimensions.get('window');
 
@@ -34,8 +36,10 @@ export default function Visit() {
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const [sheetContent, setSheetContent] = useState('edit');
   const [selectedVisit, setSelectedVisit] = useState(null);
+
+  const [selectedProjectForRebook, setSelectedProjectForRebook] = useState(null);
+  const [isRebookModalVisible, setIsRebookModalVisible] = useState(false);
 
   const tabs = ["Book visit", "Upcoming", "Past"];
 
@@ -76,39 +80,43 @@ export default function Visit() {
                   {bookedSiteVisits.map((visit) => {
                     const fallbackId = visit.id.replace(/\d{13}$/, "");
                     return (
-                    <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-200 relative">
-                      <Link href={`/project-detail?id=${visit.projectId || fallbackId}`} asChild>
-                        <Pressable className="p-4 flex-row items-center">
-                          <Image
-                            source={visit.image || visit.imageMain}
-                            className="w-[80px] h-[80px] rounded-lg mr-4"
-                            resizeMode="cover"
-                          />
-                          <View className="flex-1 justify-center pr-2">
-                            <Text className="text-[15px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                              {visit.title || visit.name}
-                            </Text>
-                            <Text className="text-[#6B7280] text-[12px] font-manrope mb-2" numberOfLines={1}>
-                              {visit.location}
-                            </Text>
-                            <Text className="text-[13px] font-manrope-bold text-[#4A43EC]">
-                              {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
-                            </Text>
-                          </View>
-                          <View className="items-center justify-center pl-2 pr-1">
-                            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-                            <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
-                          </View>
-                        </Pressable>
-                      </Link>
+                      <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-200 relative">
+                        <Link href={`/project-detail?id=${visit.projectId || fallbackId}&from=visit`} asChild>
+                          <Pressable className="p-4 flex-row items-center">
+                            <Image
+                              source={
+                                visit.image
+                                  ? (typeof visit.image === 'string' ? { uri: visit.image } : visit.image)
+                                  : (typeof visit.imageMain === 'string' ? { uri: visit.imageMain } : visit.imageMain)
+                              }
+                              className="w-[80px] h-[80px] rounded-lg mr-4"
+                              resizeMode="cover"
+                            />
+                            <View className="flex-1 justify-center pr-2">
+                              <Text className="text-[15px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                                {visit.title || visit.name}
+                              </Text>
+                              <Text className="text-[#6B7280] text-[12px] font-manrope mb-2" numberOfLines={1}>
+                                {visit.location}
+                              </Text>
+                              <Text className="text-[13px] font-manrope-bold text-[#4A43EC]">
+                                {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
+                              </Text>
+                            </View>
+                            <View className="items-center justify-center pl-2 pr-1">
+                              <Feather name="chevron-right" size={20} color="#9CA3AF" />
+                              <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
+                            </View>
+                          </Pressable>
+                        </Link>
 
-                      <Pressable 
-                        onPress={() => dispatch(removeSiteVisit(visit.id))}
-                        className="absolute right-0 top-0 w-8 h-8 items-center justify-center bg-gray-50 rounded-tr-xl rounded-bl-xl border-b border-l border-gray-200 z-10"
-                      >
-                         <Feather name="x" size={14} color="#6B7280" />
-                      </Pressable>
-                    </View>
+                        <Pressable
+                          onPress={() => dispatch(removeSiteVisit(visit.id))}
+                          className="absolute right-0 top-0 w-8 h-8 items-center justify-center bg-gray-50 rounded-tr-xl rounded-bl-xl border-b border-l border-gray-200 z-10"
+                        >
+                          <Feather name="x" size={14} color="#6B7280" />
+                        </Pressable>
+                      </View>
                     );
                   })}
 
@@ -196,7 +204,6 @@ export default function Visit() {
                         className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center"
                         onPress={() => {
                           setSelectedVisit(visit);
-                          setSheetContent('edit');
                           openModal();
                         }}
                       >
@@ -261,7 +268,7 @@ export default function Visit() {
 
                       {isCompleted ? (
                         <View className="flex-row gap-2">
-                          <Link href="/review" asChild>
+                          <Link href={{ pathname: "/review", params: { title: visit.title, image: visit.image, location: visit.location, dateFull: visit.dateFull } }} asChild>
                             <Pressable className="flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center">
                               <Feather name="star" size={13} color="white" />
                               <Text className="text-white font-manrope-bold text-[12px] ml-2">
@@ -269,15 +276,19 @@ export default function Visit() {
                               </Text>
                             </Pressable>
                           </Link>
-                          <Pressable className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center">
-                            <Feather name="info" size={13} color="#374151" />
-                            <Text className="text-[#374151] font-manrope-bold text-[12px] ml-2">
-                              Property
-                            </Text>
-                          </Pressable>
+
                         </View>
                       ) : (
-                        <Pressable className="w-full bg-[#F4F2FF] rounded-lg py-2.5 flex-row items-center justify-center">
+                        <Pressable
+                          onPress={() => {
+                            const fullProject = allProjects.find((p) => p.id === (visit.projectId || visit.id.replace(/\d{13}$/, "")));
+                            if (fullProject) {
+                              setSelectedProjectForRebook(fullProject);
+                              setIsRebookModalVisible(true);
+                            }
+                          }}
+                          className="w-full bg-[#F4F2FF] rounded-lg py-2.5 flex-row items-center justify-center"
+                        >
                           <Feather name="refresh-cw" size={13} color="#4A43EC" />
                           <Text className="text-[#4A43EC] font-manrope-bold text-[12px] ml-2">
                             Re-book Site Visit
@@ -307,22 +318,30 @@ export default function Visit() {
                 {bookedSiteVisits.length} Stops • {bookedSiteVisits.length * 1.5} hrs
               </Text>
             </View>
-            <Pressable className="bg-[#4A43EC] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
-              <Text className="text-white font-manrope-bold text-[14px] mr-2">
-                Book Site Visit
-              </Text>
-              <Feather name="calendar" size={16} color="white" />
-            </Pressable>
+            <Link href="/(screens)/book-site-visit" asChild>
+              <Pressable className="bg-[#4A43EC] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
+                <Text className="text-white font-manrope-bold text-[14px] mr-2">
+                  Book Site Visit
+                </Text>
+                <Feather name="calendar" size={16} color="white" />
+              </Pressable>
+            </Link>
           </View>
         </View>
       )}
 
       <RescheduleBottomSheet
         ref={bottomSheetModalRef}
-        sheetContent={sheetContent}
-        setSheetContent={setSheetContent}
         visitData={selectedVisit}
       />
+
+      {selectedProjectForRebook && (
+        <BookVisitModal 
+          visible={isRebookModalVisible} 
+          onClose={() => setIsRebookModalVisible(false)} 
+          project={selectedProjectForRebook} 
+        />
+      )}
     </View>
   );
 }

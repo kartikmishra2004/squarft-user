@@ -1,5 +1,5 @@
 import { Text, View, Pressable, ScrollView, Image, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useState, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,13 @@ export default function Review() {
     const scrollViewRef = useRef(null);
     const insets = useSafeAreaInsets();
     const router = useRouter();
+    const { title, image, location, dateFull } = useLocalSearchParams();
+
+    // Fallbacks just in case handled via direct standalone launch
+    const propertyTitle = title || "Green Valley Residency";
+    const propertyImage = image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80";
+    const propertyLocation = location || "Unit 402, Block B • Bangalore";
+    const propertyDate = dateFull || "24 Oct, 2023";
 
     return (
         <>
@@ -36,28 +43,33 @@ export default function Review() {
                 className="flex-1"
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <View className="flex-1 bg-white">
-                        <ScrollView ref={scrollViewRef} className="flex-1 px-5 pt-6 bg-white" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }} keyboardShouldPersistTaps="handled">
+                <ScrollView 
+                    ref={scrollViewRef} 
+                    className="flex-1 px-5 pt-6 bg-white" 
+                    showsVerticalScrollIndicator={false} 
+                    contentContainerStyle={{ paddingBottom: 40 }} 
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                >
                             <Text className="text-[12px] font-manrope-extrabold tracking-[1px] text-[#4B5563] uppercase mb-[14px]">
                                 VISIT SUMMARY
                             </Text>
 
-                            <View className="flex-row items-center border border-gray-100 rounded-2xl p-3 mb-6 bg-white shadow-sm" style={{ elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 }}>
+                            <View className="flex-row items-center border border-gray-100 rounded-[16px] p-3 mb-6 bg-white">
                                 <Image
-                                    source={{ uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" }}
+                                    source={{ uri: propertyImage }}
                                     className="w-[68px] h-[68px] rounded-[10px] mr-4"
                                     resizeMode="cover"
                                 />
                                 <View className="justify-center flex-1">
                                     <Text className="text-[11px] font-manrope text-[#6B7280] mb-[2px]">
-                                        Visited on 24 Oct, 2023
+                                        Visited on {propertyDate}
                                     </Text>
-                                    <Text className="text-[15px] font-manrope-extrabold text-[#111827] mb-[2px]">
-                                        Green Valley Residency
+                                    <Text className="text-[15px] font-manrope-extrabold text-[#111827] mb-[2px]" numberOfLines={1}>
+                                        {propertyTitle}
                                     </Text>
-                                    <Text className="text-[12px] font-manrope font-medium text-[#9CA3AF]">
-                                        Unit 402, Block B • Bangalore
+                                    <Text className="text-[12px] font-manrope font-medium text-[#9CA3AF]" numberOfLines={1}>
+                                        {propertyLocation}
                                     </Text>
                                 </View>
                             </View>
@@ -188,8 +200,6 @@ export default function Review() {
                             </Text>
 
                         </ScrollView>
-                    </View>
-                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </>
     );
