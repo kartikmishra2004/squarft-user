@@ -9,6 +9,7 @@ const propertiesSlice = createSlice({
         missed: missedProperties.map((p) => ({ ...p })),
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
+        bookedSiteVisits: [],
         selectedCategory: 'all',
         searchQuery: '',
     },
@@ -43,8 +44,17 @@ const propertiesSlice = createSlice({
         setSearchQuery: (state, action) => {
             state.searchQuery = action.payload;
         },
+        addSiteVisit: (state, action) => {
+            const exists = state.bookedSiteVisits.some((v) => v.id === action.payload.id);
+            if (!exists) {
+                state.bookedSiteVisits.push(action.payload);
+            }
+        },
+        removeSiteVisit: (state, action) => {
+            state.bookedSiteVisits = state.bookedSiteVisits.filter((v) => v.id !== action.payload);
+        },
     },
 });
 
-export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery } = propertiesSlice.actions;
+export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit } = propertiesSlice.actions;
 export default propertiesSlice.reducer;
