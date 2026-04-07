@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
     PanResponder, useWindowDimensions,
@@ -135,6 +135,8 @@ export default function FilterModal() {
     const dispatch = useDispatch();
     const { isOpen, address, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
 
+    const [localAddress, setLocalAddress] = useState(address);
+
     const sheetRef = useRef(null);
     const snapPoints = ['92%'];
 
@@ -174,7 +176,7 @@ export default function FilterModal() {
 
                 {/* Address */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 12 }}>
-                    <TextInput value={address} onChangeText={(v) => dispatch(setAddress(v))} placeholder="Address & Landmark" placeholderTextColor="#9CA3AF" style={{ flex: 1, fontSize: 14, color: '#111827' }} />
+                    <TextInput value={localAddress} onChangeText={setLocalAddress} placeholder="Address & Landmark" placeholderTextColor="#9CA3AF" style={{ flex: 1, fontSize: 14, color: '#111827' }} />
                     <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#4A43EC" />
                 </View>
 
@@ -233,11 +235,12 @@ export default function FilterModal() {
             </BottomSheetScrollView>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-                <TouchableOpacity onPress={() => dispatch(clearFilters())}>
+                <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); }}>
                     <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     onPress={() => {
+                        dispatch(setAddress(localAddress));
                         dispatch(closeFilter());
                         router.push('/(screens)/property-listing');
                     }}
