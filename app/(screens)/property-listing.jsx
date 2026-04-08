@@ -20,7 +20,6 @@ const AREA_MAX = 5000;
 
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
-        // address & landmark — matches name, location, or builder
         if (filter.address) {
             const q = filter.address.toLowerCase().trim();
             const match =
@@ -30,7 +29,6 @@ function applyFilters(projects, filter) {
             if (!match) return false;
         }
 
-        // search bar query
         if (filter.searchQuery) {
             const q = filter.searchQuery.toLowerCase().trim();
             const match =
@@ -49,13 +47,11 @@ function applyFilters(projects, filter) {
             if (!match) return false;
         }
 
-        // only apply budget bounds when slider has moved from its default
         const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
         const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
         if (budgetLowerActive && p.budgetMax < filter.budgetRange[0]) return false;
         if (budgetUpperActive && p.budgetMin > filter.budgetRange[1]) return false;
 
-        // only apply area bounds when slider has moved from its default
         const areaLowerActive = filter.areaRange[0] > AREA_MIN;
         const areaUpperActive = filter.areaRange[1] < AREA_MAX;
         if (areaLowerActive && p.areaSqft < filter.areaRange[0]) return false;
@@ -156,7 +152,18 @@ export default function PropertyListing() {
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
             <FilterModal />
 
-            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#F9FAFB' }}>
+            <Image
+                source={require('../../assets/images/blur (3).png')}
+                pointerEvents="none"
+                style={{ position: 'absolute', left: -40, top: -30, width: 570, height: 360, opacity: 0.6, zIndex: 0 }}
+            />
+            <Image
+                source={require('../../assets/images/blur (5).png')}
+                pointerEvents="none"
+                style={{ position: 'absolute', left: 216, top: 23, width: 241, height: 241, borderRadius: 1000, opacity: 1, zIndex: 0 }}
+            />
+
+            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: 'transparent' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                         <Ionicons name="chevron-back" size={20} color="#374151" />

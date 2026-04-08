@@ -16,14 +16,14 @@ import { Image } from "react-native";
 
 
 const SEARCH_HISTORY = [
-    { id: '1', icon: 'history', title: 'Indore 2 BHK', subtitle: '2 hours ago • Vijay Nagar Area' },
-    { id: '2', icon: 'location-on', title: 'Mumbai Sea View', subtitle: 'Yesterday • Worli, Mumbai' },
-    { id: '3', icon: 'domain', title: 'Luxury Villa in Pune', subtitle: '3 days ago • Baner-Pashan Link Road' },
+    { id: '1', icon: 'history', title: 'Serenity Reserve', subtitle: '2 hours ago • Scheme No 140' },
+    { id: '2', icon: 'location-on', title: 'Vijay Nagar', subtitle: 'Yesterday • Nipania, Indore' },
+    { id: '3', icon: 'domain', title: 'Luxury Villa in Indore', subtitle: '3 days ago • Scheme No. 136' },
     { id: '4', icon: 'domain', title: 'Bangalore Tech Park 3BHK', subtitle: '1 week ago • Whitefield' },
 ];
 
 const TRENDING_SEARCHES = [
-    '3 BHK in South Delhi',
+    '3 BHK in Indore',
     'Penthouse with Sea View',
     'Villas in Goa',
     'Studio Apartments',

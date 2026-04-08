@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    PanResponder, useWindowDimensions,
+    useWindowDimensions,
 } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import RangeSliderLib from "react-native-fast-range-slider";
 import {
     closeFilter, setAddress, removeTag,
     togglePropertyType, toggleSubType,
@@ -32,83 +32,30 @@ function formatBudget(val) {
 
 function RangeSlider({ min, max, values, onChange }) {
     const { width } = useWindowDimensions();
-    const TRACK_WIDTH = width - 64;
-    const THUMB = 20;
-
-    const toPercent = (v) => (v - min) / (max - min);
-    const toValue = (pct) => Math.round(min + pct * (max - min));
-
-    const leftPct = useRef(toPercent(values[0]));
-    const rightPct = useRef(toPercent(values[1]));
-
-    const leftX = useSharedValue(toPercent(values[0]) * TRACK_WIDTH);
-    const rightX = useSharedValue(toPercent(values[1]) * TRACK_WIDTH);
-
-    const leftThumbStyle = useAnimatedStyle(() => ({
-        position: 'absolute',
-        left: leftX.value - THUMB / 2,
-        width: THUMB, height: THUMB,
-        borderRadius: THUMB / 2,
-        backgroundColor: '#4A43EC',
-        borderWidth: 3, borderColor: '#fff',
-        shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-    }));
-
-    const rightThumbStyle = useAnimatedStyle(() => ({
-        position: 'absolute',
-        left: rightX.value - THUMB / 2,
-        width: THUMB, height: THUMB,
-        borderRadius: THUMB / 2,
-        backgroundColor: '#4A43EC',
-        borderWidth: 3, borderColor: '#fff',
-        shadowColor: '#4A43EC', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
-    }));
-
-    const activeTrackStyle = useAnimatedStyle(() => ({
-        position: 'absolute',
-        left: leftX.value,
-        width: rightX.value - leftX.value,
-        height: 4,
-        backgroundColor: '#4A43EC',
-        borderRadius: 2,
-    }));
-
-    const leftResponder = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => { leftPct.current = toPercent(values[0]); },
-        onPanResponderMove: (_, gs) => {
-            const next = Math.max(0, Math.min(leftPct.current + gs.dx / TRACK_WIDTH, rightPct.current - 0.02));
-            leftX.value = next * TRACK_WIDTH;
-        },
-        onPanResponderRelease: (_, gs) => {
-            const next = Math.max(0, Math.min(leftPct.current + gs.dx / TRACK_WIDTH, rightPct.current - 0.02));
-            leftPct.current = next;
-            runOnJS(onChange)([toValue(next), values[1]]);
-        },
-    })).current;
-
-    const rightResponder = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => { rightPct.current = toPercent(values[1]); },
-        onPanResponderMove: (_, gs) => {
-            const next = Math.min(1, Math.max(rightPct.current + gs.dx / TRACK_WIDTH, leftPct.current + 0.02));
-            rightX.value = next * TRACK_WIDTH;
-        },
-        onPanResponderRelease: (_, gs) => {
-            const next = Math.min(1, Math.max(rightPct.current + gs.dx / TRACK_WIDTH, leftPct.current + 0.02));
-            rightPct.current = next;
-            runOnJS(onChange)([values[0], toValue(next)]);
-        },
-    })).current;
-
     return (
-        <View style={{ height: 40, justifyContent: 'center' }}>
-            <View style={{ height: 4, backgroundColor: '#E5E7EB', borderRadius: 2 }}>
-                <Animated.View style={activeTrackStyle} />
-            </View>
-            <Animated.View {...leftResponder.panHandlers} style={leftThumbStyle} />
-            <Animated.View {...rightResponder.panHandlers} style={rightThumbStyle} />
-        </View>
+        <RangeSliderLib
+            key={`${values[0]}-${values[1]}`}
+            min={min}
+            max={max}
+            initialMinValue={values[0]}
+            initialMaxValue={values[1]}
+            width={width - 64}
+            trackHeight={4}
+            thumbSize={24}
+            showThumbLines={false}
+            selectedTrackColor="#4A43EC"
+            unselectedTrackStyle={{ backgroundColor: '#E5E7EB' }}
+            thumbStyle={{
+                backgroundColor: '#4A43EC',
+                borderWidth: 3,
+                borderColor: '#fff',
+                shadowColor: '#4A43EC',
+                shadowOpacity: 0.4,
+                shadowRadius: 4,
+                elevation: 4,
+            }}
+            onValuesChangeFinish={(vals) => onChange([vals[0], vals[1]])}
+        />
     );
 }
 
@@ -138,7 +85,7 @@ export default function FilterModal() {
     const [localAddress, setLocalAddress] = useState(address);
 
     const sheetRef = useRef(null);
-    const snapPoints = ['92%'];
+    const snapPoints = ['95%'];
 
     useEffect(() => {
         if (isOpen) sheetRef.current?.present();
@@ -172,7 +119,7 @@ export default function FilterModal() {
                 <View style={{ width: 22 }} />
             </View>
 
-            <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
+            <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 80 }}>
 
                 {/* Address */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 12 }}>
@@ -180,7 +127,6 @@ export default function FilterModal() {
                     <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#4A43EC" />
                 </View>
 
-                {/* Tags */}
                 {tags.length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
                         {tags.map((tag) => (
@@ -227,15 +173,25 @@ export default function FilterModal() {
                 </View>
 
                 {/* Possession Status */}
-                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {POSSESSION.map((p) => <CheckBox key={p} label={p} checked={possessionStatus.includes(p)} onPress={() => dispatch(togglePossession(p))} />)}
                 </View>
 
             </BottomSheetScrollView>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-                <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); }}>
+{/* bottom area */}
+            <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                paddingHorizontal: 20, 
+                paddingVertical: 14,
+                borderTopWidth: 1, 
+                borderTopColor: '#F3F4F6',
+                backgroundColor: '#fff',
+            }}>
+              <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); }}>
                     <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
