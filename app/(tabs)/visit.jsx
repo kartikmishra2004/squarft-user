@@ -201,7 +201,7 @@ export default function Visit() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        className="flex-1 bg-white border border-gray-100 rounded-lg py-2.5 flex-row items-center justify-center"
+                        className="flex-1 bg-[#4A43EC1A] rounded-lg py-2.5 flex-row items-center justify-center"
                         onPress={() => {
                           setSelectedVisit(visit);
                           openModal();
@@ -267,16 +267,24 @@ export default function Visit() {
                       </View>
 
                       {isCompleted ? (
-                        <View className="flex-row gap-2">
+                        <View className="flex-col gap-2">
                           <Link href={{ pathname: "/review", params: { title: visit.title, image: visit.image, location: visit.location, dateFull: visit.dateFull } }} asChild>
-                            <Pressable className="flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center">
-                              <Feather name="star" size={13} color="white" />
-                              <Text className="text-white font-manrope-bold text-[12px] ml-2">
-                                Rate Visit
+                            <Pressable className="w-full bg-[#4A43EC] rounded-lg py-3 flex-row items-center justify-center">
+                              <Feather name="edit-3" size={14} color="white" />
+                              <Text className="text-white font-manrope-bold text-[13px] ml-2">
+                                Write Review
                               </Text>
                             </Pressable>
                           </Link>
 
+                          <Link href={`/project-detail?id=${visit.projectId || visit.id.replace(/\d{13}$/, "")}&from=visit`} asChild>
+                            <Pressable className="w-full border border-gray-200 rounded-lg py-3 flex-row items-center justify-center bg-white">
+                              <Feather name="eye" size={14} color="#6B7280" />
+                              <Text className="text-[#111827] font-manrope-bold text-[13px] ml-2">
+                                View Property Details
+                              </Text>
+                            </Pressable>
+                          </Link>
                         </View>
                       ) : (
                         <Pressable
@@ -336,10 +344,10 @@ export default function Visit() {
       />
 
       {selectedProjectForRebook && (
-        <BookVisitModal 
-          visible={isRebookModalVisible} 
-          onClose={() => setIsRebookModalVisible(false)} 
-          project={selectedProjectForRebook} 
+        <BookVisitModal
+          visible={isRebookModalVisible}
+          onClose={() => setIsRebookModalVisible(false)}
+          project={selectedProjectForRebook}
         />
       )}
     </View>

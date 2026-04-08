@@ -58,6 +58,7 @@ export default function BookSiteVisit() {
 
           {/* Selected Properties */}
           {bookedSiteVisits.map((visit) => {
+            const fallbackId = visit.id.replace(/\d{13}$/, "");
             const imageObj = visit.image || visit.imageMain;
             const imageSource = imageObj
               ? (typeof imageObj === "string" ? { uri: imageObj } : imageObj)
@@ -79,7 +80,13 @@ export default function BookSiteVisit() {
                       {visit.location}
                     </Text>
                   </View>
-                  <Pressable className="flex-row items-center mt-0.5">
+                  <Pressable 
+                    onPress={() => router.push({
+                      pathname: "/(screens)/project-detail",
+                      params: { id: visit.projectId || fallbackId, from: "visit" }
+                    })}
+                    className="flex-row items-center mt-0.5"
+                  >
                     <Text className="text-[#4A43EC] text-[11px] font-manrope-bold">
                       View Details
                     </Text>
