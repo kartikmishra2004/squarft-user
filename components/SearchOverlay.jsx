@@ -7,7 +7,7 @@ import Animated, {
     useSharedValue, useAnimatedStyle,
     withTiming, Easing, FadeIn, FadeOut, Layout,
 } from "react-native-reanimated";
-import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
@@ -279,8 +279,26 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                         )}
                     </View>
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#4A43EC', borderRadius: 14, paddingHorizontal: 16, height: 46, gap: 6 }}>
-                        <MaterialCommunityIcons name="tune-variant" size={16} color="#9DA8F0" />
+                        <AntDesign name="spotify" size={18} color="#7F88E5" />
                         <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Filters</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Location options */}
+                <View style={{ marginTop: 14, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
+                    >
+                        <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#E8336D" />
+                        <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D' }}>Use my Current Location</Text>
+                    </TouchableOpacity>
+                    <View style={{ height: 1, backgroundColor: '#f1f2f5ff', marginHorizontal: 18 }} />
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
+                    >
+                        <MaterialCommunityIcons name="plus" size={22} color="#E8336D" />
+                        <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D', flex: 1 }}>Add New Address</Text>
+                        <Ionicons name="chevron-forward" size={18} color="#E8336D" />
                     </TouchableOpacity>
                 </View>
             </Animated.View>

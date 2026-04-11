@@ -1,7 +1,8 @@
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
+import { Platform, Text, TouchableOpacity } from "react-native";
 import { useSelector } from "react-redux";
 import { Image } from "expo-image";
+import { Feather } from "@expo/vector-icons";
 
 const icons = {
     home: {
@@ -113,10 +114,24 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    headerTitle: "Settings",
+                    headerTitle: "",
+                    headerLeft: () => (
+                        <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A', marginLeft: 20 }}>
+                            Profile
+                        </Text>
+                    ),
+                    headerRight: () => (
+                        <TouchableOpacity style={{ marginRight: 16 }}>
+                            <Feather name="edit-2" size={20} color="#475569" />
+                        </TouchableOpacity>
+                    ),
+                    headerStyle: { backgroundColor: '#F3F4F6' },
+                    headerShadowVisible: false,
                     tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
                 }}
+               
             />
+            
         </Tabs>
     );
 }

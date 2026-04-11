@@ -3,14 +3,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 const cardShadow = {
-    shadowColor: "#6B7280",
+    shadowColor: "#d2abc0ff",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
     shadowRadius: 2,
-    elevation: 5,
+    elevation: 2,
 };
 
-// Works with both properties (item.image/title/priceINR) and projects (item.imageMain/name/variants)
 export default function FeaturedCard({ item, onToggleFav, showBookVisit = false }) {
     const image = item.image ?? item.imageMain;
     const title = item.title ?? item.name;
@@ -31,7 +30,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
                 {onToggleFav && (
                     <TouchableOpacity
                         onPress={() => onToggleFav(item.id)}
-                        style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.9)", alignItems: "center", justifyContent: "center" }}
+                        style={{ position: "absolute", top: 10, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.9)", alignItems: "center", justifyContent: "center" }}
                     >
                         <Ionicons
                             name={item.isFavourite ? "heart" : "heart-outline"}
@@ -41,7 +40,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
                     </TouchableOpacity>
                 )}
             </View>
-            <View className="px-4 py-2">
+            <View className="px-4 py-4">
                 <Text className="text-[15px] font-inter-bold text-[#1F2937] mb-0.5">{title}</Text>
                 <Text className="text-[12px] font-inter-regular text-[#6B7280] mb-2">{item.location}</Text>
                 <View className="flex-row items-center justify-between">

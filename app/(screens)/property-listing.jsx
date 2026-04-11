@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
 import FilterModal from "../../components/FilterModal";
 import { openFilter, setSearchQuery } from "../../store/slices/filterSlice";
+import { SlidersHorizontal } from 'phosphor-react-native';
 
 const BHK_MAP = {
     "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
@@ -110,14 +111,17 @@ function ProjectCard({ item }) {
 
             <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
 
-            <View className="flex-row justify-between px-3 pb-3">
+            <View className="flex-row  px-3 pb-3">
                 <View>
-                    <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{item.variants[0]?.type}</Text>
+                    <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[0]?.type}</Text>
                     <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[0]?.priceRange}</Text>
                 </View>
+                  {item.variants[1] && (
+        <View className="h-12 w-[1px] bg-gray-300 mx-5" />
+    )}
                 {item.variants[1] && (
-                    <View className="items-end">
-                        <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{item.variants[1].type}</Text>
+                    <View className="items-left">
+                        <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[1].type}</Text>
                         <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[1].priceRange}</Text>
                     </View>
                 )}
@@ -186,15 +190,18 @@ export default function PropertyListing() {
                         />
                     </View>
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
-                        <AntDesign name="spotify" size={18} color="#7F88E5" />
+                       <AntDesign name="spotify" size={18} color="#7F88E5" />
                     </TouchableOpacity>
                     <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                        <MaterialCommunityIcons name="view-grid-outline" size={20} color="#374151" />
+                       <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
                     </TouchableOpacity>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}>
+                    <TouchableOpacity
+                        onPress={() => router.push("/(screens)/map-view")}
+                        style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}
+                    >
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Map View</Text>
                     </TouchableOpacity>
                     {['Budget', 'BHK', 'Possession'].map((f) => (

@@ -50,7 +50,7 @@ export default function ProjectDetail() {
     project.avgPricePerSqft;
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1 bg-[#F8F5FF]">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
@@ -74,7 +74,11 @@ export default function ProjectDetail() {
             className="absolute right-4 w-[38px] h-[38px] rounded-full bg-white/85 items-center justify-center"
             style={{ top: insets.top + 10 }}
           >
-            <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={20} color={isSaved ? "#4A43EC" : "#111827"} />
+            <MaterialCommunityIcons
+              name={isSaved ? "bookmark-plus" : "bookmark-plus-outline"}
+              size={20}
+              color={isSaved ? "#0c0c0cff" : "#111827"}
+            />
           </TouchableOpacity>
         </View>
 
@@ -247,7 +251,7 @@ export default function ProjectDetail() {
       {/* Bottom CTA */}
       {from !== "visit" && (
         <View
-          className="absolute bottom-0 left-0 right-0 bg-white px-6 pt-3.5 border-t border-gray-100"
+          className="absolute bottom-0 left-0 right-0 bg-white px-6 pt-6 border-t border-gray-100"
           style={{ paddingBottom: insets.bottom + 14 }}
         >
           <DetailFooter onBookVisit={() => setBookModalVisible(true)} />

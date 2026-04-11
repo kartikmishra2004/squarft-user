@@ -23,13 +23,10 @@ export default function BuilderModal({ visible, onClose, project }) {
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
                 <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-                <View className="bg-white rounded-t-3xl" style={{ maxHeight: "90%" }}>
-
+                <View className="bg-white rounded-t-3xl" style={{ maxHeight: "90%" }}>                    
                     {/* Handle */}
                     <View className="w-10 h-1 bg-gray-300 rounded-full self-center mt-4 mb-6" />
-
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        {/* Builder header */}
                         <View className="flex-row items-start justify-between px-5 mb-3">
                             <View className="flex-1 pr-4 ">
                                 <Text className="text-[17px] mb-2 pr-6 font-manrope-semibold text-gray-900 leading-7">{project?.builder}</Text>
@@ -44,7 +41,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                                 <Image source={project?.builderLogo} className="w-full h-full" resizeMode="cover" />
                             </View>
                         </View>
-
+                        
                         {/* Possession filter */}
                         <Text className="text-[15px] mt-1 font-manrope-semibold text-gray-900 px-5 mb-4">Possession</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 6 }}>
