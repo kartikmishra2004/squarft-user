@@ -5,7 +5,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { dealsData } from "../../../data/my-deals";
 import { Ionicons } from "@expo/vector-icons";
 
-// Modular Tab Components
 import TabTimeline from "../../../components/myDeals/TabTimeline";
 import TabPayments from "../../../components/myDeals/TabPayments";
 import TabDocuments from "../../../components/myDeals/TabDocuments";

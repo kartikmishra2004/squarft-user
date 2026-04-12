@@ -8,7 +8,7 @@ export default function Onboarding3() {
             <StatusBar style="dark" />
             <View className="absolute top-16 right-5 z-10">
                 <Link href="/login">
-                    <View className="bg-[#4A43EC] px-5 py-2 rounded-full min-w-[70px] items-center justify-center">
+                    <View className="bg-[#4A43EC] px-5 py-1 rounded-full min-w-[70px] items-center justify-center">
                         <Text className="text-white text-[15px] font-lato-light" adjustsFontSizeToFit numberOfLines={1}>Skip</Text>
                     </View>
                 </Link>
@@ -29,7 +29,7 @@ export default function Onboarding3() {
                     <View className="w-12 h-[5px] rounded-l-full rounded-r-full bg-[#4A43EC]" />
                 </View>
                 <Link href="/login" asChild>
-                    <Pressable className="bg-[#4A43EC] rounded-2xl py-4 items-center w-[60%] min-w-[150px]">
+                    <Pressable className="bg-[#4A43EC] rounded-2xl py-4 items-center w-[50%] min-w-[150px]">
                         <Text className="text-white text-[16px] font-lato-bold tracking-wider" adjustsFontSizeToFit numberOfLines={1}>
                             NEXT
                         </Text>

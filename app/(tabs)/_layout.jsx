@@ -84,6 +84,11 @@ export default function TabsLayout() {
                 options={{
                     headerTitle: "My Activity",
                     headerTitleAlign: "center",
+                    headerShadowVisible: false,
+                    headerStyle: {
+                        borderBottomWidth: 1.,
+                        borderBottomColor: 'rgba(0,0,0,0.06)',
+                    },
                     tabBarIcon: ({ focused }) => <TabIcon name="myActivity" focused={focused} />,
                 }}
             />

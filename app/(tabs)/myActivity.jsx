@@ -60,7 +60,7 @@ export default function Favourite() {
             );
           })}
         </View>
-        <View className="w-full h-[1px] bg-gray-100/60" />
+        <View className="w-full h-[1px] bg-gray-100/30 " />
         <View className="flex-1">
           {activeTab === "SAVED" && <SavedTabContent />}
           {activeTab === "SEEN" && <SeenTabContent />}

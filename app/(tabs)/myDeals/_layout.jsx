@@ -4,7 +4,7 @@ export default function MyDealsLayout() {
     return (
         <Stack
             screenOptions={{
-                headerShown: false, // Default to no header, or standard header
+                headerShown: false, 
             }}
         >
             <Stack.Screen
