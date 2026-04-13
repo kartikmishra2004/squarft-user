@@ -49,7 +49,6 @@ export default function TabsLayout() {
             screenOptions={{
                 tabBarShowLabel: false,
                 tabBarStyle: searchActive ? { display: 'none' } : {
-                    position: "absolute",
                     bottom: Platform.OS === "ios" ? 0 : -1,
                     borderTopRightRadius: 45,
                     borderTopLeftRadius: 45,
@@ -134,9 +133,9 @@ export default function TabsLayout() {
                     headerShadowVisible: false,
                     tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
                 }}
-               
+
             />
-            
+
         </Tabs>
     );
 }
