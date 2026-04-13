@@ -46,8 +46,8 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
                 <View className="flex-row items-center justify-between">
                     <Text className="text-[14px] font-inter-bold text-[#111827]">{price}</Text>
                     {showBookVisit && (
-                        <TouchableOpacity className="bg-indigo-50 px-3 py-1.5 rounded-full">
-                            <Text className="text-[11px] font-semibold text-indigo-600">Book Site visit</Text>
+                        <TouchableOpacity className="bg-[#6C3BFF]/10 px-3 py-2.5 rounded-lg">
+                            <Text className="text-[11px] font-semibold text-[#6C3BFF]">Book Site visit</Text>
                         </TouchableOpacity>
                     )}
                 </View>

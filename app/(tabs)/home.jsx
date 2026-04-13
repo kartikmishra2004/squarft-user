@@ -23,18 +23,18 @@ import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent } from "../.
 import { currentUser } from "../../data/user";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
-import { openFilter } from "../../store/slices/filterSlice";
+import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
 import { useState } from "react";
 import { router } from "expo-router";
 import FeaturedCard from "../../components/FeaturedCard";
 
 const CATEGORIES = [
-  { id: "1", label: "Flat", icon: "office-building" },
-  { id: "2", label: "Apartment", icon: "magnify" },
-  { id: "3", label: "Commercial", icon: "sofa" },
-  { id: "4", label: "1 Rk", icon: "domain" },
-  { id: "5", label: "Plot", icon: "store" },
+  { id: "1", label: "Flat",       icon: "office-building", type: "Flat/Apartment" },
+  { id: "2", label: "Apartment",  icon: "magnify",         type: "Flat/Apartment" },
+  { id: "3", label: "Commercial", icon: "sofa",            type: "Commercial" },
+  { id: "4", label: "1 Rk",       icon: "domain",          type: "Flat/Apartment" },
+  { id: "5", label: "Plot",       icon: "store",           type: "Plot" },
 ];
 
 const cardShadow = {
@@ -247,6 +247,11 @@ export default function Home() {
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
+                onPress={() => {
+                  dispatch(clearFilters());
+                  dispatch(togglePropertyType(cat.type));
+                  router.push('/(screens)/property-listing');
+                }}
                 className="items-center justify-center bg-white rounded-xl gap-2"
                 style={{
                   width: 64,

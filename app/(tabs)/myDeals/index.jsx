@@ -114,8 +114,8 @@ export default function MyDeals() {
                                     key={deal.id}
                                     className="bg-white rounded-[12px] p-3 mb-3"
                                     style={{
-                                        elevation: 2,
-                                        shadowColor: '#000',
+                                        elevation: 1,
+                                        shadowColor: '#828080ff',
                                         shadowOffset: { width: 0, height: 2 },
                                         shadowOpacity: 0.05,
                                         shadowRadius: 8,

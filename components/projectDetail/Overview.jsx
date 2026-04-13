@@ -19,7 +19,7 @@ const cardShadow = {
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 4,
+    elevation: 1,
 };
 
 export default function Overview({ project }) {
@@ -27,7 +27,7 @@ export default function Overview({ project }) {
     const [floorPlanVisible, setFloorPlanVisible] = useState(false);
     return (
         <View>
-            
+
             {/* Variants horizontal scroll */}
             <ScrollView
                 horizontal
@@ -108,7 +108,7 @@ export default function Overview({ project }) {
                 </View>
                 {project.reraId && (
                     <View>
-                        
+
                         <Text className="text-[12px] font-manrope-regular text-[#6B7280] mb-1">RERA ID</Text>
                         <View className="flex-row items-center gap-3">
                             <Text className="text-[14px] font-manrope-medium text-[#1A1A1A]">{project.reraId}</Text>
@@ -137,8 +137,8 @@ export default function Overview({ project }) {
             </View>
 
             {/* Brochure download */}
-            
-            <TouchableOpacity style={{backgroundColor:"#6C3BFF2A",borderColor:"#6C3BFF1A"}} className=" mx-6 mb-6 mt-5 border rounded-2xl p-4 flex-row items-center gap-3">
+
+            <TouchableOpacity style={{ backgroundColor: "#6C3BFF2A", borderColor: "#6C3BFF1A" }} className=" mx-6 mb-6 mt-5 border rounded-2xl p-4 flex-row items-center gap-3">
                 <View className="w-16 h-16 bg-indigo-600 rounded-2xl items-center justify-center">
                     <MaterialIcons name="picture-as-pdf" size={26} color="#fff" />
                 </View>
@@ -160,7 +160,7 @@ export default function Overview({ project }) {
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 24, gap: 14, paddingTop: 12, paddingBottom: 15 , marginBottom:12 }}
+                    contentContainerStyle={{ paddingHorizontal: 24, gap: 14, paddingTop: 44, paddingBottom: 15, marginBottom: 12 }}
                 >
                     {getResaleByProject(project.id).map((item) => (
                         <FeaturedCard key={item.id} item={item} showBookVisit />

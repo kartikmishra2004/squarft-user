@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
 import FilterModal from "../../components/FilterModal";
 import { openFilter, setSearchQuery } from "../../store/slices/filterSlice";
-import { SlidersHorizontal } from 'phosphor-react-native';
 
 const BHK_MAP = {
     "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
@@ -144,6 +143,15 @@ export default function PropertyListing() {
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
     const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
+    const [sortKey, setSortKey] = useState('relevance');
+    const [sortOpen, setSortOpen] = useState(false);
+
+    const SORT_OPTIONS = [
+        { key: 'relevance',  label: 'Relevance' },
+        { key: 'newest',     label: 'Newest First' },
+        { key: 'price_asc',  label: 'Price - Low to High' },
+        { key: 'price_desc', label: 'Price - High to Low' },
+    ];
 
     const handleSearch = (text) => {
         setLocalQuery(text);
@@ -151,6 +159,15 @@ export default function PropertyListing() {
     };
 
     const filtered = applyFilters(allProjects, filter);
+
+    const sorted = [...filtered].sort((a, b) => {
+        if (sortKey === 'newest') return b.launchedIn?.localeCompare(a.launchedIn ?? '') ?? 0;
+        if (sortKey === 'price_asc') return a.budgetMin - b.budgetMin;
+        if (sortKey === 'price_desc') return b.budgetMin - a.budgetMin;
+        return 0;
+    });
+
+    const activeSortLabel = SORT_OPTIONS.find(o => o.key === sortKey)?.label ?? 'Relevance';
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
@@ -216,16 +233,47 @@ export default function PropertyListing() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
-                    <Text style={{ fontWeight: '700', color: '#111827' }}>{filtered.length}</Text> Premium Projects
+                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text> Premium Projects
                 </Text>
-                <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 12, color: '#9243ecff', fontWeight: '600' }}>SORT BY: RELEVANCE</Text>
+                <TouchableOpacity onPress={() => setSortOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#4A43EC', fontWeight: '600' }}>SORT BY: {activeSortLabel.toUpperCase()}</Text>
                     <MaterialCommunityIcons name="sort" size={14} color="#4A43EC" />
                 </TouchableOpacity>
             </View>
 
+            {/* Sort dropdown modal */}
+            <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
+                <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setSortOpen(false)}>
+                    <View style={{
+                        position: 'absolute', right: 16, top: 180,
+                        backgroundColor: '#fff', borderRadius: 14,
+                        overflow: 'hidden', minWidth: 210,
+                        shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 8,
+                    }}>
+                        {SORT_OPTIONS.map((opt, i) => (
+                            <TouchableOpacity
+                                key={opt.key}
+                                onPress={() => { setSortKey(opt.key); setSortOpen(false); }}
+                                style={{
+                                    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                    paddingHorizontal: 16, paddingVertical: 14,
+                                    borderBottomWidth: i < SORT_OPTIONS.length - 1 ? 1 : 0,
+                                    borderBottomColor: '#F3F4F6',
+                                    backgroundColor: sortKey === opt.key ? '#F5F3FF' : '#fff',
+                                }}
+                            >
+                                <Text style={{ fontSize: 14, color: sortKey === opt.key ? '#4A43EC' : '#374151', fontWeight: sortKey === opt.key ? '600' : '400' }}>
+                                    {opt.label}
+                                </Text>
+                                {sortKey === opt.key && <Ionicons name="checkmark" size={16} color="#4A43EC" />}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </Pressable>
+            </Modal>
+
             <FlatList
-                data={filtered}
+                data={sorted}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <ProjectCard item={item} />}
                 showsVerticalScrollIndicator={false}

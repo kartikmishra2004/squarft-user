@@ -327,7 +327,7 @@ export default function Visit() {
               </Text>
             </View>
             <Link href="/(screens)/book-site-visit" asChild>
-              <Pressable className="bg-[#4A43EC] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
+              <Pressable className="bg-[#6C3BFF] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
                 <Text className="text-white font-manrope-bold text-[14px] mr-2">
                   Book Site Visit
                 </Text>
