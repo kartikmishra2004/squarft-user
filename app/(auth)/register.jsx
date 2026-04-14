@@ -29,13 +29,13 @@ export default function Register() {
 
                     <ImageBackground
                         source={require('../../assets/images/auth_grid_bg.png')}
-                        style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 28, backgroundColor: '#4A43EC' }}
+                        style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
                         resizeMode="cover"
                     >
-                        <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 20, marginTop: 16 }}>
-                            <Image source={logo} style={{ width: 110, height: 110, margin: -30 }} resizeMode="contain" />
+                        <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 1 }}>
+                            <Image source={logo} style={{ width: 110, height: 110, margin: -26, }} resizeMode="contain" />
                         </View>
-                        <Text className="text-white text-[36px] font-bold mb-1">Register</Text>
+                        <Text className="text-white text-[32px] font-manrope-bold mb-5">Register</Text>
                         <Link href="/login">
                             <Text className="text-white text-[14px] underline">Log in</Text>
                         </Link>

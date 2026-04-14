@@ -289,8 +289,6 @@ export default function Home() {
               height: 287,
               opacity: 0.98,
               transform: [{ rotate: "180deg" }],
-
-
             }}
             resizeMode="contain"
           />
@@ -328,7 +326,6 @@ export default function Home() {
             )}
           />
         </View>
-
         {/* Featured Projects */}
         <View style={{ position: "relative" }}>
           <Image
@@ -350,7 +347,6 @@ export default function Home() {
               <Text className="text-[12px] text-[#6C3BFF] font-manrope-bold">View All</Text>
             </TouchableOpacity>
           </View>
-
           <FlatList
             data={featured}
             horizontal
@@ -360,7 +356,6 @@ export default function Home() {
             renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
           />
         </View>
-
         {/* Cashback Banner */}
         <View className="mx-6 mt-6 mb-2 rounded-3xl overflow-hidden opacity-74" style={{ backgroundColor: "#6A5AE0", height: 115 }}>
           {/* Dark circle behind building */}
@@ -386,7 +381,6 @@ export default function Home() {
             resizeMode="cover"
           />
         </View>
-
         {/* Project in Focus */}
         <View className="flex-row justify-between items-center px-5 mt-6 mb-5 ml-2">
           <Text className="text-[15px] font-manrope-extrabold text-gray-900">Project in focus</Text>
@@ -394,7 +388,6 @@ export default function Home() {
             <Text className="text-sm text-indigo-500 font-manrope-bold">View All</Text>
           </TouchableOpacity>
         </View>
-
         {projectsInFocus.slice(0, 2).map((project) => (
           <TouchableOpacity
             key={project.id}
@@ -423,7 +416,6 @@ export default function Home() {
           <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">In case you missed</Text>
           <Text className="text-[13px] font-manrope-medium text-gray-500 mb-3 mt-0.5">{`3 Properties you liked but didn't contact`}</Text>
         </View>
-
         <FlatList
           data={missed}
           horizontal
@@ -487,7 +479,6 @@ export default function Home() {
             </TouchableOpacity>
           )}
         />
-
         {/* High Growth Localities */}
         <View className="flex-row justify-between items-center px-5 mt-10 mb-5">
           <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
@@ -495,7 +486,6 @@ export default function Home() {
             <Text className="text-sm text-[#6C3BFF] font-manrope-bold">View All</Text>
           </TouchableOpacity>
         </View>
-
         {highGrowthLocalities.slice(0, 2).map((item) => (
           <TouchableOpacity
             key={item.id}
@@ -529,7 +519,6 @@ export default function Home() {
             </View>
           </TouchableOpacity>
         ))}
-
         {/* Like the app? Share the app */}
         <View className="mx-4 mt-10 mb-15 rounded-3xl border border-[#4A43EC]/30 bg-white overflow-hidden">
           <View className="px-8 pt-6">
@@ -550,7 +539,6 @@ export default function Home() {
             </TouchableOpacity>
           </View>
         </View>
-
         <View className="h-6" />
       </ScrollView>
     </View>

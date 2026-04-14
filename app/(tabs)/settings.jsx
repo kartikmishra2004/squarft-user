@@ -1,10 +1,13 @@
 import {
     View, Text, Image, TouchableOpacity,
-    ScrollView, Switch, SafeAreaView,
+    ScrollView, Switch, SafeAreaView, Alert,
 } from "react-native";
 import { useState } from "react";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDispatch } from "react-redux";
+import { router } from "expo-router";
+import { logout } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 
 const cardShadow = {
@@ -76,7 +79,20 @@ function SettingsRow({ icon, iconBg, label, sublabel, sublabelColor, right, onPr
 
 export default function Settings() {
     const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
+
+    const handleLogout = () => {
+        Alert.alert('Logout', 'Are you sure you want to logout?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Logout', style: 'destructive', onPress: () => {
+                    dispatch(logout());
+                    router.replace('/(auth)/login');
+                },
+            },
+        ]);
+    };
 
     return (
 
@@ -263,6 +279,7 @@ export default function Settings() {
                 {/* Logout */}
                 <TouchableOpacity
                     activeOpacity={0.85}
+                    onPress={handleLogout}
                     style={{
                         marginHorizontal: 16, marginTop: 28,
                         backgroundColor: '#1A1A1A',
