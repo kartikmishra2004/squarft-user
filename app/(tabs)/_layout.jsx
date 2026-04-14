@@ -3,6 +3,7 @@ import { Platform, Text, TouchableOpacity } from "react-native";
 import { useSelector } from "react-redux";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const icons = {
     home: {
@@ -43,19 +44,26 @@ function TabIcon({ name, focused, size }) {
 
 export default function TabsLayout() {
     const searchActive = useSelector((state) => state.app.searchActive);
+    const insets = useSafeAreaInsets();
+    const androidBottomInset = Platform.OS === "android" ? Math.max(insets.bottom, 0) : 0;
+    const iosBottomPadding = Platform.OS === "ios" ? Math.max(insets.bottom - 8, 6) : 8;
 
     return (
         <Tabs
             screenOptions={{
                 tabBarShowLabel: false,
                 tabBarStyle: searchActive ? { display: 'none' } : {
-                    bottom: Platform.OS === "ios" ? 0 : -1,
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: Platform.OS === "ios" ? 0 : androidBottomInset,
                     borderTopRightRadius: 45,
                     borderTopLeftRadius: 45,
                     borderTopColor: "transparent",
                     backgroundColor: "#fff",
                     paddingTop: 15,
                     paddingHorizontal: 15,
+                    paddingBottom: iosBottomPadding,
                     height: Platform.OS === "ios" ? 85 : 80,
                     ...Platform.select({
                         ios: {
