@@ -4,6 +4,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Provider } from "react-redux";
 import { useFonts } from "expo-font";
+import { Platform } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
 import "../global.css";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -62,6 +64,13 @@ export default function RootLayout() {
         PublicSans_700Bold,
         PublicSans_800ExtraBold,
     });
+
+    useEffect(() => {
+        if (Platform.OS !== "android") return;
+
+        NavigationBar.setBackgroundColorAsync("#ffffff").catch(() => { });
+        NavigationBar.setButtonStyleAsync("dark").catch(() => { });
+    }, []);
 
     useEffect(() => {
         async function loadAssets() {
