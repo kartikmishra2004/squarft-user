@@ -19,6 +19,10 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.kartik2611mishra.squarftuser"
     },
+    "androidNavigationBar": {
+      "backgroundColor": "#ffffff",
+      "barStyle": "dark-content"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
