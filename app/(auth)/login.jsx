@@ -31,7 +31,7 @@ export default function Login() {
                         <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 1 }}>
                             <Image source={logo} style={{ width: 110, height: 110, margin: -26, }} resizeMode="contain" />
                         </View>
-                        <Text className="text-white text-[32px] font-manrope-bold mb-5">Login</Text>
+                        <Text className="text-white text-[26px] font-manrope-bold mb-5">Login</Text>
                         <View className="flex-row items-center ">
                             <Text className="text-white/80 text-[14px]">Don't have an account? </Text>
                             <Link href="/register">

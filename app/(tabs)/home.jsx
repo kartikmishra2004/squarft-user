@@ -216,7 +216,7 @@ export default function Home() {
           <View className="flex-row px-5 gap-3 mb-5 ">
             <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-xl px-4 h-[44px] gap-[8px]" style={{ shadowColor: "#edabd8ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
               <FontAwesome name="search" size={20} color="#4A43EC" />
-              <View className="w-[0.5px] self-stretch my-3 bg-[#7974E7]" />
+             
               <TextInput
                 placeholder="Search..."
                 placeholderTextColor="#9CA3AF"

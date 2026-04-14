@@ -4,6 +4,7 @@ const filterSlice = createSlice({
     name: 'filter',
     initialState: {
         isOpen: false,
+        budgetFilterOpen: false,
         address: '',
         searchQuery: '',
         tags: [],
@@ -16,6 +17,8 @@ const filterSlice = createSlice({
     reducers: {
         openFilter: (state) => { state.isOpen = true; },
         closeFilter: (state) => { state.isOpen = false; },
+        openBudgetFilter: (state) => { state.budgetFilterOpen = true; },
+        closeBudgetFilter: (state) => { state.budgetFilterOpen = false; },
         setAddress: (state, action) => { state.address = action.payload; },
         setSearchQuery: (state, action) => { state.searchQuery = action.payload; },
         removeTag: (state, action) => {
@@ -55,7 +58,8 @@ const filterSlice = createSlice({
 });
 
 export const {
-    openFilter, closeFilter, setAddress, setSearchQuery, removeTag,
+    openFilter, closeFilter, openBudgetFilter, closeBudgetFilter,
+    setAddress, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
     setAreaRange, togglePossession, clearFilters,
 } = filterSlice.actions;

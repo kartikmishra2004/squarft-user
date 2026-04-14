@@ -26,7 +26,6 @@ export default function Register() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View className="flex-1">
                     <StatusBar style="light" />
-
                     <ImageBackground
                         source={require('../../assets/images/auth_grid_bg.png')}
                         style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
@@ -35,9 +34,9 @@ export default function Register() {
                         <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 1 }}>
                             <Image source={logo} style={{ width: 110, height: 110, margin: -26, }} resizeMode="contain" />
                         </View>
-                        <Text className="text-white text-[32px] font-manrope-bold mb-5">Register</Text>
+                        <Text className="text-white text-[26px] font-manrope-bold mb-5">Register</Text>
                         <Link href="/login">
-                            <Text className="text-white text-[14px] underline">Log in</Text>
+                            <Text className="text-white/80 text-[14px] underline">Log in</Text>
                         </Link>
                     </ImageBackground>
 

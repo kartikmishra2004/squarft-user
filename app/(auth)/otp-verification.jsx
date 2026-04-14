@@ -48,9 +48,9 @@ export default function OtpVerification() {
                 <View className="flex-1">
                     <StatusBar style="light" />
 
-                    <ImageBackground
+                      <ImageBackground
                         source={require('../../assets/images/auth_grid_bg.png')}
-                        style={{ paddingTop: 70, paddingBottom: 20, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
+                        style={{ paddingTop: 64, paddingBottom: 40, paddingHorizontal: 24, backgroundColor: '#4A43EC' }}
                         resizeMode="cover"
                     >
                         <View style={{ width: 60, height: 60, overflow: 'hidden', marginBottom: 1 }}>

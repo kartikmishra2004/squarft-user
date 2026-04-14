@@ -1,5 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
-import { useState } from "react";
+import { useRef, useState } from "react"; // Added useRef
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { Feather } from "@expo/vector-icons";
@@ -7,7 +7,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
 import FilterModal from "../../components/FilterModal";
-import { openFilter, setSearchQuery } from "../../store/slices/filterSlice";
+import BudgetFilterModal from "../../components/BudgetFilterModal";
+import { openFilter, openBudgetFilter, setSearchQuery } from "../../store/slices/filterSlice";
 
 const BHK_MAP = {
     "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
@@ -110,14 +111,14 @@ function ProjectCard({ item }) {
 
             <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
 
-            <View className="flex-row  px-3 pb-3">
+            <View className="flex-row   px-3 pb-3">
                 <View>
                     <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[0]?.type}</Text>
                     <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[0]?.priceRange}</Text>
                 </View>
-                  {item.variants[1] && (
-        <View className="h-12 w-[1px] bg-gray-300 mx-5" />
-    )}
+                {item.variants[1] && (
+                    <View className="h-12 w-[1px] bg-gray-300 mx-5" />
+                )}
                 {item.variants[1] && (
                     <View className="items-left">
                         <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[1].type}</Text>
@@ -147,9 +148,9 @@ export default function PropertyListing() {
     const [sortOpen, setSortOpen] = useState(false);
 
     const SORT_OPTIONS = [
-        { key: 'relevance',  label: 'Relevance' },
-        { key: 'newest',     label: 'Newest First' },
-        { key: 'price_asc',  label: 'Price - Low to High' },
+        { key: 'relevance', label: 'Relevance' },
+        { key: 'newest', label: 'Newest First' },
+        { key: 'price_asc', label: 'Price - Low to High' },
         { key: 'price_desc', label: 'Price - High to Low' },
     ];
 
@@ -172,19 +173,20 @@ export default function PropertyListing() {
     return (
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
             <FilterModal />
+            <BudgetFilterModal />
 
             <Image
                 source={require('../../assets/images/blur (3).png')}
                 pointerEvents="none"
-                style={{ position: 'absolute', left: -40, top: -30, width: 570, height: 360, opacity: 0.6, zIndex: 0 }}
+                style={{ position: 'absolute', left: -40, top: -30, width: 570, height: 360, opacity: 0.6, zIndex: -1 }}
             />
             <Image
                 source={require('../../assets/images/blur (5).png')}
                 pointerEvents="none"
-                style={{ position: 'absolute', left: 216, top: 23, width: 241, height: 241, borderRadius: 1000, opacity: 1, zIndex: 0 }}
+                style={{ position: 'absolute', left: 216, top: 23, width: 241, height: 241, borderRadius: 1000, opacity: 1, zIndex: -1 }}
             />
 
-            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: 'transparent' }}>
+            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: 'transparent', zIndex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                         <Ionicons name="chevron-back" size={20} color="#374151" />
@@ -207,10 +209,10 @@ export default function PropertyListing() {
                         />
                     </View>
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
-                       <AntDesign name="spotify" size={18} color="#7F88E5" />
+                        <AntDesign name="spotify" size={18} color="#7F88E5" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                       <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
+                    <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={() => router.push("/(screens)/map-view")}>
+                        <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
                     </TouchableOpacity>
                 </View>
 
@@ -219,17 +221,30 @@ export default function PropertyListing() {
                         onPress={() => router.push("/(screens)/map-view")}
                         style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}
                     >
-                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Map View</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>View All</Text>
                     </TouchableOpacity>
-                    {['Budget', 'BHK', 'Possession'].map((f) => (
-                        <TouchableOpacity key={f} onPress={() => dispatch(openFilter())} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}>
+
+                    <TouchableOpacity
+                        onPress={() => dispatch(openBudgetFilter())}
+                        style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}
+                    >
+                        <Text style={{ fontSize: 12, color: '#374151' }}>Budget</Text>
+                        <Ionicons name="chevron-down" size={12} color="#6B7280" />
+                    </TouchableOpacity>
+
+                    {['BHK', 'Possession'].map((f) => (
+                        <TouchableOpacity 
+                            key={f} 
+                            onPress={() => dispatch(openFilter())} 
+                            style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}
+                        >
                             <Text style={{ fontSize: 12, color: '#374151' }}>{f}</Text>
                             <Ionicons name="chevron-down" size={12} color="#6B7280" />
                         </TouchableOpacity>
                     ))}
                 </View>
             </View>
-<View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center',  marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
+            <View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center', marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>

@@ -6,13 +6,7 @@ export default function Onboarding3() {
     return (
         <View className="flex-1 bg-white">
             <StatusBar style="dark" />
-            <View className="absolute top-16 right-5 z-10">
-                <Link href="/login">
-                    <View className="bg-[#4A43EC] px-5 py-1 rounded-full min-w-[70px] items-center justify-center">
-                        <Text className="text-white text-[15px] font-lato-light" adjustsFontSizeToFit numberOfLines={1}>Skip</Text>
-                    </View>
-                </Link>
-            </View>
+     
             <View className="pt-32 px-7">
                 <Text className="text-[17px] text-black/60 font-lato-regular mb-2.5">
                     Connect with real buyers and close

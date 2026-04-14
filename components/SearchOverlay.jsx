@@ -252,7 +252,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
 
             <Animated.View style={[headerStyle, { paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#F9FAFB' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
+                    <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',   borderWidth: 1,  borderColor: '#a3a0a0ff', }}>
                         <Ionicons name="chevron-back" size={20} color="#374151" />
                     </TouchableOpacity>
                     <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>Search Property</Text>
@@ -261,7 +261,6 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 <View style={{ flexDirection: 'row', marginTop: 14, gap: 10 }}>
                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, height: 46, gap: 8, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
                         <FontAwesome name="search" size={18} color="#4A43EC" />
-                        <View style={{ width: 0.5, alignSelf: 'stretch', marginVertical: 10, backgroundColor: '#7974E7' }} />
                         <TextInput
                             ref={inputRef}
                             value={value}

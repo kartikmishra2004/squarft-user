@@ -9,9 +9,9 @@ function LandmarkCard({ item }) {
     return (
         <View style={{
             flex: 1, backgroundColor: '#fff', borderRadius: 12,
-            borderWidth: 1, borderColor: '#F3F4F6',
+            borderWidth: 1, borderColor: '#91919347',
             padding: 12, margin: 4,
-            shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+           
         }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Ionicons name={item.icon} size={20} color="#646464" />
@@ -38,7 +38,7 @@ function AmenityItem({ item, col, totalInRow, isLastRow }) {
             borderBottomWidth: showBottomBorder ? 0.5 : 0,
             borderColor: '#E5E7EB',
         }}>
-            <IconComp name={item.icon} size={26} color="#6200EA" style={{ marginBottom: 8 }} />
+            <IconComp name={item.icon} size={26} color="#4A43EC" style={{ marginBottom: 8 }} />
             <Text style={{ fontSize: 11, color: '#374151', textAlign: 'center', fontWeight: '500' }}>{item.label}</Text>
         </View>
     );
@@ -105,7 +105,7 @@ export default function Highlights({ project }) {
                                 paddingVertical: 18,
                             }}
                         >
-                            <Text style={{ fontSize: 13, color: '#6200EA', fontWeight: '700', textAlign: 'center' }}>
+                            <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '700', textAlign: 'center' }}>
                                 +{remaining} More{'\n'}amenities ›
                             </Text>
                         </TouchableOpacity>
@@ -117,7 +117,7 @@ export default function Highlights({ project }) {
                         onPress={() => setShowAll(false)}
                         style={{ alignItems: 'center', paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: '#E5E7EB' }}
                     >
-                        <Text style={{ fontSize: 13, color: '#6200EA', fontWeight: '600' }}>Show less ‹</Text>
+                        <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '600' }}>Show less ‹</Text>
                     </TouchableOpacity>
                 )}
             </View>

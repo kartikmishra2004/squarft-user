@@ -30,7 +30,7 @@ function formatBudget(val) {
     return `₹${val}`;
 }
 
-function RangeSlider({ min, max, values, onChange }) {
+function RangeSlider({ min, max, values, onChange, onLiveChange }) {
     const { width } = useWindowDimensions();
     return (
         <RangeSliderLib
@@ -54,6 +54,7 @@ function RangeSlider({ min, max, values, onChange }) {
                 shadowRadius: 4,
                 elevation: 4,
             }}
+            onValuesChange={(vals) => onLiveChange?.([vals[0], vals[1]])}
             onValuesChangeFinish={(vals) => onChange([vals[0], vals[1]])}
         />
     );
@@ -83,6 +84,8 @@ export default function FilterModal() {
     const { isOpen, address, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
 
     const [localAddress, setLocalAddress] = useState(address);
+    const [liveBudget, setLiveBudget] = useState(budgetRange);
+    const [liveArea, setLiveArea] = useState(areaRange);
 
     const sheetRef = useRef(null);
     const snapPoints = ['95%'];
@@ -96,8 +99,8 @@ export default function FilterModal() {
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} onPress={() => dispatch(closeFilter())} />
     ), []);
 
-    const budgetLabel = `${formatBudget(budgetRange[0])} - ${formatBudget(budgetRange[1])}${budgetRange[1] >= BUDGET_MAX ? '+' : ''}`;
-    const areaLabel = `${areaRange[0]} - ${areaRange[1]}${areaRange[1] >= AREA_MAX ? '+' : ''}`;
+    const budgetLabel = `${formatBudget(liveBudget[0])} - ${formatBudget(liveBudget[1])}${liveBudget[1] >= BUDGET_MAX ? '+' : ''}`;
+    const areaLabel = `${liveArea[0]} - ${liveArea[1]}${liveArea[1] >= AREA_MAX ? '+' : ''}`;
 
     return (
         <BottomSheetModal
@@ -157,7 +160,7 @@ export default function FilterModal() {
                     <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Budget Range</Text>
                     <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{budgetLabel}</Text>
                 </View>
-                <RangeSlider min={BUDGET_MIN} max={BUDGET_MAX} values={budgetRange} onChange={(v) => dispatch(setBudgetRange(v))} />
+                <RangeSlider min={BUDGET_MIN} max={BUDGET_MAX} values={budgetRange} onChange={(v) => dispatch(setBudgetRange(v))} onLiveChange={setLiveBudget} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
                     {['20L', '1Cr', '2Cr', '3Cr', '5Cr+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
                 </View>
@@ -167,7 +170,7 @@ export default function FilterModal() {
                     <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Build-up Area in sq.ft.</Text>
                     <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{areaLabel}</Text>
                 </View>
-                <RangeSlider min={AREA_MIN} max={AREA_MAX} values={areaRange} onChange={(v) => dispatch(setAreaRange(v))} />
+                <RangeSlider min={AREA_MIN} max={AREA_MAX} values={areaRange} onChange={(v) => dispatch(setAreaRange(v))} onLiveChange={setLiveArea} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
                     {['0', '1667', '3333', '5000+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
                 </View>
@@ -191,7 +194,7 @@ export default function FilterModal() {
                 borderTopColor: '#F3F4F6',
                 backgroundColor: '#fff',
             }}>
-              <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); }}>
+              <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); setLiveBudget([BUDGET_MIN, BUDGET_MAX]); setLiveArea([AREA_MIN, AREA_MAX]); }}>
                     <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
