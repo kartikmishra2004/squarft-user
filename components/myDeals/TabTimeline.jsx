@@ -1,9 +1,20 @@
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRef, useEffect } from 'react';
 import { timelineData } from "../../data/my-deals";
 import TimelineItem from './TimelineItem';
 
 export default function TabTimeline() {
+    const lineAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(lineAnim, {
+            toValue: 1,
+            duration: timelineData.length * 120 + 400,
+            useNativeDriver: false,
+        }).start();
+    }, []);
+
     return (
         <View>
             <View className="flex-row justify-between items-center mb-5">
@@ -12,11 +23,33 @@ export default function TabTimeline() {
                     <Text className="text-[10px] font-manrope-bold text-[#4F48ED]">Stage 5 of 8</Text>
                 </View>
             </View>
+
             <View className="relative">
+                {/* Static grey track */}
                 <View className="absolute left-[9px] top-[14px] bottom-[40px] w-[2px] bg-[#E5E7EB]" />
-                {timelineData.map((item) => (
+
+                {/* Animated purple fill — grows downward */}
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        left: 9,
+                        top: 14,
+                        width: 2,
+                        backgroundColor: '#6231FF',
+                        height: lineAnim.interpolate({
+                            inputRange: [0, 1],
+                            // completed steps = 4 out of 8, each ~48px apart
+                            outputRange: ['0%', '55%'],
+                        }),
+                        borderRadius: 2,
+                        zIndex: 1,
+                    }}
+                />
+
+                {timelineData.map((item, index) => (
                     <TimelineItem
                         key={item.id}
+                        index={index}
                         status={item.status}
                         title={item.title}
                         time={item.time}

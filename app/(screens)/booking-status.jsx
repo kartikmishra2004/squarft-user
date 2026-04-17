@@ -1,16 +1,17 @@
-import { View, Text, Pressable, Image, Platform, ScrollView } from "react-native";
-import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import { View, Text, Pressable, Image, Platform } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
 import { StatusBar } from "expo-status-bar";
+import SuccessCheck from "../../components/SuccessCheck";
+import { Audio } from 'expo-av';
 
 export default function BookingStatus() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { date, time } = useLocalSearchParams();
 
-  // Get property details from state (same as book-site-visit)
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const property = bookedSiteVisits && bookedSiteVisits.length > 0 ? bookedSiteVisits[0] : null;
 
@@ -20,7 +21,6 @@ export default function BookingStatus() {
     ? (typeof imageObj === "string" ? { uri: imageObj } : imageObj)
     : { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" };
 
-  // Format the date passed from params
   const formattedDate = date
     ? new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : "October 24, 2023";
@@ -53,11 +53,7 @@ export default function BookingStatus() {
       <View className="flex-1 bg-white px-6">
         {/* Success Icon */}
         <View className="items-center mb-8 mt-2">
-          <View className="w-[74px] h-[74px] bg-[#6C3BFF1A] rounded-full items-center justify-center">
-            <View className="w-[42px] h-[42px] bg-[#4A43EC] rounded-full items-center justify-center">
-              <Feather name="check" size={24} color="white" />
-            </View>
-          </View>
+          <SuccessCheck />
         </View>
 
         {/* Messaging */}
@@ -111,10 +107,7 @@ export default function BookingStatus() {
 
         {/* Action Buttons */}
         <View className="gap-2.5 pb-8">
-          <Pressable className="bg-[#4A43EC] rounded-[14px] py-[14px] flex-row items-center justify-center shadow-lg shadow-indigo-100">
-            <Feather name="calendar" size={16} color="white" />
-            <Text className="text-white font-manrope-bold text-[14px] ml-2.5">Add to Calendar</Text>
-          </Pressable>
+          
           <Pressable
             onPress={() => router.replace('/(tabs)/home')}
             className="bg-[#F1F5F9] rounded-[14px] py-[14px] items-center justify-center"

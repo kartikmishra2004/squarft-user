@@ -284,14 +284,14 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 </View>
 
                 {/* Location options */}
-                <View style={{ marginTop: 14, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+                <View style={{ marginTop: 14, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth:1, borderColor: '#dfdcdfff' }}>
                     <TouchableOpacity
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
                     >
                         <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#E8336D" />
                         <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D' }}>Use my Current Location</Text>
                     </TouchableOpacity>
-                    <View style={{ height: 1, backgroundColor: '#f1f2f5ff', marginHorizontal: 18 }} />
+                    <View style={{    height: 1 ,marginHorizontal: 18, borderWidth:0.5, borderColor: '#ebe6ebff' }} />
                     <TouchableOpacity
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
                     >

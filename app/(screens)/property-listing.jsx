@@ -8,7 +8,8 @@ import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
-import { openFilter, openBudgetFilter, setSearchQuery } from "../../store/slices/filterSlice";
+import { openFilter, openBudgetFilter, setSearchQuery, clearFilters, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { useLocalSearchParams } from "expo-router";
 
 const BHK_MAP = {
     "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
@@ -143,6 +144,7 @@ export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
+    const { category } = useLocalSearchParams();
     const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
     const [sortKey, setSortKey] = useState('relevance');
     const [sortOpen, setSortOpen] = useState(false);
@@ -218,7 +220,7 @@ export default function PropertyListing() {
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
-                        onPress={() => router.push("/(screens)/map-view")}
+                        onPress={() => dispatch(clearNonTypeFilters())}
                         style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}
                     >
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>View All</Text>
@@ -248,7 +250,7 @@ export default function PropertyListing() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
-                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text> Premium Projects
+                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{category ? ` ${category}s` : ' Premium Projects'}
                 </Text>
                 <TouchableOpacity onPress={() => setSortOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ fontSize: 12, color: '#4A43EC', fontWeight: '600' }}>SORT BY: {activeSortLabel.toUpperCase()}</Text>

@@ -79,7 +79,7 @@ export default function Highlights({ project }) {
                 marginHorizontal: 16, backgroundColor: '#fff',
                 borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB',
                 overflow: 'hidden',
-                shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+                borderWidth:1, borderColor: '#e4dfe4ff'
             }}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {allItems.map((item, index) => {

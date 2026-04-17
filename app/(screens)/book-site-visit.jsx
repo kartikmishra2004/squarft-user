@@ -15,10 +15,26 @@ export default function BookSiteVisit() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().split('T')[0]);
   const scrollViewRef = useRef(null);
-  const [selectedTime, setSelectedTime] = useState("10:30 AM");
-  const [visitors, setVisitors] = useState(2);
+  const [selectedTime, setSelectedTime] = useState([]);
+  const [visitors, setVisitors] = useState(1);
   const [notes, setNotes] = useState("");
   const insets = useSafeAreaInsets();
+
+  const visitCount = bookedSiteVisits.length || 1;
+
+  const allSlots = [
+    ...(TIME_SLOTS.morning || []),
+    ...(TIME_SLOTS.afternoon || []),
+    ...(TIME_SLOTS.evening || []),
+  ];
+
+  const handleSlotPress = (slot) => {
+    const idx = allSlots.indexOf(slot);
+    setSelectedTime(allSlots.slice(idx, idx + visitCount));
+  };
+
+  const isSlotSelected = (slot) =>
+    Array.isArray(selectedTime) ? selectedTime.includes(slot) : selectedTime === slot;
 
   return (
     <View className="flex-1 bg-white">
@@ -80,7 +96,7 @@ export default function BookSiteVisit() {
                       {visit.location}
                     </Text>
                   </View>
-                  <Pressable 
+                  <Pressable
                     onPress={() => router.push({
                       pathname: "/(screens)/project-detail",
                       params: { id: visit.projectId || fallbackId, from: "visit" }
@@ -209,10 +225,10 @@ export default function BookSiteVisit() {
               {TIME_SLOTS.morning.map(slot => (
                 <Pressable
                   key={slot}
-                  onPress={() => setSelectedTime(slot)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${selectedTime === slot ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+                  onPress={() => handleSlotPress(slot)}
+                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
                 >
-                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${selectedTime === slot ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
+                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
                     {slot}
                   </Text>
                 </Pressable>
@@ -227,10 +243,27 @@ export default function BookSiteVisit() {
               {TIME_SLOTS.afternoon.map(slot => (
                 <Pressable
                   key={slot}
-                  onPress={() => setSelectedTime(slot)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${selectedTime === slot ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+                  onPress={() => handleSlotPress(slot)}
+                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
                 >
-                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${selectedTime === slot ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
+                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
+                    {slot}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+             <View className="flex-row items-center mb-3.5">
+              <Feather name="sun" size={12} color="#9CA3AF" />
+              <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">EVENING</Text>
+            </View>
+             <View className="flex-row justify-between gap-3 mb-2">
+              {TIME_SLOTS.evening.map(slot => (
+                <Pressable
+                  key={slot}
+                  onPress={() => handleSlotPress(slot)}
+                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+                >
+                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
                     {slot}
                   </Text>
                 </Pressable>
@@ -284,10 +317,10 @@ export default function BookSiteVisit() {
           </View>
           <Pressable
             onPress={() => {
-              // handle submit
+            
               router.push({
                 pathname: '/(screens)/booking-status',
-                params: { date: selectedDate, time: selectedTime }
+                params: { date: selectedDate, time: Array.isArray(selectedTime) ? selectedTime[0] : selectedTime }
               });
             }}
             className="bg-[#4A43EC] rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2"

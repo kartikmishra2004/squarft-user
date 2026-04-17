@@ -250,7 +250,7 @@ export default function Home() {
                 onPress={() => {
                   dispatch(clearFilters());
                   dispatch(togglePropertyType(cat.type));
-                  router.push('/(screens)/property-listing');
+                  router.push({ pathname: '/(screens)/property-listing', params: { category: cat.label } });
                 }}
                 className="items-center justify-center bg-white rounded-xl gap-2"
                 style={{

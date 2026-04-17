@@ -1,13 +1,56 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Image } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, Image, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
-import { Link } from "expo-router";
+import { useState, useRef, useEffect } from "react";
+import { Easing } from "react-native";
+import { Link, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import { dealsData, headerStats, nextPaymentDue } from "../../../data/my-deals";
+
 
 const FILTERS = ["All Deals", "Active", "Pending"];
 
+const ProgressBar = ({ percentage, animKey }) => {
+    const animatedValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        animatedValue.setValue(0);
+        Animated.timing(animatedValue, {
+            toValue: percentage,
+            duration: 1000,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+        }).start();
+    }, [percentage, animKey]);
+
+    const width = animatedValue.interpolate({
+        inputRange: [0, 100],
+        outputRange: ['0%', '100%'],
+    });
+
+    return (
+        <View className="w-full h-[3px] bg-[#F3F4F6] rounded-full mb-2 overflow-hidden">
+            <Animated.View style={{ width, height: '100%', borderRadius: 9999 }}>
+                <LinearGradient
+                    colors={['#434EEC', '#434EEC']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ flex: 1, borderRadius: 9999 }}
+                />
+            </Animated.View>
+        </View>
+    );
+};
+
 export default function MyDeals() {
     const [activeFilter, setActiveFilter] = useState("All Deals");
+    const [animKey, setAnimKey] = useState(0);
+    const router = useRouter();
+
+    // Re-trigger animation every time the screen comes into focus
+    useFocusEffect(useCallback(() => {
+        setAnimKey((k) => k + 1);
+    }, []));
 
     const filteredDeals = dealsData.filter(deal => {
         if (activeFilter === "Active") return deal.isActive;
@@ -110,17 +153,14 @@ export default function MyDeals() {
                     <View className="px-5">
                         {filteredDeals.length > 0 ? (
                             filteredDeals.map((deal) => (
-                                <View
+                                <Pressable
                                     key={deal.id}
+                                    onPress={() => router.push(`/myDeals/${deal.id}`)}
+                                    activeOpacity={0.85}
                                     className="bg-white rounded-[12px] p-3 mb-3"
                                     style={{
-                                        elevation: 1,
-                                        shadowColor: '#828080ff',
-                                        shadowOffset: { width: 0, height: 2 },
-                                        shadowOpacity: 0.05,
-                                        shadowRadius: 8,
                                         borderWidth: 1,
-                                        borderColor: '#F3F4F6'
+                                        borderColor: '#e4e5e8ff'
                                     }}
                                 >
                                     {/* Top: Image + Title + Status */}
@@ -157,14 +197,7 @@ export default function MyDeals() {
                                     </View>
 
                                     {/* Progress Bar */}
-                                    <View className="w-full h-[3px] bg-[#F3F4F6] rounded-full mb-2 overflow-hidden relative">
-                                        <LinearGradient
-                                            colors={['#434EEC', '#434EEC']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 0 }}
-                                            style={{ width: `${deal.completionPercentage}%`, height: '100%', borderRadius: 9999, position: 'absolute', left: 0, top: 0 }}
-                                        />
-                                    </View>
+                                    <ProgressBar percentage={deal.completionPercentage ?? 0} animKey={animKey} />
 
                                     {/* Footer (Percentage & Details Link) */}
                                     <View className="flex-row justify-between items-center mt-0">
@@ -175,7 +208,7 @@ export default function MyDeals() {
                                             </Pressable>
                                         </Link>
                                     </View>
-                                </View>
+                                </Pressable>
                             ))
                         ) : (
                             <View className="flex-1 justify-center items-center py-20">

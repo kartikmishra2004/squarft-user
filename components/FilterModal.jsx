@@ -82,7 +82,6 @@ function CheckBox({ label, checked, onPress }) {
 export default function FilterModal() {
     const dispatch = useDispatch();
     const { isOpen, address, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
-
     const [localAddress, setLocalAddress] = useState(address);
     const [liveBudget, setLiveBudget] = useState(budgetRange);
     const [liveArea, setLiveArea] = useState(areaRange);

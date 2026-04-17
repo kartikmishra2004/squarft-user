@@ -54,6 +54,15 @@ const filterSlice = createSlice({
             state.areaRange = [0, 5000];
             state.possessionStatus = [];
         },
+        clearNonTypeFilters: (state) => {
+            state.address = '';
+            state.searchQuery = '';
+            state.tags = [];
+            state.propertySubTypes = [];
+            state.budgetRange = [2000000, 50000000];
+            state.areaRange = [0, 5000];
+            state.possessionStatus = [];
+        },
     },
 });
 
@@ -61,6 +70,6 @@ export const {
     openFilter, closeFilter, openBudgetFilter, closeBudgetFilter,
     setAddress, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
-    setAreaRange, togglePossession, clearFilters,
+    setAreaRange, togglePossession, clearFilters, clearNonTypeFilters,
 } = filterSlice.actions;
 export default filterSlice.reducer;
