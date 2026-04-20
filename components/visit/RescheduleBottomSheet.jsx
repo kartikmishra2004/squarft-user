@@ -20,7 +20,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     if (visitData) {
       dispatch(addSiteVisit({
         ...visitData,
-        id: visitData.id + "_reschedule_" + Date.now() 
+        id: visitData.projectId || visitData.id.replace(/_reschedule_.*/, "")
       }));
       closeModal();
       router.push("/(screens)/book-site-visit");
@@ -33,6 +33,15 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     ),
     []
   );
+
+  const fallbackImage = "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80";
+  const imageSource = visitData?.image 
+    ? (typeof visitData.image === 'string' ? { uri: visitData.image } : visitData.image)
+    : { uri: fallbackImage };
+
+  const parsedDate = visitData?.isoDate ? new Date(visitData.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "";
+  const parsedTime = visitData?.dateFull?.includes('·') ? visitData.dateFull.split('·')[1].trim() : visitData?.dateFull?.includes('|') ? visitData.dateFull.split('|')[1].trim() : "10:00 AM";
+  const displayDate = parsedDate ? `${parsedDate} • ${parsedTime}` : visitData?.dateFull || "Oct 24, 2023 • 10:00 AM";
 
   return (
     <BottomSheetModal
@@ -61,7 +70,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
             <View className="px-5 py-4">
                   <View className="border border-gray-100 rounded-[12px] overflow-hidden mb-3 bg-white">
                     <Image 
-                      source={{ uri: visitData?.image || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" }} 
+                      source={imageSource} 
                       className="w-full h-[90px]" 
                       resizeMode="cover" 
                     />
@@ -79,7 +88,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
                       <View className="flex-row items-center mb-1.5">
                         <Feather name="calendar" size={12} color="#6B7280" />
                         <Text className="text-[12px] text-[#4B5563] font-manrope ml-2">
-                          {visitData?.dateFull || "Oct 24, 2023 • 10:00 AM"}
+                          {displayDate}
                         </Text>
                       </View>
                       <View className="flex-row items-center mb-3">

@@ -10,12 +10,14 @@ import { Audio } from 'expo-av';
 export default function BookingStatus() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { date, time, propertyName: paramPropertyName, propertyImage: paramPropertyImage, propertyId: paramPropertyId } = useLocalSearchParams();
+  const { date, time, propertyName: paramPropertyName, propertyId: paramPropertyId } = useLocalSearchParams();
+  const upcomingVisits = useSelector((state) => state.properties.upcomingSiteVisits);
 
-  // We can default back to some dummy data if params are missing for some reason
-  const propertyName = paramPropertyName || "The Grand Atrium";
-  const imageSource = paramPropertyImage 
-    ? { uri: paramPropertyImage } 
+  const propertyObj = upcomingVisits?.find(v => v.projectId === paramPropertyId);
+  const propertyName = paramPropertyName || propertyObj?.title || "The Grand Atrium";
+  
+  const imageSource = propertyObj?.image 
+    ? (typeof propertyObj.image === 'string' ? { uri: propertyObj.image } : propertyObj.image)
     : { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" };
 
   const formattedDate = date

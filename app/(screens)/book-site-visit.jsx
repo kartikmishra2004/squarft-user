@@ -12,8 +12,11 @@ import { useRouter } from "expo-router";
 export default function BookSiteVisit() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
 
+  // Deduplicate securely to prevent persisted duplicates lingering from old bug
+  const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
+  
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().split('T')[0]);
   const scrollViewRef = useRef(null);
@@ -376,10 +379,10 @@ export default function BookSiteVisit() {
               
               const newUpcoming = itemsToBook.map(item => ({
                 id: Math.random().toString(),
-                projectId: item.id.replace(/\d{13}$/, ""),
+                projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
                 title: item.title || item.name,
                 location: item.location,
-                image: (typeof item.image === 'string' ? item.image : null) || (typeof item.imageMain === 'string' ? item.imageMain : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80"),
+                image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
                 status: "UPCOMING",
                 dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
                 isoDate: selectedDate,
@@ -393,7 +396,6 @@ export default function BookSiteVisit() {
                   date: selectedDate, 
                   time: selectedTimeVal,
                   propertyName: newUpcoming[0].title,
-                  propertyImage: newUpcoming[0].image,
                   propertyId: newUpcoming[0].projectId
                 }
               });

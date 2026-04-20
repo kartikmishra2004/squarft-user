@@ -30,7 +30,18 @@ export default function Visit() {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   
-  const allCombinedVisits = [...reduxUpcomingVisits, ...ALL_VISITS];
+  const reduxProjectIds = reduxUpcomingVisits.map(v => v.projectId);
+  
+  const validMockVisits = ALL_VISITS.filter(v => {
+    const isMockUpcoming = new Date(v.isoDate) >= now;
+    // Suppress ONLY the upcoming mock versions of properties that have live Redux upcoming schedules
+    if (isMockUpcoming && reduxProjectIds.includes(v.projectId || v.id)) {
+      return false;
+    }
+    return true;
+  });
+
+  const allCombinedVisits = [...reduxUpcomingVisits, ...validMockVisits];
 
   // Filter and sort for upcoming
   const upcomingVisits = allCombinedVisits
@@ -167,7 +178,7 @@ export default function Visit() {
                   <View className="p-3.5">
                     <View className="flex-row mb-3">
                       <Image
-                        source={{ uri: visit.image }}
+                        source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
                         className="w-16 h-16 rounded-lg mr-3"
                         resizeMode="cover"
                       />
@@ -197,7 +208,7 @@ export default function Visit() {
                           DATE & TIME
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
                         </Text>
                       </View>
                       <View className="w-7 h-7 rounded-full bg-white items-center justify-center border border-gray-100">
@@ -245,7 +256,7 @@ export default function Visit() {
                     <View className="p-3.5">
                       <View className="flex-row mb-3">
                         <Image
-                          source={{ uri: visit.image }}
+                          source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
                           className="w-16 h-16 rounded-lg mr-3"
                           resizeMode="cover"
                         />
@@ -274,7 +285,7 @@ export default function Visit() {
                           VISITED ON
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
                         </Text>
                       </View>
 

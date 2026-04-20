@@ -55,11 +55,18 @@ const propertiesSlice = createSlice({
             state.bookedSiteVisits = state.bookedSiteVisits.filter((v) => v.id !== action.payload);
         },
         confirmVisits: (state, action) => {
-            const newVisits = action.payload; // array of visits
-            const newVisitIds = newVisits.map(v => v.id);
+            const newVisits = action.payload; 
+            const newProjectIds = newVisits.map(v => v.projectId);
+            
+            // Deduplicate the upcoming visits (this effectively 'updates' the rescheduled visit)
+            state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => !newProjectIds.includes(v.projectId));
             state.upcomingSiteVisits.push(...newVisits);
-            // also remove them from the "cart"
-            state.bookedSiteVisits = state.bookedSiteVisits.filter(v => !newVisitIds.includes(v.id));
+            
+            // Clear items from the cart matching the booked projectIds
+            state.bookedSiteVisits = state.bookedSiteVisits.filter(v => {
+                const targetId = v.projectId || v.id.replace(/_reschedule_.*/, "");
+                return !newProjectIds.includes(targetId);
+            });
         },
     },
 });
