@@ -16,6 +16,7 @@ export default function Visit() {
   const { tab } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Book visit");
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const reduxUpcomingVisits = useSelector((state) => state.properties.upcomingSiteVisits || []);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -27,8 +28,19 @@ export default function Visit() {
   }, [tab]);
 
   const now = new Date();
-  const upcomingVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) >= now);
-  const pastVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) < now);
+  now.setHours(0, 0, 0, 0);
+  
+  const allCombinedVisits = [...reduxUpcomingVisits, ...ALL_VISITS];
+
+  // Filter and sort for upcoming
+  const upcomingVisits = allCombinedVisits
+    .filter((v) => new Date(v.isoDate) >= now)
+    .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
+
+  // Filter and sort for past
+  const pastVisits = allCombinedVisits
+    .filter((v) => new Date(v.isoDate) < now)
+    .sort((a, b) => new Date(b.isoDate) - new Date(a.isoDate));
 
   const bottomSheetModalRef = useRef(null);
 
@@ -120,7 +132,7 @@ export default function Visit() {
                     );
                   })}
 
-                  <Link href="/(tabs)/home" asChild>
+                  <Link href="/(tabs)/myActivity" asChild>
                     <Pressable className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
                       <Feather name="plus-circle" size={18} color="#94A3B8" />
                       <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
@@ -133,7 +145,7 @@ export default function Visit() {
             ) : (
               <View className="flex-1 items-center justify-center pt-24 px-4">
                 <Text className="text-[14px] font-manrope-bold text-gray-900 text-center mb-4">No properties added for site visit yet</Text>
-                <Link href="/(tabs)/home" asChild>
+                <Link href="/(tabs)/myActivity" asChild>
                   <Pressable className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
                     <Feather name="plus-circle" size={18} color="#94A3B8" />
                     <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
@@ -185,7 +197,7 @@ export default function Visit() {
                           DATE & TIME
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {visit.dateFull}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Text>
                       </View>
                       <View className="w-7 h-7 rounded-full bg-white items-center justify-center border border-gray-100">
@@ -262,7 +274,7 @@ export default function Visit() {
                           VISITED ON
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {visit.dateFull}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Text>
                       </View>
 

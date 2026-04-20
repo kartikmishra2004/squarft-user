@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { confirmVisits } from "../../store/slices/propertiesSlice";
 import { TIME_SLOTS } from "../../data/visits";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
@@ -10,6 +11,7 @@ import { useRouter } from "expo-router";
 
 export default function BookSiteVisit() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,7 +22,10 @@ export default function BookSiteVisit() {
   const [notes, setNotes] = useState("");
   const insets = useSafeAreaInsets();
 
-  const visitCount = bookedSiteVisits.length || 1;
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState(bookedSiteVisits.map(v => v.id));
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const visitCount = selectedPropertyIds.length || 1;
 
   const allSlots = [
     ...(TIME_SLOTS.morning || []),
@@ -73,7 +78,7 @@ export default function BookSiteVisit() {
         >
 
           {/* Selected Properties */}
-          {bookedSiteVisits.map((visit) => {
+          {bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id)).map((visit) => {
             const fallbackId = visit.id.replace(/\d{13}$/, "");
             const imageObj = visit.image || visit.imageMain;
             const imageSource = imageObj
@@ -294,6 +299,50 @@ export default function BookSiteVisit() {
             </View>
           </View>
 
+          {/* Select Properties to Book */}
+          <View className="mb-8">
+            <Text className="text-[13px] font-manrope-bold text-[#111827] mb-3">Select Properties to Visit</Text>
+            <View className="bg-white border border-gray-200 rounded-[14px] overflow-hidden">
+              <Pressable
+                onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex-row items-center justify-between p-4 bg-[#F8F9FB]"
+              >
+                <Text className="text-[13px] font-manrope-medium text-[#111827]">
+                  {selectedPropertyIds.length} {selectedPropertyIds.length === 1 ? 'Property' : 'Properties'} Selected
+                </Text>
+                <Feather name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color="#4B5563" />
+              </Pressable>
+              
+              {isDropdownOpen && (
+                <View className="p-2 border-t border-gray-200">
+                  {bookedSiteVisits.map((visit) => {
+                    const isSelected = selectedPropertyIds.includes(visit.id);
+                    return (
+                      <Pressable
+                        key={visit.id}
+                        onPress={() => {
+                          if (isSelected) {
+                            setSelectedPropertyIds(selectedPropertyIds.filter(id => id !== visit.id));
+                          } else {
+                            setSelectedPropertyIds([...selectedPropertyIds, visit.id]);
+                          }
+                        }}
+                        className="flex-row items-center p-3 rounded-lg"
+                      >
+                        <View className={`w-5 h-5 rounded-[6px] border items-center justify-center mr-3 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
+                          {isSelected && <Feather name="check" size={12} color="white" />}
+                        </View>
+                        <Text className="text-[13px] font-manrope-medium text-[#111827]" numberOfLines={1}>
+                          {visit.title || visit.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+
           {/* Notes */}
           <View className="mb-4">
             <Text className="text-[13px] font-manrope-bold text-[#4B5563] mb-3">Notes / Special Requests</Text>
@@ -317,10 +366,36 @@ export default function BookSiteVisit() {
           </View>
           <Pressable
             onPress={() => {
+              const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
+              
+              if (itemsToBook.length === 0) return;
+
+              const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
+              const dateObj = new Date(selectedDate);
+              const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              
+              const newUpcoming = itemsToBook.map(item => ({
+                id: Math.random().toString(),
+                projectId: item.id.replace(/\d{13}$/, ""),
+                title: item.title || item.name,
+                location: item.location,
+                image: (typeof item.image === 'string' ? item.image : null) || (typeof item.imageMain === 'string' ? item.imageMain : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80"),
+                status: "UPCOMING",
+                dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
+                isoDate: selectedDate,
+              }));
+
+              dispatch(confirmVisits(newUpcoming));
             
               router.push({
                 pathname: '/(screens)/booking-status',
-                params: { date: selectedDate, time: Array.isArray(selectedTime) ? selectedTime[0] : selectedTime }
+                params: { 
+                  date: selectedDate, 
+                  time: selectedTimeVal,
+                  propertyName: newUpcoming[0].title,
+                  propertyImage: newUpcoming[0].image,
+                  propertyId: newUpcoming[0].projectId
+                }
               });
             }}
             className="bg-[#4A43EC] rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2"

@@ -10,6 +10,7 @@ const propertiesSlice = createSlice({
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
         bookedSiteVisits: [],
+        upcomingSiteVisits: [],
         selectedCategory: 'all',
         searchQuery: '',
     },
@@ -53,8 +54,15 @@ const propertiesSlice = createSlice({
         removeSiteVisit: (state, action) => {
             state.bookedSiteVisits = state.bookedSiteVisits.filter((v) => v.id !== action.payload);
         },
+        confirmVisits: (state, action) => {
+            const newVisits = action.payload; // array of visits
+            const newVisitIds = newVisits.map(v => v.id);
+            state.upcomingSiteVisits.push(...newVisits);
+            // also remove them from the "cart"
+            state.bookedSiteVisits = state.bookedSiteVisits.filter(v => !newVisitIds.includes(v.id));
+        },
     },
 });
 
-export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit } = propertiesSlice.actions;
+export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit, confirmVisits } = propertiesSlice.actions;
 export default propertiesSlice.reducer;
