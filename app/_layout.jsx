@@ -102,7 +102,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Provider store={store}>
                 <BottomSheetModalProvider>
-                    <Stack>
+                    <Stack screenOptions={{ gestureEnabled: false }}>
                         <Stack.Screen name="index" options={{ headerShown: false }} />
                         <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
                         <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
@@ -112,4 +112,4 @@ export default function RootLayout() {
             </Provider>
         </GestureHandlerRootView>
     );
-}
+}   

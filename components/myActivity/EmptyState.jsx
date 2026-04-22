@@ -1,7 +1,9 @@
 import { View, Text, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 const EmptyState = ({ type }) => {
+  const router = useRouter();
   let titleText = "saved any";
   let iconName = "heart";
   let descriptionText = "Start exploring and save projects you love to see them here.";
@@ -43,6 +45,7 @@ const EmptyState = ({ type }) => {
       <Pressable
         className="w-[70%] bg-[#4A43EC] rounded-2xl py-[14px] flex-row justify-center items-center"
         activeOpacity={0.8}
+        onPress={() => router.push("/home")}
         style={{ shadowColor: "#4A43EC", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 }}
       >
         <Feather name="compass" size={16} color="white" />
