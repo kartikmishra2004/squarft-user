@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Provider } from "react-redux";
 import { useFonts } from "expo-font";
-import { Platform } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import "../global.css";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -38,6 +38,7 @@ const iconsArray = [
 export default function RootLayout() {
     const [assetsLoaded, setAssetsLoaded] = useState(false);
     const rootNavigationState = useRootNavigationState();
+    const colorScheme = useColorScheme();
 
     const [fontsLoaded] = useFonts({
         ...FontAwesome.font,
@@ -70,7 +71,7 @@ export default function RootLayout() {
 
         NavigationBar.setBackgroundColorAsync("#ffffff").catch(() => { });
         NavigationBar.setButtonStyleAsync("dark").catch(() => { });
-    }, []);
+    }, [colorScheme]);
 
     useEffect(() => {
         async function loadAssets() {
@@ -101,7 +102,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Provider store={store}>
                 <BottomSheetModalProvider>
-                    <Stack>
+                    <Stack screenOptions={{ gestureEnabled: false }}>
                         <Stack.Screen name="index" options={{ headerShown: false }} />
                         <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
                         <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
@@ -111,4 +112,4 @@ export default function RootLayout() {
             </Provider>
         </GestureHandlerRootView>
     );
-}
+}   

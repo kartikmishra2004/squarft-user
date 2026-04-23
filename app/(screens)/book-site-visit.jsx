@@ -390,7 +390,7 @@ export default function BookSiteVisit() {
 
               dispatch(confirmVisits(newUpcoming));
             
-              router.push({
+              router.replace({
                 pathname: '/(screens)/booking-status',
                 params: { 
                   date: selectedDate, 
