@@ -68,8 +68,11 @@ const propertiesSlice = createSlice({
                 return !newProjectIds.includes(targetId);
             });
         },
+        cancelUpcomingVisit: (state, action) => {
+            state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => v.id !== action.payload);
+        },
     },
 });
 
-export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit, confirmVisits } = propertiesSlice.actions;
+export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit, confirmVisits, cancelUpcomingVisit } = propertiesSlice.actions;
 export default propertiesSlice.reducer;
