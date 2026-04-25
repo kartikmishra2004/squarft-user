@@ -7,6 +7,7 @@ import FeaturedCard from "../FeaturedCard";
 import { getResaleByProject } from "../../data/resaleProperties";
 import BuilderModal from "./BuilderModal";
 import FloorPlanModal from "./FloorPlanModal";
+import PropertyDetailModal from "./PropertyDetailModal";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.55;
@@ -25,6 +26,8 @@ const cardShadow = {
 export default function Overview({ project }) {
     const [builderModalVisible, setBuilderModalVisible] = useState(false);
     const [floorPlanVisible, setFloorPlanVisible] = useState(false);
+    const [propertyDetailVisible, setPropertyDetailVisible] = useState(false);
+    const [selectedVariant, setSelectedVariant] = useState(null);
     return (
         <View>
 
@@ -52,10 +55,13 @@ export default function Overview({ project }) {
                                 <Text className="text-[12px] font-public-regular text-[#64748B]">{project.areaSqft} sqft (Carpet Area)</Text>
                             </View>
                             <TouchableOpacity
-                                onPress={() => setFloorPlanVisible(true)}
+                                onPress={() => {
+                                    setSelectedVariant(v);
+                                    setPropertyDetailVisible(true);
+                                }}
                                 className="bg-[#6C3BFF]/5 border border-[#dacff9] rounded-2xl mx-2 py-3 mb-1 items-center"
                             >
-                                <Text className="text-[12px] font-public-bold text-[#4A43EC] tracking-widest">SEE FLOOR PLAN</Text>
+                                <Text className="text-[12px] font-public-bold text-[#4A43EC] tracking-widest">VIEW DETAIL</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -91,6 +97,13 @@ export default function Overview({ project }) {
                 visible={floorPlanVisible}
                 onClose={() => setFloorPlanVisible(false)}
                 project={project}
+            />
+
+            <PropertyDetailModal
+                visible={propertyDetailVisible}
+                onClose={() => setPropertyDetailVisible(false)}
+                project={project}
+                variant={selectedVariant}
             />
 
             {/* Other details */}

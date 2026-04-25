@@ -16,6 +16,7 @@ export default function Visit() {
   const { tab } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Book visit");
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const reduxUpcomingVisits = useSelector((state) => state.properties.upcomingSiteVisits || []);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -27,8 +28,30 @@ export default function Visit() {
   }, [tab]);
 
   const now = new Date();
-  const upcomingVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) >= now);
-  const pastVisits = ALL_VISITS.filter((v) => new Date(v.isoDate) < now);
+  now.setHours(0, 0, 0, 0);
+
+  const reduxProjectIds = reduxUpcomingVisits.map(v => v.projectId);
+
+  const validMockVisits = ALL_VISITS.filter(v => {
+    const isMockUpcoming = new Date(v.isoDate) >= now;
+    // Suppress ONLY the upcoming mock versions of properties that have live Redux upcoming schedules
+    if (isMockUpcoming && reduxProjectIds.includes(v.projectId || v.id)) {
+      return false;
+    }
+    return true;
+  });
+
+  const allCombinedVisits = [...reduxUpcomingVisits, ...validMockVisits];
+
+  // Filter and sort for upcoming
+  const upcomingVisits = allCombinedVisits
+    .filter((v) => new Date(v.isoDate) >= now)
+    .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
+
+  // Filter and sort for past
+  const pastVisits = allCombinedVisits
+    .filter((v) => new Date(v.isoDate) < now)
+    .sort((a, b) => new Date(b.isoDate) - new Date(a.isoDate));
 
   const bottomSheetModalRef = useRef(null);
 
@@ -40,6 +63,13 @@ export default function Visit() {
 
   const [selectedProjectForRebook, setSelectedProjectForRebook] = useState(null);
   const [isRebookModalVisible, setIsRebookModalVisible] = useState(false);
+
+  const [selectedForBooking, setSelectedForBooking] = useState([]);
+
+  useEffect(() => {
+    // Keep selectedForBooking in sync if properties are removed
+    setSelectedForBooking(prev => prev.filter(id => bookedSiteVisits.some(v => v.id === id)));
+  }, [bookedSiteVisits]);
 
   const tabs = ["Book visit", "Upcoming", "Past"];
 
@@ -79,48 +109,59 @@ export default function Visit() {
                 <View className="flex-1 pb-[100px]">
                   {bookedSiteVisits.map((visit) => {
                     const fallbackId = visit.id.replace(/\d{13}$/, "");
+                    const isSelected = selectedForBooking.includes(visit.id);
                     return (
-                      <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-200 relative">
-                        <Link href={`/project-detail?id=${visit.projectId || fallbackId}&from=visit`} asChild>
-                          <Pressable className="p-4 flex-row items-center">
+                      <View key={visit.id} className={`mx-4 mt-3 bg-white rounded-xl border relative overflow-hidden ${isSelected ? 'border-[#4A43EC] bg-[#F8F7FF]' : 'border-gray-200'}`}>
+                        <View className="flex-row items-center p-3 pl-4">
+                          <Pressable
+                            className="flex-1 flex-row items-center"
+                            onPress={() => {
+                              if (isSelected) {
+                                setSelectedForBooking(selectedForBooking.filter(id => id !== visit.id));
+                              } else {
+                                setSelectedForBooking([...selectedForBooking, visit.id]);
+                              }
+                            }}
+                          >
+                            <View className={`w-[22px] h-[22px] rounded-full border items-center justify-center mr-3 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
+                              {isSelected && <Feather name="check" size={12} color="white" />}
+                            </View>
                             <Image
                               source={
                                 visit.image
                                   ? (typeof visit.image === 'string' ? { uri: visit.image } : visit.image)
                                   : (typeof visit.imageMain === 'string' ? { uri: visit.imageMain } : visit.imageMain)
                               }
-                              className="w-[80px] h-[80px] rounded-lg mr-4"
+                              className="w-[70px] h-[70px] rounded-lg mr-3"
                               resizeMode="cover"
                             />
-                            <View className="flex-1 justify-center pr-2">
-                              <Text className="text-[15px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                                {visit.title || visit.name}
-                              </Text>
-                              <Text className="text-[#6B7280] text-[12px] font-manrope mb-2" numberOfLines={1}>
-                                {visit.location}
-                              </Text>
-                              <Text className="text-[13px] font-manrope-bold text-[#4A43EC]">
+                            <View className="flex-1 justify-between h-[70px] py-1 pr-2">
+                              <View>
+                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                                  {visit.title || visit.name}
+                                </Text>
+                                <Text className="text-[#6B7280] text-[11px] font-manrope" numberOfLines={1}>
+                                  {visit.location}
+                                </Text>
+                              </View>
+                              <Text className="text-[12px] font-manrope-bold text-[#4A43EC]">
                                 {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
                               </Text>
                             </View>
-                            <View className="items-center justify-center pl-2 pr-1">
+                          </Pressable>
+
+                          <Link href={`/project-detail?id=${visit.projectId || fallbackId}&from=visit`} asChild>
+                            <Pressable className="items-center justify-center pl-2 pr-1 z-20">
                               <Feather name="chevron-right" size={20} color="#9CA3AF" />
                               <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
-                            </View>
-                          </Pressable>
-                        </Link>
-
-                        <Pressable
-                          onPress={() => dispatch(removeSiteVisit(visit.id))}
-                          className="absolute right-0 top-0 w-8 h-8 items-center justify-center bg-gray-50 rounded-tr-xl rounded-bl-xl border-b border-l border-gray-200 z-10"
-                        >
-                          <Feather name="x" size={14} color="#6B7280" />
-                        </Pressable>
+                            </Pressable>
+                          </Link>
+                        </View>
                       </View>
                     );
                   })}
 
-                  <Link href="/(tabs)/home" asChild>
+                  <Link href="/(tabs)/myActivity" asChild>
                     <Pressable className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
                       <Feather name="plus-circle" size={18} color="#94A3B8" />
                       <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
@@ -131,17 +172,20 @@ export default function Visit() {
                 </View>
               </>
             ) : (
-              <View className="flex-1 items-center justify-center pt-24 px-4">
-                <Text className="text-[14px] font-manrope-bold text-gray-900 text-center mb-4">No properties added for site visit yet</Text>
-                <Link href="/(tabs)/home" asChild>
-                  <Pressable className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
+              <EmptyState 
+                icon="map-pin" 
+                title="No Properties Added" 
+                message="You haven't added any properties to visit yet. Explore our listings and add some to your itinerary."
+              >
+                <Link href="/(tabs)/myActivity" asChild>
+                  <Pressable className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50 mt-2">
                     <Feather name="plus-circle" size={18} color="#94A3B8" />
                     <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
                       Add properties to visit
                     </Text>
                   </Pressable>
                 </Link>
-              </View>
+              </EmptyState>
             )}
           </View>
         )}
@@ -155,7 +199,7 @@ export default function Visit() {
                   <View className="p-3.5">
                     <View className="flex-row mb-3">
                       <Image
-                        source={{ uri: visit.image }}
+                        source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
                         className="w-16 h-16 rounded-lg mr-3"
                         resizeMode="cover"
                       />
@@ -185,7 +229,7 @@ export default function Visit() {
                           DATE & TIME
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {visit.dateFull}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
                         </Text>
                       </View>
                       <View className="w-7 h-7 rounded-full bg-white items-center justify-center border border-gray-100">
@@ -217,7 +261,11 @@ export default function Visit() {
                 </View>
               ))
             ) : (
-              <EmptyState icon="calendar" message="No upcoming visits scheduled" />
+              <EmptyState 
+                icon="calendar" 
+                title="No Upcoming Visits" 
+                message="You don't have any site visits scheduled right now. Book a visit to see your favorite properties in person."
+              />
             )}
           </View>
         )}
@@ -233,7 +281,7 @@ export default function Visit() {
                     <View className="p-3.5">
                       <View className="flex-row mb-3">
                         <Image
-                          source={{ uri: visit.image }}
+                          source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
                           className="w-16 h-16 rounded-lg mr-3"
                           resizeMode="cover"
                         />
@@ -262,7 +310,7 @@ export default function Visit() {
                           VISITED ON
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {visit.dateFull}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
                         </Text>
                       </View>
 
@@ -308,7 +356,11 @@ export default function Visit() {
                 );
               })
             ) : (
-              <EmptyState icon="clock" message="No past visits found" />
+              <EmptyState 
+                icon="clock" 
+                title="No Past Visits" 
+                message="Your site visit history will appear here once you've completed a visit to a property."
+              />
             )}
           </View>
         )}
@@ -322,12 +374,28 @@ export default function Visit() {
               <Text className="text-[10px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">
                 TOTAL SELECTION
               </Text>
-              <Text className="text-[16px] font-manrope-bold text-gray-900">
-                {bookedSiteVisits.length} Stops • {bookedSiteVisits.length * 1.5} hrs
-              </Text>
+              <View className="flex-row items-center">
+                <Text className="text-[16px] font-manrope-bold text-gray-900">
+                  {selectedForBooking.length} Stops • {selectedForBooking.length * 1.5} hrs
+                </Text>
+                {selectedForBooking.length > 0 && (
+                  <Pressable
+                    onPress={() => {
+                      selectedForBooking.forEach(id => dispatch(removeSiteVisit(id)));
+                      setSelectedForBooking([]);
+                    }}
+                    className="ml-3 w-8 h-8 rounded-full bg-[#FEE2E2] items-center justify-center border border-[#FECACA]"
+                  >
+                    <Feather name="trash-2" size={14} color="#EF4444" />
+                  </Pressable>
+                )}
+              </View>
             </View>
-            <Link href="/(screens)/book-site-visit" asChild>
-              <Pressable className="bg-[#6C3BFF] rounded-xl py-3.5 px-6 flex-row items-center justify-center">
+            <Link href={{ pathname: "/(screens)/book-site-visit", params: { selectedIds: selectedForBooking.join(",") } }} asChild>
+              <Pressable
+                className={`rounded-xl py-3.5 px-6 flex-row items-center justify-center ${selectedForBooking.length > 0 ? 'bg-[#6C3BFF]' : 'bg-gray-300'}`}
+                disabled={selectedForBooking.length === 0}
+              >
                 <Text className="text-white font-manrope-bold text-[14px] mr-2">
                   Book Site Visit
                 </Text>
@@ -354,16 +422,21 @@ export default function Visit() {
   );
 }
 
-function EmptyState({ icon, message, subline }) {
+function EmptyState({ icon, title, message, children }) {
   return (
-    <View className="items-center justify-center py-16 px-8">
-      <View className="w-12 h-12 bg-gray-50 rounded-full items-center justify-center mb-3">
-        <Feather name={icon} size={18} color="#9CA3AF" />
+    <View className="flex-1 items-center justify-center pt-20 px-8">
+      <View className="w-24 h-24 bg-[#F8F7FF] rounded-full items-center justify-center mb-6 border-8 border-white shadow-sm">
+        <View className="w-16 h-16 bg-[#EEECFF] rounded-full items-center justify-center">
+          <Feather name={icon} size={28} color="#4A43EC" />
+        </View>
       </View>
-      <Text className="text-[14px] font-manrope-bold text-gray-900 text-center mb-1.5">{message}</Text>
-      {subline && (
-        <Text className="text-[11px] font-manrope text-gray-400 text-center px-4">{subline}</Text>
-      )}
+      <Text className="text-[20px] font-manrope-extrabold text-gray-900 text-center mb-2">
+        {title}
+      </Text>
+      <Text className="text-[14px] font-manrope text-gray-500 text-center mb-8 leading-relaxed">
+        {message}
+      </Text>
+      {children}
     </View>
   );
 }

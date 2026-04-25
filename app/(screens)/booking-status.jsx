@@ -10,15 +10,14 @@ import { Audio } from 'expo-av';
 export default function BookingStatus() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { date, time } = useLocalSearchParams();
+  const { date, time, propertyName: paramPropertyName, propertyId: paramPropertyId } = useLocalSearchParams();
+  const upcomingVisits = useSelector((state) => state.properties.upcomingSiteVisits);
 
-  const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
-  const property = bookedSiteVisits && bookedSiteVisits.length > 0 ? bookedSiteVisits[0] : null;
-
-  const propertyName = property?.title || property?.name || "The Grand Atrium";
-  const imageObj = property?.image || property?.imageMain;
-  const imageSource = imageObj
-    ? (typeof imageObj === "string" ? { uri: imageObj } : imageObj)
+  const propertyObj = upcomingVisits?.find(v => v.projectId === paramPropertyId);
+  const propertyName = paramPropertyName || propertyObj?.title || "The Grand Atrium";
+  
+  const imageSource = propertyObj?.image 
+    ? (typeof propertyObj.image === 'string' ? { uri: propertyObj.image } : propertyObj.image)
     : { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" };
 
   const formattedDate = date
@@ -26,7 +25,7 @@ export default function BookingStatus() {
     : "October 24, 2023";
 
   const displayTime = time || "10:00 AM - 12:00 PM";
-  const bookingId = property?.id ? `#SQFT-${property.id.toString().padStart(5, '0')}` : "#SQFT-88291";
+  const bookingId = paramPropertyId ? `#SQFT-${paramPropertyId.toString().padStart(5, '0')}` : "#SQFT-88291";
 
   return (
     <View className="flex-1 bg-white">

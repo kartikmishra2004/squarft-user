@@ -2,25 +2,35 @@ import { useState, useRef } from "react";
 import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { confirmVisits } from "../../store/slices/propertiesSlice";
 import { TIME_SLOTS } from "../../data/visits";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { currentUser } from "../../data/user";
 
 export default function BookSiteVisit() {
   const router = useRouter();
-  const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const dispatch = useDispatch();
+  const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().split('T')[0]);
+  // Deduplicate securely to prevent persisted duplicates lingering from old bug
+  const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
+
+  const { selectedIds, initialDate, initialTime, initialVisitors, initialNotes } = useLocalSearchParams();
+
+  const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
+  const [calendarMonth, setCalendarMonth] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const scrollViewRef = useRef(null);
-  const [selectedTime, setSelectedTime] = useState([]);
-  const [visitors, setVisitors] = useState(1);
-  const [notes, setNotes] = useState("");
+  const [selectedTime, setSelectedTime] = useState(initialTime ? [initialTime] : []);
+  const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
+  const [notes, setNotes] = useState(initialNotes || "");
   const insets = useSafeAreaInsets();
 
-  const visitCount = bookedSiteVisits.length || 1;
+  const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => v.id);
+
+  const visitCount = selectedPropertyIds.length || 1;
 
   const allSlots = [
     ...(TIME_SLOTS.morning || []),
@@ -73,7 +83,7 @@ export default function BookSiteVisit() {
         >
 
           {/* Selected Properties */}
-          {bookedSiteVisits.map((visit) => {
+          {bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id)).map((visit) => {
             const fallbackId = visit.id.replace(/\d{13}$/, "");
             const imageObj = visit.image || visit.imageMain;
             const imageSource = imageObj
@@ -252,11 +262,11 @@ export default function BookSiteVisit() {
                 </Pressable>
               ))}
             </View>
-             <View className="flex-row items-center mb-3.5">
+            <View className="flex-row items-center mb-3.5">
               <Feather name="sun" size={12} color="#9CA3AF" />
               <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">EVENING</Text>
             </View>
-             <View className="flex-row justify-between gap-3 mb-2">
+            <View className="flex-row justify-between gap-3 mb-2">
               {TIME_SLOTS.evening.map(slot => (
                 <Pressable
                   key={slot}
@@ -294,6 +304,7 @@ export default function BookSiteVisit() {
             </View>
           </View>
 
+
           {/* Notes */}
           <View className="mb-4">
             <Text className="text-[13px] font-manrope-bold text-[#4B5563] mb-3">Notes / Special Requests</Text>
@@ -317,10 +328,40 @@ export default function BookSiteVisit() {
           </View>
           <Pressable
             onPress={() => {
-            
-              router.push({
+              const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
+
+              if (itemsToBook.length === 0) return;
+
+              const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
+              const dateObj = new Date(selectedDate);
+              const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+              const newUpcoming = itemsToBook.map(item => ({
+                id: Math.random().toString(),
+                projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
+                title: item.title || item.name,
+                location: item.location,
+                image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+                status: "UPCOMING",
+                dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
+                isoDate: selectedDate,
+                visitors: visitors,
+                notes: notes,
+                bookingId: `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
+                visitorName: currentUser.name,
+                duration: "1.5 Hours",
+              }));
+
+              dispatch(confirmVisits(newUpcoming));
+
+              router.replace({
                 pathname: '/(screens)/booking-status',
-                params: { date: selectedDate, time: Array.isArray(selectedTime) ? selectedTime[0] : selectedTime }
+                params: {
+                  date: selectedDate,
+                  time: selectedTimeVal,
+                  propertyName: newUpcoming[0].title,
+                  propertyId: newUpcoming[0].projectId
+                }
               });
             }}
             className="bg-[#4A43EC] rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2"

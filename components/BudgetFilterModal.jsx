@@ -1,6 +1,6 @@
-import { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, useWindowDimensions } from "react-native";
-import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import RangeSliderLib from "react-native-fast-range-slider";
 import { useDispatch, useSelector } from "react-redux";
 import { setBudgetRange, closeBudgetFilter } from "../store/slices/filterSlice";
@@ -24,21 +24,23 @@ export default function BudgetFilterModal() {
     const [liveBudget, setLiveBudget] = useState(budgetRange);
     const [selectedFacilities, setSelectedFacilities] = useState([]);
 
-    // Same pattern as FilterModal — useEffect watching Redux state
     useEffect(() => {
         if (budgetFilterOpen) sheetRef.current?.present();
         else sheetRef.current?.dismiss();
     }, [budgetFilterOpen]);
 
-    const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            opacity={0.4}
-            onPress={() => dispatch(closeBudgetFilter())}
-        />
-    ), []);
+    const renderBackdrop = useCallback(
+        (props) => (
+            <BottomSheetBackdrop
+                {...props}
+                disappearsOnIndex={-1}
+                appearsOnIndex={0}
+                opacity={0.4}
+                onPress={() => dispatch(closeBudgetFilter())}
+            />
+        ),
+        [dispatch]
+    );
 
     const handleClear = () => {
         setLiveBudget([BUDGET_MIN, BUDGET_MAX]);
@@ -51,27 +53,32 @@ export default function BudgetFilterModal() {
         dispatch(closeBudgetFilter());
     };
 
-    const budgetLabel = `${formatBudget(liveBudget[0])} - ${formatBudget(liveBudget[1])}${liveBudget[1] >= BUDGET_MAX ? '+' : ''}`;
+    const budgetLabel = `${formatBudget(liveBudget[0])} - ${formatBudget(liveBudget[1])}${
+        liveBudget[1] >= BUDGET_MAX ? "+" : ""
+    }`;
 
     return (
         <BottomSheetModal
             ref={sheetRef}
             index={0}
-            snapPoints={["52%"]}
+            snapPoints={["50%"]} 
             enablePanDownToClose
+            enableDynamicSizing={false} 
             onDismiss={() => dispatch(closeBudgetFilter())}
             backdropComponent={renderBackdrop}
-            handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
-            backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
+            handleIndicatorStyle={{ backgroundColor: "#D1D5DB", width: 40 }}
+            backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
         >
-            <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: '#0F172A', marginBottom: 24 }}>
+            {/* pb-10 (padding-bottom: 40px) niche space ke liye */}
+            <BottomSheetView className="px-5 pt-2 pb-10">
+                
+                <Text className="text-[18px] font-bold text-slate-900 mb-6">
                     Select Budget Range
                 </Text>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>Budget Range</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#4A43EC' }}>{budgetLabel}</Text>
+                <View className="flex-row justify-between items-center mb-3">
+                    <Text className="text-sm font-medium text-gray-600">Budget Range</Text>
+                    <Text className="text-sm font-bold text-indigo-600">{budgetLabel}</Text>
                 </View>
 
                 <RangeSliderLib
@@ -80,52 +87,46 @@ export default function BudgetFilterModal() {
                     max={BUDGET_MAX}
                     initialMinValue={budgetRange[0]}
                     initialMaxValue={budgetRange[1]}
-                    width={width - 40}
+                    width={width - 50}
                     trackHeight={4}
-                    thumbSize={24}
+                    thumbSize={18}
                     showThumbLines={false}
                     selectedTrackColor="#4A43EC"
-                    unselectedTrackStyle={{ backgroundColor: '#E5E7EB' }}
+                    unselectedTrackStyle={{ backgroundColor: "#E5E7EB" }}
                     thumbStyle={{
-                        backgroundColor: '#4A43EC',
-                        borderWidth: 3,
-                        borderColor: '#fff',
-                        shadowColor: '#4A43EC',
-                        shadowOpacity: 0.4,
-                        shadowRadius: 4,
+                        backgroundColor: "#4A43EC",
+                        borderWidth: 2,
+                        borderColor: "#fff",
                         elevation: 4,
                     }}
                     onValuesChange={(vals) => setLiveBudget([vals[0], vals[1]])}
-                    onValuesChangeFinish={(vals) => setLiveBudget([vals[0], vals[1]])}
                 />
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, marginBottom: 24 }}>
-                    <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{formatBudget(BUDGET_MIN)}</Text>
-                    <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{formatBudget(BUDGET_MAX)}+</Text>
+                <View className="flex-row justify-between mt-1 mb-6">
+                    <Text className="text-xs text-gray-400">{formatBudget(BUDGET_MIN)}</Text>
+                    <Text className="text-xs text-gray-400">{formatBudget(BUDGET_MAX)}+</Text>
                 </View>
 
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 14 }}>
+                <Text className="text-base font-bold text-slate-900 mb-3">
                     Select Facilities
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
+                
+                <View className="flex-row gap-2 mb-7">
                     {FACILITIES.map((f) => {
                         const active = selectedFacilities.includes(f);
                         return (
                             <TouchableOpacity
                                 key={f}
-                                onPress={() => setSelectedFacilities((prev) =>
-                                    prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
-                                )}
-                                style={{
-                                    borderWidth: 1.5,
-                                    borderColor: active ? '#4A43EC' : '#E5E7EB',
-                                    borderRadius: 10,
-                                    paddingHorizontal: 14,
-                                    paddingVertical: 9,
-                                    backgroundColor: active ? '#EEF2FF' : '#fff',
-                                }}
+                                onPress={() =>
+                                    setSelectedFacilities((prev) =>
+                                        prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
+                                    )
+                                }
+                                className={`border-[1.5px] rounded-xl px-[14px] py-[9px] ${
+                                    active ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"
+                                }`}
                             >
-                                <Text style={{ fontSize: 13, color: active ? '#4A43EC' : '#374151', fontWeight: active ? '600' : '400' }}>
+                                <Text className={`text-[13px] ${active ? "text-indigo-600 font-semibold" : "text-gray-700 font-normal"}`}>
                                     {f}
                                 </Text>
                             </TouchableOpacity>
@@ -133,21 +134,24 @@ export default function BudgetFilterModal() {
                     })}
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
+                {/* Bottom Buttons */}
+                <View className="flex-row gap-3">
                     <TouchableOpacity
                         onPress={handleClear}
-                        style={{ flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#4A43EC', alignItems: 'center' }}
+                        className="flex-1 py-4 rounded-2xl border-[1.5px] border-indigo-600 items-center"
                     >
-                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#4A43EC' }}>Clear All</Text>
+                        <Text className="text-[15px] font-semibold text-indigo-600">Clear All</Text>
                     </TouchableOpacity>
+                    
                     <TouchableOpacity
                         onPress={handleApply}
-                        style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#4A43EC', alignItems: 'center' }}
+                        className="flex-1 py-4 rounded-2xl bg-indigo-600 items-center"
                     >
-                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Apply</Text>
+                        <Text className="text-[15px] font-semibold text-white">Apply</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+
+            </BottomSheetView>
         </BottomSheetModal>
     );
 }

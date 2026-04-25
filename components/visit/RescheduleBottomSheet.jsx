@@ -1,10 +1,11 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Link, useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
-import { addSiteVisit } from "../../store/slices/propertiesSlice";
+import { addSiteVisit, cancelUpcomingVisit } from "../../store/slices/propertiesSlice";
+import ConfirmationModal from "../ConfirmationModal";
 
 const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
   const snapPoints = useMemo(() => ["75%"], []);
@@ -16,14 +17,40 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     ref?.current?.dismiss();
   }, [ref]);
 
+  const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
+
+  const handleCancelVisit = useCallback(() => {
+    setIsCancelModalVisible(true);
+  }, []);
+
+  const confirmCancel = useCallback(() => {
+    if (visitData?.id) {
+      dispatch(cancelUpcomingVisit(visitData.id));
+      setIsCancelModalVisible(false);
+      closeModal();
+    }
+  }, [visitData, dispatch, closeModal]);
+
   const handleReschedule = useCallback(() => {
     if (visitData) {
       dispatch(addSiteVisit({
         ...visitData,
-        id: visitData.id + "_reschedule_" + Date.now() 
+        id: visitData.projectId || visitData.id.replace(/_reschedule_.*/, "")
       }));
       closeModal();
-      router.push("/(screens)/book-site-visit");
+      
+      const parsedTime = visitData?.dateFull?.includes('·') ? visitData.dateFull.split('·')[1].trim() : visitData?.dateFull?.includes('|') ? visitData.dateFull.split('|')[1].trim() : "10:00 AM";
+
+      router.push({
+        pathname: "/(screens)/book-site-visit",
+        params: {
+          selectedIds: visitData.projectId || visitData.id.replace(/_reschedule_.*/, ""),
+          initialDate: visitData.isoDate,
+          initialTime: parsedTime,
+          initialVisitors: visitData.visitors?.toString() || "1",
+          initialNotes: visitData.notes || ""
+        }
+      });
     }
   }, [visitData, dispatch, router, closeModal]);
 
@@ -33,6 +60,15 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     ),
     []
   );
+
+  const fallbackImage = "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80";
+  const imageSource = visitData?.image 
+    ? (typeof visitData.image === 'string' ? { uri: visitData.image } : visitData.image)
+    : { uri: fallbackImage };
+
+  const parsedDate = visitData?.isoDate ? new Date(visitData.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "";
+  const parsedTime = visitData?.dateFull?.includes('·') ? visitData.dateFull.split('·')[1].trim() : visitData?.dateFull?.includes('|') ? visitData.dateFull.split('|')[1].trim() : "10:00 AM";
+  const displayDate = parsedDate ? `${parsedDate} • ${parsedTime}` : visitData?.dateFull || "Oct 24, 2023 • 10:00 AM";
 
   return (
     <BottomSheetModal
@@ -61,7 +97,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
             <View className="px-5 py-4">
                   <View className="border border-gray-100 rounded-[12px] overflow-hidden mb-3 bg-white">
                     <Image 
-                      source={{ uri: visitData?.image || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" }} 
+                      source={imageSource} 
                       className="w-full h-[90px]" 
                       resizeMode="cover" 
                     />
@@ -79,7 +115,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
                       <View className="flex-row items-center mb-1.5">
                         <Feather name="calendar" size={12} color="#6B7280" />
                         <Text className="text-[12px] text-[#4B5563] font-manrope ml-2">
-                          {visitData?.dateFull || "Oct 24, 2023 • 10:00 AM"}
+                          {displayDate}
                         </Text>
                       </View>
                       <View className="flex-row items-center mb-3">
@@ -134,7 +170,10 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
                     </Text>
                   </Pressable>
 
-                  <Pressable className="bg-[#FFF1F2] rounded-[10px] py-3 flex-row items-center justify-center mb-4">
+                  <Pressable 
+                    className="bg-[#FFF1F2] rounded-[10px] py-3 flex-row items-center justify-center mb-4"
+                    onPress={handleCancelVisit}
+                  >
                     <Feather name="x-circle" size={16} color="#EF4444" />
                     <Text className="text-[#EF4444] font-manrope-extrabold text-[13px] ml-2">
                       Cancel Visit
@@ -150,6 +189,21 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
             </View>
         </BottomSheetScrollView>
       </View>
+
+      <ConfirmationModal
+        visible={isCancelModalVisible}
+        onClose={() => setIsCancelModalVisible(false)}
+        onConfirm={confirmCancel}
+        title="Cancel Site Visit?"
+        message="Are you sure you want to cancel this site visit? This action cannot be undone."
+        cancelText="No, Keep it"
+        confirmText="Yes, Cancel"
+        icon="alert-triangle"
+        iconColor="#EF4444"
+        iconBgColor="#FFF1F2"
+        confirmButtonColor="bg-[#EF4444]"
+      />
+
     </BottomSheetModal>
   );
 });

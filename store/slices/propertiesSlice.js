@@ -10,6 +10,7 @@ const propertiesSlice = createSlice({
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
         bookedSiteVisits: [],
+        upcomingSiteVisits: [],
         selectedCategory: 'all',
         searchQuery: '',
     },
@@ -53,8 +54,25 @@ const propertiesSlice = createSlice({
         removeSiteVisit: (state, action) => {
             state.bookedSiteVisits = state.bookedSiteVisits.filter((v) => v.id !== action.payload);
         },
+        confirmVisits: (state, action) => {
+            const newVisits = action.payload; 
+            const newProjectIds = newVisits.map(v => v.projectId);
+            
+            // Deduplicate the upcoming visits (this effectively 'updates' the rescheduled visit)
+            state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => !newProjectIds.includes(v.projectId));
+            state.upcomingSiteVisits.push(...newVisits);
+            
+            // Clear items from the cart matching the booked projectIds
+            state.bookedSiteVisits = state.bookedSiteVisits.filter(v => {
+                const targetId = v.projectId || v.id.replace(/_reschedule_.*/, "");
+                return !newProjectIds.includes(targetId);
+            });
+        },
+        cancelUpcomingVisit: (state, action) => {
+            state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => v.id !== action.payload);
+        },
     },
 });
 
-export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit } = propertiesSlice.actions;
+export const { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, setSelectedCategory, setSearchQuery, addSiteVisit, removeSiteVisit, confirmVisits, cancelUpcomingVisit } = propertiesSlice.actions;
 export default propertiesSlice.reducer;
