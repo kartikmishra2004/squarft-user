@@ -1,18 +1,29 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setMobile, setOtpFlow } from "../../store/slices/authSlice";
+import { setMobile, setOtpFlow, clearError, clearAuthInputs } from "../../store/slices/authSlice";
+import { sendOtpThunk } from "../../store/slices/authSlice";
 
 const logo = require("../../assets/icons/app-icon.png");
 
 export default function ForgotPassword() {
     const dispatch = useDispatch();
-    const { mobile } = useSelector((state) => state.auth);
+    const { mobile, loading, error } = useSelector((state) => state.auth);
 
-    const handleSendOtp = () => {
-        dispatch(setOtpFlow('forgot-password'));
-        router.push("/otp-verification");
+    useEffect(() => {
+        dispatch(clearError());
+        dispatch(clearAuthInputs());
+    }, []);
+
+    const handleSendOtp = async () => {
+        dispatch(clearError());
+        const result = await dispatch(sendOtpThunk({ phone: mobile, purpose: 'reset_password' }));
+        if (sendOtpThunk.fulfilled.match(result)) {
+            dispatch(setOtpFlow('reset_password'));
+            router.push("/otp-verification");
+        }
     };
 
     return (
@@ -35,7 +46,7 @@ export default function ForgotPassword() {
                     <View className="flex-1 bg-white px-6 pt-10">
 
                         <Text className="text-gray-500 text-[13px] mb-1.5">Mobile Number</Text>
-                        <View className="border border-gray-200 rounded-xl px-4 py-2 mb-12">
+                        <View className="border border-gray-200 rounded-xl px-4 py-2 mb-4">
                             <TextInput
                                 value={mobile}
                                 onChangeText={(val) => dispatch(setMobile(val))}
@@ -46,11 +57,19 @@ export default function ForgotPassword() {
                             />
                         </View>
 
+                        {error && (
+                            <Text className="text-red-500 text-[13px] mb-4 text-center">{error}</Text>
+                        )}
+
                         <TouchableOpacity
                             onPress={handleSendOtp}
+                            disabled={loading}
                             className="bg-[#4A43EC] rounded-2xl py-4 items-center"
                         >
-                            <Text className="text-white text-[15px] font-semibold">Send OTP</Text>
+                            {loading
+                                ? <ActivityIndicator color="#fff" />
+                                : <Text className="text-white text-[15px] font-semibold">Send OTP</Text>
+                            }
                         </TouchableOpacity>
 
                     </View>
