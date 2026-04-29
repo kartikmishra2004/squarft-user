@@ -1,7 +1,4 @@
-// Android emulator: use 10.0.2.2
-// Physical device: use your machine's local IP e.g. http://192.168.1.x:3001
-// iOS simulator: localhost works fine
-const BASE_URL = 'http://192.168.0.103:3001';
+import { BASE_URL } from './config';
 
 async function request(path, options = {}) {
     try {
@@ -22,7 +19,6 @@ async function request(path, options = {}) {
 }
 
 export const authApi = {
-    // Login with phone and password
     login: (phone, password) =>
         request('/auth/login', {
             method: 'POST',

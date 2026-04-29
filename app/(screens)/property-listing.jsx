@@ -1,65 +1,34 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
-import { useRef, useState } from "react"; // Added useRef
+import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
-import { Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
-import { allProjects } from "../../data/projects";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
-import { openFilter, openBudgetFilter, setSearchQuery, clearFilters, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { useLocalSearchParams } from "expo-router";
-
-const BHK_MAP = {
-    "1 BHK": "1", "2 BHK": "2", "3 BHK": "3", "4 BHK": "4", "5+ BHK": "5+",
-};
-
-const BUDGET_MIN = 2000000;
-const BUDGET_MAX = 50000000;
-const AREA_MIN = 0;
-const AREA_MAX = 5000;
 
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
         if (filter.address) {
             const q = filter.address.toLowerCase().trim();
             const match =
-                p.name.toLowerCase().includes(q) ||
-                p.location.toLowerCase().includes(q) ||
-                p.builder.toLowerCase().includes(q);
+                (p.name || '').toLowerCase().includes(q) ||
+                (p.area || '').toLowerCase().includes(q) ||
+                (p.city || '').toLowerCase().includes(q);
             if (!match) return false;
         }
 
         if (filter.searchQuery) {
             const q = filter.searchQuery.toLowerCase().trim();
             const match =
-                p.name.toLowerCase().includes(q) ||
-                p.location.toLowerCase().includes(q) ||
-                p.builder.toLowerCase().includes(q) ||
-                p.subTypes.some(s => s.toLowerCase().includes(q));
+                (p.name || '').toLowerCase().includes(q) ||
+                (p.area || '').toLowerCase().includes(q) ||
+                (p.city || '').toLowerCase().includes(q);
             if (!match) return false;
         }
-
-        if (filter.propertyTypes.length > 0 && !filter.propertyTypes.includes(p.propertyType)) return false;
-
-        if (filter.propertySubTypes.length > 0) {
-            const selectedNums = filter.propertySubTypes.map((s) => BHK_MAP[s] ?? s);
-            const match = selectedNums.some((n) => p.subTypes.includes(n));
-            if (!match) return false;
-        }
-
-        const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
-        const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
-        if (budgetLowerActive && p.budgetMax < filter.budgetRange[0]) return false;
-        if (budgetUpperActive && p.budgetMin > filter.budgetRange[1]) return false;
-
-        const areaLowerActive = filter.areaRange[0] > AREA_MIN;
-        const areaUpperActive = filter.areaRange[1] < AREA_MAX;
-        if (areaLowerActive && p.areaSqft < filter.areaRange[0]) return false;
-        if (areaUpperActive && p.areaSqft > filter.areaRange[1]) return false;
-
-        if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(p.possessionStatus)) return false;
 
         return true;
     });
@@ -69,68 +38,38 @@ function ProjectCard({ item }) {
     return (
         <TouchableOpacity
             activeOpacity={0.97}
-            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id } })}
+            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
             className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 mx-4"
         >
             <View className="flex-row h-36 w-full">
                 <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                    <Image source={item.imageMain} className="w-full h-full" resizeMode="cover" />
-                    <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
-                        <Text className="text-white text-[10px] font-manrope">{item.builder}</Text>
-                    </View>
-                    {item.zeroBrokerage && (
-                        <View className="absolute bottom-2 left-2 bg-[#00B67A] px-2 py-[4px] rounded">
-                            <Text className="text-white text-[10px] font-manrope-extrabold tracking-wide">ZERO BROKERAGE</Text>
-                        </View>
-                    )}
+                    {item.cover_image_url
+                        ? <Image source={{ uri: item.cover_image_url }} className="w-full h-full" resizeMode="cover" />
+                        : <View className="w-full h-full bg-gray-200 items-center justify-center">
+                            <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
+                          </View>
+                    }
                 </View>
-                <View className="flex-[1] relative bg-gray-200">
-                    <Image source={item.imageThumb} className="w-full h-full" resizeMode="cover" />
-                    <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                        <Text className="text-white text-[10px] font-manrope">1/{item.totalImages}</Text>
-                    </View>
+                <View className="flex-[1] relative bg-gray-100 items-center justify-center">
+                    <MaterialCommunityIcons name="image-outline" size={24} color="#D1D5DB" />
                 </View>
             </View>
 
             <View className="px-3 pt-3 pb-2">
                 <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                    Possession: {item.possession}{'  •  '}Avg Price: {item.avgPricePerSqft}
+                    {item.area}, {item.city}
                 </Text>
                 <View className="flex-row items-center mb-1">
                     <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{item.name}</Text>
-                    {item.rera && (
-                        <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
-                            <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
-                            <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
-                                <Feather name="check" size={6} color="white" />
-                            </View>
-                        </View>
-                    )}
                 </View>
-                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.location}</Text>
+                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.pincode}</Text>
             </View>
 
             <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
 
-            <View className="flex-row   px-3 pb-3">
-                <View>
-                    <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[0]?.type}</Text>
-                    <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[0]?.priceRange}</Text>
-                </View>
-                {item.variants[1] && (
-                    <View className="h-12 w-[1px] bg-gray-300 mx-5" />
-                )}
-                {item.variants[1] && (
-                    <View className="items-left">
-                        <Text className="text-[9px] text-[#666666] font-manrope-extrabold uppercase tracking-wide">{item.variants[1].type}</Text>
-                        <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{item.variants[1].priceRange}</Text>
-                    </View>
-                )}
-            </View>
-
             <View className="px-3 pb-3">
                 <TouchableOpacity
-                    onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id } })}
+                    onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
                     className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
                 >
                     <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
@@ -144,10 +83,15 @@ export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
+    const { list: apiProjects } = useSelector((state) => state.project);
     const { category } = useLocalSearchParams();
     const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
     const [sortKey, setSortKey] = useState('relevance');
     const [sortOpen, setSortOpen] = useState(false);
+
+    useEffect(() => {
+        dispatch(fetchProjectListThunk());
+    }, []);
 
     const SORT_OPTIONS = [
         { key: 'relevance', label: 'Relevance' },
@@ -161,12 +105,10 @@ export default function PropertyListing() {
         dispatch(setSearchQuery(text));
     };
 
-    const filtered = applyFilters(allProjects, filter);
+    const filtered = applyFilters(apiProjects, filter);
 
     const sorted = [...filtered].sort((a, b) => {
-        if (sortKey === 'newest') return b.launchedIn?.localeCompare(a.launchedIn ?? '') ?? 0;
-        if (sortKey === 'price_asc') return a.budgetMin - b.budgetMin;
-        if (sortKey === 'price_desc') return b.budgetMin - a.budgetMin;
+        if (sortKey === 'newest') return (b.created_at || '').localeCompare(a.created_at || '');
         return 0;
     });
 

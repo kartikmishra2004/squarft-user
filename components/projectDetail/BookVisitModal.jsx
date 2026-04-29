@@ -70,23 +70,25 @@ export default function BookVisitModal({ visible, onClose, project }) {
 
             {/* Scrollable variants */}
             <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
-                {project?.variants.map((v, i) => {
-                    const isSelected = selected.includes(v.type);
+                {(project?.variants || project?.floorPlans || []).map((v, i) => {
+                    const isSelected = selected.includes(v.type || v.title);
                     return (
                         <TouchableOpacity
                             key={i}
-                            onPress={() => toggle(v.type)}
+                            onPress={() => toggle(v.type || v.title)}
                             className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
                         >
                             <View className="w-24 h-24 rounded-xl bg-gray-100 mr-3 overflow-hidden">
                                 <Image source={project.imageMain} className="w-full h-full" resizeMode="cover" />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5">{v.type}</Text>
-                                <Text className="text-[13px] font-inter-bold text-indigo-600 mb-0.5">{v.priceRange}</Text>
+                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5">{v.type || v.title}</Text>
+                                <Text className="text-[13px] font-inter-bold text-indigo-600 mb-0.5">
+                                    {v.priceRange || (v.price ? `₹${(v.price/100000).toFixed(0)}L` : '—')}
+                                </Text>
                                 <View className="flex-row items-center gap-1">
                                     <MaterialCommunityIcons name="floor-plan" size={11} color="#9CA3AF" />
-                                    <Text className="text-[11px] text-gray-400">{project.areaSqft} SQ.FT.</Text>
+                                    <Text className="text-[11px] text-gray-400">{v.area || project.areaSqft} SQ.FT.</Text>
                                 </View>
                             </View>
                             <View className={`w-6 h-6 rounded-md border-2 items-center justify-center ml-2 ${isSelected ? "bg-indigo-600 border-indigo-600" : "border-gray-300"}`}>

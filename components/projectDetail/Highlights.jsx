@@ -5,20 +5,59 @@ import { defaultLandmarks, defaultAmenities } from "../../data/projects";
 
 const VISIBLE_AMENITIES = 5;
 
+// Map landmark category → icon name
+const LANDMARK_ICON_MAP = {
+    school: 'school-outline',
+    hospital: 'medical-outline',
+    metro: 'train-outline',
+    mall: 'bag-handle-outline',
+    airport: 'airplane-outline',
+    park: 'leaf-outline',
+    bank: 'card-outline',
+    restaurant: 'restaurant-outline',
+    default: 'location-outline',
+};
+
+// Map amenity category/name → icon
+const AMENITY_ICON_MAP = {
+    pool: { icon: 'pool', lib: 'MCI' },
+    gym: { icon: 'dumbbell', lib: 'MCI' },
+    parking: { icon: 'car-outline', lib: 'Ionicons' },
+    security: { icon: 'shield-checkmark-outline', lib: 'Ionicons' },
+    garden: { icon: 'flower-outline', lib: 'Ionicons' },
+    clubhouse: { icon: 'home-group', lib: 'MCI' },
+    lift: { icon: 'elevator', lib: 'MCI' },
+    playground: { icon: 'basketball-outline', lib: 'Ionicons' },
+    wifi: { icon: 'wifi-outline', lib: 'Ionicons' },
+    default: { icon: 'star-outline', lib: 'Ionicons' },
+};
+
+function getLandmarkIcon(category) {
+    if (!category) return LANDMARK_ICON_MAP.default;
+    const key = category.toLowerCase();
+    return LANDMARK_ICON_MAP[key] || LANDMARK_ICON_MAP.default;
+}
+
+function getAmenityIcon(name, category) {
+    const search = (name || category || '').toLowerCase();
+    const key = Object.keys(AMENITY_ICON_MAP).find(k => search.includes(k));
+    return AMENITY_ICON_MAP[key] || AMENITY_ICON_MAP.default;
+}
+
 function LandmarkCard({ item }) {
+    const iconName = item.icon || getLandmarkIcon(item.category);
     return (
         <View style={{
             flex: 1, backgroundColor: '#fff', borderRadius: 12,
             borderWidth: 1, borderColor: '#91919347',
             padding: 12, margin: 4,
-           
         }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Ionicons name={item.icon} size={20} color="#646464" />
+                <Ionicons name={iconName} size={20} color="#646464" />
                 <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
             </View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 2 }}>
-                {item.label}{' '}<Text style={{ color: '#111827', fontWeight: '400' }}>›</Text>
+                {item.label || item.category || '—'}{' '}<Text style={{ color: '#111827', fontWeight: '400' }}>›</Text>
             </Text>
             <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6 }}>{item.name}</Text>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>{item.distance}</Text>
@@ -29,7 +68,8 @@ function LandmarkCard({ item }) {
 function AmenityItem({ item, col, totalInRow, isLastRow }) {
     const showRightBorder = col < totalInRow - 1;
     const showBottomBorder = !isLastRow;
-    const IconComp = item.lib === 'MCI' ? MaterialCommunityIcons : Ionicons;
+    const { icon, lib } = item.lib ? item : getAmenityIcon(item.name, item.category);
+    const IconComp = lib === 'MCI' ? MaterialCommunityIcons : Ionicons;
     return (
         <View style={{
             width: '33.33%', alignItems: 'center',
@@ -38,8 +78,8 @@ function AmenityItem({ item, col, totalInRow, isLastRow }) {
             borderBottomWidth: showBottomBorder ? 0.5 : 0,
             borderColor: '#E5E7EB',
         }}>
-            <IconComp name={item.icon} size={26} color="#4A43EC" style={{ marginBottom: 8 }} />
-            <Text style={{ fontSize: 11, color: '#374151', textAlign: 'center', fontWeight: '500' }}>{item.label}</Text>
+            <IconComp name={icon} size={26} color="#4A43EC" style={{ marginBottom: 8 }} />
+            <Text style={{ fontSize: 11, color: '#374151', textAlign: 'center', fontWeight: '500' }}>{item.label || item.name}</Text>
         </View>
     );
 }
