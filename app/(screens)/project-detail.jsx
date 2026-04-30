@@ -6,10 +6,12 @@ import {
   ImageBackground,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite } from "../../store/slices/propertiesSlice";
+import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,15 +30,33 @@ const { width } = Dimensions.get("window");
 
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
-  const { id, from } = useLocalSearchParams();
+  const { id, slug, from } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Overview");
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
-  const project = allProjects.find((p) => p.id === id);
+  const { details: apiProject, floorPlans, resale, landmarks, amenities, loading: apiLoading } = useSelector((s) => s.project);
+  const { list: projectList } = useSelector((s) => s.project);
+
+  // Find project from API list or local fallback
+  const listProject = projectList.find((p) => p.id === id) || allProjects.find((p) => p.id === id);
   const isSaved = savedProjects.includes(id);
 
-  if (!project) {
+  // Use slug from params or from list project
+  const projectSlug = slug || listProject?.slug;
+
+  useEffect(() => {
+    if (projectSlug && projectSlug !== 'none') {
+      dispatch(fetchProjectDetailsThunk(projectSlug));
+      dispatch(fetchFloorPlansThunk(projectSlug));
+      dispatch(fetchResaleThunk(projectSlug));
+      dispatch(fetchLandmarksThunk(projectSlug));
+      dispatch(fetchAmenitiesThunk(projectSlug));
+    }
+    return () => dispatch(clearProject());
+  }, [id, projectSlug]);
+
+  if (!listProject && !apiProject) {
     return (
       <View className="flex-1 items-center justify-center">
         <Text className="text-gray-400">Project not found</Text>
@@ -44,10 +64,35 @@ export default function ProjectDetail() {
     );
   }
 
-  const bhkConfig = project.subTypes.join(", ");
+  // Merge API data with list/local fallback
+  const base = listProject || {};
+  const project = {
+    ...base,
+    ...(apiProject ? {
+      name: apiProject.name || base.name,
+      location: apiProject.location || base.location,
+      description: apiProject.description || base.description,
+      reraId: apiProject.rera_id || base.reraId,
+      possession: apiProject.possession || base.possession,
+      builder: apiProject.developer?.name || base.builder,
+      units: apiProject.stats?.units || base.units,
+      launchedIn: apiProject.stats?.launched || base.launchedIn,
+    } : {
+      name: base.name,
+      location: base.location || (base.area && base.city ? `${base.area}, ${base.city}` : ''),
+      possession: base.possession_date || base.possession,
+    }),
+    floorPlans: floorPlans?.floor_plans || base.variants,
+    resaleProperties: resale,
+    landmarks: landmarks,
+    amenities: amenities,
+  };
+
+  const bhkConfig = project.subTypes?.join(", ");
   const startingPrice =
-    project.variants[0]?.priceRange?.split("–")[0]?.trim() ??
-    project.avgPricePerSqft;
+    floorPlans?.summary?.starting_from
+      ? `₹${(floorPlans.summary.starting_from / 100000).toFixed(0)}L`
+      : project.variants?.[0]?.priceRange?.split("–")[0]?.trim() ?? project.avgPricePerSqft;
 
   return (
     <View className="flex-1 bg-[#F8F5FF]">

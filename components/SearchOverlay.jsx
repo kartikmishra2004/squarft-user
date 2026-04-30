@@ -8,9 +8,11 @@ import Animated, {
     withTiming, Easing, FadeIn, FadeOut, Layout,
 } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
+import { getTrendingSearchesThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk } from "../store/slices/searchSlice";
+import { fetchProjectListThunk } from "../store/slices/projectSlice";
 import { Image } from "react-native";
 
 
@@ -77,7 +79,7 @@ function Divider({ left = 20 }) {
     return <View style={{ height: 0.5, backgroundColor: '#F3F4F6', marginLeft: left }} />;
 }
 
-function SearchHistoryItem({ item, index, total, onSelect }) {
+function SearchHistoryItem({ item, index, total, onSelect, onDelete }) {
     return (
         <Animated.View entering={FadeIn.delay(index * 40).duration(200)} layout={Layout.springify()}>
             <TouchableOpacity onPress={() => onSelect(item.title)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
@@ -86,7 +88,7 @@ function SearchHistoryItem({ item, index, total, onSelect }) {
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{item.title}</Text>
                     <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{item.subtitle}</Text>
                 </View>
-                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => onDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Ionicons name="close" size={16} color="#9CA3AF" />
                 </TouchableOpacity>
             </TouchableOpacity>
@@ -121,34 +123,59 @@ function SuggestionItem({ item, index, onPress }) {
 }
 
 
-function HistoryPanel({ onSelect }) {
+function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHistory }) {
     const opacity = useSharedValue(1);
     const translateY = useSharedValue(10);
 
     useEffect(() => {
         translateY.value = withTiming(0, TIMING);
-    }, []);
+        console.log('📊 HistoryPanel data:', { 
+            searchHistoryCount: searchHistory?.length || 0, 
+            trendingSearchesCount: trendingSearches?.length || 0,
+            searchHistory: searchHistory,
+            trendingSearches: trendingSearches,
+        });
+    }, [searchHistory, trendingSearches]);
 
     const style = useAnimatedStyle(() => ({
         opacity: opacity.value,
         transform: [{ translateY: translateY.value }],
     }));
 
+    // Format search history for display
+    const formattedHistory = searchHistory.map((item, index) => ({
+        id: item.id || `history-${index}`,
+        icon: 'history',
+        title: item.query_text || 'Unknown search',
+        subtitle: `${new Date(item.searched_at).toLocaleDateString()} • ${item.result_count || 0} results`,
+    }));
+
+    // Format trending searches
+    const formattedTrending = trendingSearches.map(item => item.text);
+
     return (
         <Animated.View style={style}>
-            <SectionLabel text="SEARCH HISTORY" />
-            <View style={{ backgroundColor: '#fff' }}>
-                {SEARCH_HISTORY.map((item, i) => (
-                    <SearchHistoryItem key={item.id} item={item} index={i} total={SEARCH_HISTORY.length} onSelect={onSelect} />
-                ))}
-            </View>
+            {formattedHistory.length > 0 && (
+                <>
+                    <SectionLabel text="SEARCH HISTORY" />
+                    <View style={{ backgroundColor: '#fff' }}>
+                        {formattedHistory.map((item, i) => (
+                            <SearchHistoryItem key={item.id} item={item} index={i} total={formattedHistory.length} onSelect={onSelect} onDelete={onDeleteHistory} />
+                        ))}
+                    </View>
+                </>
+            )}
 
-            <SectionLabel text="TRENDING SEARCHES" />
-            <View style={{ backgroundColor: '#fff' }}>
-                {TRENDING_SEARCHES.map((item, i) => (
-                    <TrendingItem key={item} item={item} index={i} total={TRENDING_SEARCHES.length} onSelect={onSelect} />
-                ))}
-            </View>
+            {formattedTrending.length > 0 && (
+                <>
+                    <SectionLabel text="TRENDING SEARCHES" />
+                    <View style={{ backgroundColor: '#fff' }}>
+                        {formattedTrending.map((item, i) => (
+                            <TrendingItem key={`trending-${i}`} item={item} index={i} total={formattedTrending.length} onSelect={onSelect} />
+                        ))}
+                    </View>
+                </>
+            )}
 
             <SectionLabel text="TRENDING LOCATIONS" />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 }}>
@@ -210,9 +237,26 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     const debounceRef = useRef(null);
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
+    
+    // Get data from Redux
+    const { trendingSearches, searchHistory } = useSelector(state => state.search);
+    const { isLoggedIn, token } = useSelector(state => state.auth);
+    const { list: projectList } = useSelector(state => state.project);
 
     const headerOpacity = useSharedValue(1);
     const headerY = useSharedValue(-8);
+
+    // Fetch trending searches, history and project list on mount
+    useEffect(() => {
+        dispatch(getTrendingSearchesThunk());
+        dispatch(fetchProjectListThunk());
+        if (isLoggedIn && token) {
+            console.log('📱 Fetching search history for logged-in user');
+            dispatch(getSearchHistoryThunk());
+        } else {
+            console.log('📱 User not logged in or no token:', { isLoggedIn, hasToken: !!token });
+        }
+    }, [isLoggedIn, token, dispatch]);
 
     useEffect(() => {
         headerY.value = withTiming(0, { duration: 200 });
@@ -238,14 +282,41 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     }, [value]);
 
     const suggestions = debouncedQuery
-        ? ALL_SUGGESTIONS.filter(s => s.toLowerCase().includes(debouncedQuery.toLowerCase())).slice(0, 8)
+        ? projectList
+            .filter(p =>
+                p.name?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+                p.area?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+                p.city?.toLowerCase().includes(debouncedQuery.toLowerCase())
+            )
+            .slice(0, 8)
+            .map(p => `${p.name} · ${p.area}, ${p.city}`)
         : [];
 
     const handleSelect = useCallback((text) => {
-        dispatch(setSearchQuery(text));
-        onChangeText(text);
+        // Extract just the project name if it's a suggestion with " · location" format
+        const searchTerm = text.includes(' · ') ? text.split(' · ')[0].trim() : text;
+        dispatch(setSearchQuery(searchTerm));
+        onChangeText(searchTerm);
+        
+        // Save search to history if user is logged in
+        if (isLoggedIn && token) {
+            console.log('💾 Saving search to history:', searchTerm);
+            dispatch(saveSearchHistoryThunk({ 
+                query_text: searchTerm, 
+                filters: null, 
+                result_count: 0 
+            }));
+        } else {
+            console.log('⚠️ Not saving search - user not logged in or no token');
+        }
+        
         router.push('/(screens)/property-listing');
-    }, []);
+    }, [isLoggedIn, token, dispatch]);
+
+    const handleDeleteHistory = useCallback((id) => {
+        console.log('🗑️ Deleting search history item:', id);
+        dispatch(deleteSearchHistoryThunk(id));
+    }, [dispatch]);
 
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#F9FAFB' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -311,7 +382,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 ListHeaderComponent={
                     showSuggestions
                         ? <SuggestionsPanel key="suggestions" suggestions={suggestions} onSelect={handleSelect} />
-                        : <HistoryPanel key="history" onSelect={handleSelect} />
+                        : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} onDeleteHistory={handleDeleteHistory} />
                 }
             />
 

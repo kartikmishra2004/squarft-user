@@ -1,21 +1,29 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView, ImageBackground } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Ionicons, AntDesign } from "@expo/vector-icons";
-import { setMobile, setPassword, toggleRememberMe, setLoggedIn } from "../../store/slices/authSlice";
+import { Ionicons } from "@expo/vector-icons";
+import { setMobile, setPassword, toggleRememberMe, clearError, clearAuthInputs } from "../../store/slices/authSlice";
+import { loginThunk } from "../../store/slices/authSlice";
 const logo = require("../../assets/icons/app-icon.png");
 
 export default function Login() {
     const dispatch = useDispatch();
-    const { mobile, password, rememberMe } = useSelector((state) => state.auth);
+    const { mobile, password, rememberMe, loading, error } = useSelector((state) => state.auth);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = () => {
+    useEffect(() => {
+        dispatch(clearError());
+        dispatch(clearAuthInputs());
+    }, []);
 
-        dispatch(setLoggedIn(true));
-        router.replace("/(tabs)/home");
+    const handleLogin = async () => {
+        dispatch(clearError());
+        const result = await dispatch(loginThunk({ phone: mobile, password }));
+        if (loginThunk.fulfilled.match(result)) {
+            router.replace("/(tabs)/home");
+        }
     };
 
     return (
@@ -43,12 +51,12 @@ export default function Login() {
                     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24, paddingTop: 32 }} keyboardShouldPersistTaps="handled">
 
 
-                        <Text className="text-gray-500 text-[13px] mb-1.5">Mobile Number</Text>
+                        <Text className="text-gray-500 text-[13px] mb-1.5">Phone Number</Text>
                         <View className="border border-gray-200 rounded-xl px-4 py-2 mb-5">
                             <TextInput
                                 value={mobile}
                                 onChangeText={(val) => dispatch(setMobile(val))}
-                                placeholder="Number"
+                                placeholder="Phone Number"
                                 placeholderTextColor="#aaa"
                                 keyboardType="phone-pad"
                                 className="text-[15px] text-black"
@@ -92,11 +100,19 @@ export default function Login() {
                         </View>
 
 
+                        {error && (
+                            <Text className="text-red-500 text-[13px] mb-4 text-center">{error}</Text>
+                        )}
+
                         <TouchableOpacity
                             onPress={handleLogin}
+                            disabled={loading}
                             className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-8"
                         >
-                            <Text className="text-white text-[16px] font-lato-bold">Log In</Text>
+                            {loading
+                                ? <ActivityIndicator color="#fff" />
+                                : <Text className="text-white text-[16px] font-lato-bold">Log In</Text>
+                            }
                         </TouchableOpacity>
 
 

@@ -25,9 +25,18 @@ export default function BudgetFilterModal() {
     const [selectedFacilities, setSelectedFacilities] = useState([]);
 
     useEffect(() => {
-        if (budgetFilterOpen) sheetRef.current?.present();
-        else sheetRef.current?.dismiss();
+        if (budgetFilterOpen) {
+            sheetRef.current?.present();
+            setLiveBudget(budgetRange); // Reset to current budget when opening
+        } else {
+            sheetRef.current?.dismiss();
+        }
     }, [budgetFilterOpen]);
+
+    // Sync liveBudget when budgetRange changes from outside
+    useEffect(() => {
+        setLiveBudget(budgetRange);
+    }, [budgetRange[0], budgetRange[1]]);
 
     const renderBackdrop = useCallback(
         (props) => (
@@ -82,11 +91,10 @@ export default function BudgetFilterModal() {
                 </View>
 
                 <RangeSliderLib
-                    key={`budget-${budgetRange[0]}-${budgetRange[1]}`}
                     min={BUDGET_MIN}
                     max={BUDGET_MAX}
-                    initialMinValue={budgetRange[0]}
-                    initialMaxValue={budgetRange[1]}
+                    initialMinValue={liveBudget[0]}
+                    initialMaxValue={liveBudget[1]}
                     width={width - 50}
                     trackHeight={4}
                     thumbSize={18}
@@ -99,7 +107,12 @@ export default function BudgetFilterModal() {
                         borderColor: "#fff",
                         elevation: 4,
                     }}
-                    onValuesChange={(vals) => setLiveBudget([vals[0], vals[1]])}
+                    onValuesChange={(vals) => {
+                        // Only update if values actually changed
+                        if (vals[0] !== liveBudget[0] || vals[1] !== liveBudget[1]) {
+                            setLiveBudget([vals[0], vals[1]]);
+                        }
+                    }}
                 />
 
                 <View className="flex-row justify-between mt-1 mb-6">

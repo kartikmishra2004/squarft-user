@@ -38,7 +38,7 @@ export default function Overview({ project }) {
                 contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 8 }}
                 className="mb-4 mt-4"
             >
-                {project.variants.map((v, i) => (
+                {(project.variants || project.floorPlans || []).map((v, i) => (
                     <View
                         key={i}
                         style={{ width: CARD_WIDTH, ...cardShadow }}
@@ -47,12 +47,14 @@ export default function Overview({ project }) {
                         <Image source={project.imageMain} style={{ width: "100%", height: 140 }} resizeMode="cover" />
                         <View className="p-3">
                             <View className="flex-row items-center justify-between mb-1">
-                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type}</Text>
-                                <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">{v.priceRange.split("–")[0].trim()}</Text>
+                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type || v.title}</Text>
+                                <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
+                                    {v.priceRange ? v.priceRange.split("–")[0].trim() : (v.price ? `₹${(v.price/100000).toFixed(0)}L` : '—')}
+                                </Text>
                             </View>
                             <View className="flex-row items-center gap-1 mb-5">
                                 <MaterialCommunityIcons name="floor-plan" size={13} color="#9CA3AF" />
-                                <Text className="text-[12px] font-public-regular text-[#64748B]">{project.areaSqft} sqft (Carpet Area)</Text>
+                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || project.areaSqft} sqft (Carpet Area)</Text>
                             </View>
                             <TouchableOpacity
                                 onPress={() => {
@@ -175,7 +177,16 @@ export default function Overview({ project }) {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingHorizontal: 24, gap: 14, paddingTop: 44, paddingBottom: 15, marginBottom: 12 }}
                 >
-                    {getResaleByProject(project.id).map((item) => (
+                    {(project.resaleProperties?.length > 0
+                        ? project.resaleProperties.map(r => ({
+                            id: r.id,
+                            title: r.title,
+                            price: r.base_price ? `₹${(r.base_price / 100000).toFixed(0)}L` : '—',
+                            image: r.cover_image ? { uri: r.cover_image } : project.imageMain,
+                            location: `${r.area}, ${r.city}`,
+                        }))
+                        : getResaleByProject(project.id)
+                    ).map((item) => (
                         <FeaturedCard key={item.id} item={item} showBookVisit />
                     ))}
                 </ScrollView>

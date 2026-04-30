@@ -1,23 +1,38 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
-import { setNewPassword, setConfirmPassword, setLoggedIn } from "../../store/slices/authSlice";
+import { setNewPassword, setConfirmPassword, clearError, clearAuthInputs } from "../../store/slices/authSlice";
+import { resetPasswordThunk } from "../../store/slices/authSlice";
 
 const logo = require("../../assets/icons/app-icon.png");
 
 export default function ChangePassword() {
     const dispatch = useDispatch();
-    const { newPassword, confirmPassword } = useSelector((state) => state.auth);
+    const { newPassword, confirmPassword, verifiedToken, loading, error } = useSelector((state) => state.auth);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    const handleSubmit = () => {
-        // 
-        dispatch(setLoggedIn(true));
-        router.replace("/(tabs)/home");
+    useEffect(() => {
+        dispatch(clearError());
+        dispatch(clearAuthInputs());
+    }, []);
+
+    const handleSubmit = async () => {
+        dispatch(clearError());
+        if (newPassword !== confirmPassword) {
+            return;
+        }
+        const result = await dispatch(resetPasswordThunk({ 
+            verified_token: verifiedToken, 
+            new_password: newPassword 
+        }));
+        
+        if (resetPasswordThunk.fulfilled.match(result)) {
+            router.push("/login");
+        }
     };
 
     return (
@@ -55,7 +70,7 @@ export default function ChangePassword() {
                         </View>
 
                         <Text className="text-gray-500 text-[13px] mb-1.5">Confirm Password</Text>
-                        <View className="border border-gray-200 rounded-xl px-4 py-3.5 flex-row items-center mb-8">
+                        <View className="border border-gray-200 rounded-xl px-4 py-3.5 flex-row items-center mb-4">
                             <TextInput
                                 value={confirmPassword}
                                 onChangeText={(val) => dispatch(setConfirmPassword(val))}
@@ -69,11 +84,19 @@ export default function ChangePassword() {
                             </TouchableOpacity>
                         </View>
 
+                        {error && (
+                            <Text className="text-red-500 text-[13px] mb-4 text-center">{error}</Text>
+                        )}
+
                         <TouchableOpacity
                             onPress={handleSubmit}
+                            disabled={loading}
                             className="bg-[#4A43EC] rounded-2xl py-4 items-center"
                         >
-                            <Text className="text-white text-[16px] font-semibold">Log In</Text>
+                            {loading
+                                ? <ActivityIndicator color="#fff" />
+                                : <Text className="text-white text-[16px] font-semibold">Reset Password</Text>
+                            }
                         </TouchableOpacity>
 
                     </View>

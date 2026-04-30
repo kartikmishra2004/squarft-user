@@ -1,21 +1,27 @@
-import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setOtpDigit, clearOtp, setLoggedIn } from "../../store/slices/authSlice";
+import { setOtpDigit, clearOtp, setLoggedIn, clearError, clearAuthInputs } from "../../store/slices/authSlice";
+import { verifyOtpThunk, sendOtpThunk } from "../../store/slices/authSlice";
 
 const logo = require("../../assets/icons/app-icon.png");
 
 export default function OtpVerification() {
     const dispatch = useDispatch();
-    const { otp, otpFlow } = useSelector((state) => state.auth);
+    const { otp, otpFlow, otpToken, mobile, loading, error } = useSelector((state) => state.auth);
     const inputs = useRef([]);
+
+    useEffect(() => {
+        dispatch(clearError());
+        dispatch(clearAuthInputs());
+    }, []);
 
     const handleChange = (text, index) => {
         const digit = text.replace(/[^0-9]/g, '').slice(-1);
         dispatch(setOtpDigit({ index, value: digit }));
-        if (digit && index < 3) {
+        if (digit && index < 5) {
             inputs.current[index + 1]?.focus();
         }
     };
@@ -26,20 +32,28 @@ export default function OtpVerification() {
         }
     };
 
-    const handleVerify = () => {
-        dispatch(clearOtp());
-        if (otpFlow === 'forgot-password') {
-            router.push("/change-password");
-        } else {
-            dispatch(setLoggedIn(true));
-            router.replace("/(tabs)/home");
+    const handleVerify = async () => {
+        dispatch(clearError());
+        const otpString = otp.join('');
+        const result = await dispatch(verifyOtpThunk({ otp_token: otpToken, otp: otpString }));
+        
+        if (verifyOtpThunk.fulfilled.match(result)) {
+            dispatch(clearOtp());
+            if (otpFlow === 'reset_password') {
+                router.push("/change-password");
+            } else {
+                dispatch(setLoggedIn(true));
+                router.replace("/(tabs)/home");
+            }
         }
     };
 
-    const handleResend = () => {
+    const handleResend = async () => {
+        dispatch(clearError());
         dispatch(clearOtp());
+        const purpose = otpFlow === 'reset_password' ? 'reset_password' : 'register';
+        await dispatch(sendOtpThunk({ phone: mobile, purpose }));
         inputs.current[0]?.focus();
-      
     };
 
     return (
@@ -61,7 +75,7 @@ export default function OtpVerification() {
                     </ImageBackground>
 
                     <View className="flex-1 bg-white px-8 pt-10 ">
-                        <View className="flex-row justify-center mb-10" style={{ gap: 25 }}>
+                        <View className="flex-row justify-center mb-10" style={{ gap: 12 }}>
                             {otp.map((digit, index) => (
                                 <TextInput
                                     key={index}
@@ -74,20 +88,31 @@ export default function OtpVerification() {
                                     style={{
                                         marginTop: 10,
                                         marginBottom: 10,
-                                        width: 60, height: 65,
+                                        width: 48, height: 56,
                                         borderWidth: 1,
                                         borderColor: digit ? '#4A43EC' : '#E5E7EB',
                                         borderRadius: 12,
                                         textAlign: 'center',
-                                        fontSize: 20,
+                                        fontSize: 18,
                                         color: '#000',
                                     }}
                                 />
                             ))}
                         </View>
 
-                        <TouchableOpacity onPress={handleVerify} className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-10">
-                            <Text className="text-white text-[15px] font-semibold">Submit</Text>
+                        {error && (
+                            <Text className="text-red-500 text-[13px] mb-4 text-center">{error}</Text>
+                        )}
+
+                        <TouchableOpacity 
+                            onPress={handleVerify} 
+                            disabled={loading}
+                            className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-10"
+                        >
+                            {loading
+                                ? <ActivityIndicator color="#fff" />
+                                : <Text className="text-white text-[15px] font-semibold">Submit</Text>
+                            }
                         </TouchableOpacity>
 
                         <View className="flex-row justify-center items-center">

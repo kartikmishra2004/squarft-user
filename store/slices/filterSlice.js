@@ -8,11 +8,11 @@ const filterSlice = createSlice({
         address: '',
         searchQuery: '',
         tags: [],
-        propertyTypes: [],       // e.g. ['Flat/Apartment']
-        propertySubTypes: [],    // e.g. ['2 BHK', '3 BHK']
-        budgetRange: [2000000, 50000000],   // 20L - 5Cr in rupees
+        propertyTypes: [],       
+        propertySubTypes: [],    
+        budgetRange: [2000000, 50000000], 
         areaRange: [0, 5000],
-        possessionStatus: [],    // e.g. ['Ready to Move']
+        possessionStatus: [],    
         reraOnly: false,
     },
     reducers: {
