@@ -3,23 +3,23 @@ import { BASE_URL } from './config';
 async function request(path, token = null) {
     try {
         const url = `${BASE_URL}${path}`;
-        console.log('🌐 API Request:', { url, hasToken: !!token });
+        console.log(' API Request:', { url, hasToken: !!token });
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
         const res = await fetch(url, { headers });
         
-        console.log('📡 API Response Status:', res.status, res.statusText);
+        console.log(' API Response Status:', res.status, res.statusText);
         
         const text = await res.text();
-        console.log('📄 API Response Text (first 200 chars):', text.substring(0, 200));
+        console.log(' API Response Text (first 200 chars):', text.substring(0, 200));
         
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.log('❌ Failed to parse JSON. Full response:', text);
+            console.log(' Failed to parse JSON. Full response:', text);
             throw new Error(`Invalid JSON response: ${e.message}`);
         }
         
@@ -42,7 +42,7 @@ export const projectApi = {
     getProjectDetails: (slug) =>
         request(`/api/v1/projects/${slug}`),
 
-    // Get floor plans for a project (auth required)
+   
     getProjectFloorPlans: (slug, token) =>
         request(`/api/v1/projects/${slug}/floor-plans`, token),
 
@@ -57,4 +57,8 @@ export const projectApi = {
     // Get project amenities
     getProjectAmenities: (slug) =>
         request(`/api/v1/projects/${slug}/amenities`),
+
+    // Get similar properties
+    getSimilarProperties: (slug) =>
+        request(`/api/v1/projects/${slug}/similar`),
 };

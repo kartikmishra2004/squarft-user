@@ -68,6 +68,17 @@ export const fetchAmenitiesThunk = createAsyncThunk(
     }
 );
 
+export const fetchSimilarPropertiesThunk = createAsyncThunk(
+    'project/fetchSimilarProperties',
+    async (slug, { rejectWithValue }) => {
+        try {
+            return await projectApi.getSimilarProperties(slug);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const projectSlice = createSlice({
     name: 'project',
     initialState: {
@@ -77,6 +88,7 @@ const projectSlice = createSlice({
         resale: [],
         landmarks: [],
         amenities: [],
+        similarProperties: [],
         loading: false,
         error: null,
     },
@@ -87,6 +99,7 @@ const projectSlice = createSlice({
             state.resale = [];
             state.landmarks = [];
             state.amenities = [];
+            state.similarProperties = [];
             state.error = null;
         },
     },
@@ -115,6 +128,9 @@ const projectSlice = createSlice({
             })
             .addCase(fetchAmenitiesThunk.fulfilled, (state, action) => {
                 state.amenities = action.payload.data || [];
+            })
+            .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
+                state.similarProperties = action.payload.data || [];
             });
     },
 });

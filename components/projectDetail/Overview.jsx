@@ -227,12 +227,22 @@ export default function Overview({ project }) {
                     <TouchableOpacity><Text className="text-[13px] font-manrope-semibold text-indigo-600">Clear All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
-                    {allProjects.filter((p) => p.id !== project.id).slice(0, 5).map((item) => (
+                    {(project.similarProperties?.length > 0
+                        ? project.similarProperties.map(p => ({
+                            id: p.id,
+                            name: p.title,
+                            imageMain: p.cover_image ? { uri: p.cover_image } : project.imageMain,
+                            location: `${p.area}, ${p.city}`,
+                            avgPricePerSqft: p.base_price ? `₹${(p.base_price / 100000).toFixed(0)}L` : '—',
+                            variants: [{ priceRange: p.base_price ? `₹${(p.base_price / 100000).toFixed(0)}L` : '—' }],
+                        }))
+                        : allProjects.filter((p) => p.id !== project.id).slice(0, 5)
+                    ).map((item) => (
                         <TouchableOpacity key={item.id} className="bg-white rounded-2xl overflow-hidden mb-2" style={{ width: 180, ...cardShadow }}>
                             <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
                             <View className="p-3">
                                 <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
-                                <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">{item.variants[0]?.priceRange ?? item.avgPricePerSqft}</Text>
+                                <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">{item.variants?.[0]?.priceRange ?? item.avgPricePerSqft}</Text>
                                 <View className="flex-row items-center gap-1">
                                     <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />
                                     <Text className="text-[10px] font-inter-regular text-gray-400" numberOfLines={1}>{item.location}</Text>

@@ -71,6 +71,26 @@ export const deleteSearchHistoryThunk = createAsyncThunk(
     }
 );
 
+// Clear all search history
+export const clearAllSearchHistoryThunk = createAsyncThunk(
+    'search/clearAllHistory',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (!token) {
+                console.log('❌ No token available for clearing search history');
+                throw new Error('Not authenticated');
+            }
+            console.log('🗑️ Clearing all search history');
+            await searchApi.clearAllSearchHistory(token);
+            return true;
+        } catch (e) {
+            console.log('❌ Error clearing search history:', e.message);
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const searchSlice = createSlice({
     name: 'search',
     initialState: {
@@ -143,6 +163,20 @@ const searchSlice = createSlice({
                 state.searchHistory = state.searchHistory.filter(item => item.id !== action.payload);
             })
             .addCase(deleteSearchHistoryThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Clear all search history
+            .addCase(clearAllSearchHistoryThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(clearAllSearchHistoryThunk.fulfilled, (state) => {
+                state.loading = false;
+                // Clear all history
+                state.searchHistory = [];
+            })
+            .addCase(clearAllSearchHistoryThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });
