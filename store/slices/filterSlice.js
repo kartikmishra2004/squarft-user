@@ -13,6 +13,7 @@ const filterSlice = createSlice({
         budgetRange: [2000000, 50000000],   // 20L - 5Cr in rupees
         areaRange: [0, 5000],
         possessionStatus: [],    // e.g. ['Ready to Move']
+        reraOnly: false,
     },
     reducers: {
         openFilter: (state) => { state.isOpen = true; },
@@ -44,6 +45,7 @@ const filterSlice = createSlice({
                 ? state.possessionStatus.filter((t) => t !== val)
                 : [...state.possessionStatus, val];
         },
+        toggleReraOnly: (state) => { state.reraOnly = !state.reraOnly; },
         clearFilters: (state) => {
             state.address = '';
             state.searchQuery = '';
@@ -53,6 +55,7 @@ const filterSlice = createSlice({
             state.budgetRange = [2000000, 50000000];
             state.areaRange = [0, 5000];
             state.possessionStatus = [];
+            state.reraOnly = false;
         },
         clearNonTypeFilters: (state) => {
             state.address = '';
@@ -62,6 +65,7 @@ const filterSlice = createSlice({
             state.budgetRange = [2000000, 50000000];
             state.areaRange = [0, 5000];
             state.possessionStatus = [];
+            state.reraOnly = false;
         },
     },
 });
@@ -70,6 +74,6 @@ export const {
     openFilter, closeFilter, openBudgetFilter, closeBudgetFilter,
     setAddress, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
-    setAreaRange, togglePossession, clearFilters, clearNonTypeFilters,
+    setAreaRange, togglePossession, toggleReraOnly, clearFilters, clearNonTypeFilters,
 } = filterSlice.actions;
 export default filterSlice.reducer;
