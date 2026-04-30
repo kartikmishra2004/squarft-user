@@ -11,7 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite } from "../../store/slices/propertiesSlice";
-import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, clearProject } from "../../store/slices/projectSlice";
+import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -35,7 +35,7 @@ export default function ProjectDetail() {
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
-  const { details: apiProject, floorPlans, resale, landmarks, amenities, loading: apiLoading } = useSelector((s) => s.project);
+  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
 
   // Find project from API list or local fallback
@@ -52,6 +52,7 @@ export default function ProjectDetail() {
       dispatch(fetchResaleThunk(projectSlug));
       dispatch(fetchLandmarksThunk(projectSlug));
       dispatch(fetchAmenitiesThunk(projectSlug));
+      dispatch(fetchSimilarPropertiesThunk(projectSlug));
     }
     return () => dispatch(clearProject());
   }, [id, projectSlug]);
@@ -86,6 +87,7 @@ export default function ProjectDetail() {
     resaleProperties: resale,
     landmarks: landmarks,
     amenities: amenities,
+    similarProperties: similarProperties,
   };
 
   const bhkConfig = project.subTypes?.join(", ");

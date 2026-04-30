@@ -73,4 +73,13 @@ export const searchApi = {
                 'Authorization': `Bearer ${token}`,
             },
         }),
+
+    // Clear all search history (auth required)
+    clearAllSearchHistory: (token) =>
+        request('/api/v1/search/history', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        }),
 };
