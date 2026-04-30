@@ -5,6 +5,7 @@ import propertiesSlice from './slices/propertiesSlice';
 import filterSlice from './slices/filterSlice';
 import searchSlice from './slices/searchSlice';
 import projectSlice from './slices/projectSlice';
+import dealsSlice from './slices/dealsSlice';
 
 export const store = configureStore({
     reducer: {
@@ -14,5 +15,6 @@ export const store = configureStore({
         filter: filterSlice,
         search: searchSlice,
         project: projectSlice,
+        deals: dealsSlice,
     },
 });

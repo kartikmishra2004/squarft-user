@@ -1,16 +1,57 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Image, Animated } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { Easing } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
-import { dealsData, headerStats, nextPaymentDue } from "../../../data/my-deals";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchMyDeals } from "../../../store/slices/dealsSlice";
+import { nextPaymentDue } from "../../../data/my-deals";
+
+const Shimmer = ({ style, className }) => {
+    const anim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 900, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0, duration: 900, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
+    const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] });
+    return <Animated.View style={[{ backgroundColor: '#E5E7EB', borderRadius: 6, opacity }, style]} className={className} />;
+};
+
+const DealCardSkeleton = () => (
+    <View className="bg-white rounded-[12px] p-3 mb-3" style={{ borderWidth: 1, borderColor: '#e4e5e8' }}>
+        <View className="flex-row items-center mb-2.5">
+            <View className="flex-1">
+                <Shimmer style={{ height: 14, width: '60%', marginBottom: 6 }} />
+                <Shimmer style={{ height: 11, width: '40%' }} />
+            </View>
+            <Shimmer style={{ height: 18, width: 50, borderRadius: 20 }} />
+        </View>
+        <View className="h-[1px] bg-[#F3F4F6] mb-2.5" />
+        <View className="flex-row justify-between mb-3">
+            {[1, 2, 3].map(i => (
+                <View key={i} className="flex-1">
+                    <Shimmer style={{ height: 10, width: '50%', marginBottom: 5 }} />
+                    <Shimmer style={{ height: 13, width: '70%' }} />
+                </View>
+            ))}
+        </View>
+        <Shimmer style={{ height: 3, width: '100%', borderRadius: 9999, marginBottom: 8 }} />
+        <View className="flex-row justify-between">
+            <Shimmer style={{ height: 11, width: 60 }} />
+            <Shimmer style={{ height: 11, width: 80 }} />
+        </View>
+    </View>
+);
 
 
 const FILTERS = ["All Deals", "Active", "Pending"];
 
-const ProgressBar = ({ percentage, animKey }) => {
+const ProgressBar = memo(function ProgressBar({ percentage, animKey }) {
     const animatedValue = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -40,24 +81,85 @@ const ProgressBar = ({ percentage, animKey }) => {
             </Animated.View>
         </View>
     );
+});
+
+const formatValue = (val) => {
+    const num = Number(val);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
+    return `₹${num.toLocaleString('en-IN')}`;
 };
+
+const DealCard = memo(function DealCard({ deal, animKey, onPress }) {
+    const isActive = deal.status === 'active';
+    const totalStages = 8;
+    const paidPct = Math.round((deal.current_stage_index / totalStages) * 100);
+    return (
+        <Pressable
+            onPress={onPress}
+            activeOpacity={0.85}
+            className="bg-white rounded-[12px] p-3 mb-3"
+            style={{ borderWidth: 1, borderColor: '#e4e5e8ff' }}
+        >
+            <View className="flex-row items-center mb-2.5">
+                <View className="flex-1">
+                    <Text className="text-[14px] font-manrope-bold text-[#111827] mb-0.5">{deal.property_title}</Text>
+                    <Text className="text-[11px] font-manrope-medium text-[#6B7280]">{deal.city}{deal.area ? `, ${deal.area}` : ''}</Text>
+                </View>
+                <View className={`px-2 py-[2px] rounded-full ${isActive ? 'bg-[#EAF8EE]' : 'bg-[#FFF8E6]'}`}>
+                    <Text className={`text-[10px] font-manrope-bold ${isActive ? 'text-[#22A559]' : 'text-[#F59E0B]'}`}>
+                        {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
+                    </Text>
+                </View>
+            </View>
+            <View className="h-[1px] bg-[#F3F4F6] mb-2.5" />
+            <View className="flex-row justify-between mb-3">
+                <View className="flex-1">
+                    <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Total Value</Text>
+                    <Text className="text-[13px] font-manrope-bold text-[#111827]">{formatValue(deal.total_value)}</Text>
+                </View>
+                <View className="flex-1">
+                    <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Paid So Far</Text>
+                    <Text className="text-[13px] font-manrope-bold text-[#111827]">{formatValue(deal.paid_so_far)}</Text>
+                </View>
+                <View className="flex-1">
+                    <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Stage</Text>
+                    <Text className="text-[13px] font-manrope-bold text-[#4F48ED]">{deal.current_stage_index}/{totalStages}</Text>
+                </View>
+            </View>
+            <ProgressBar percentage={paidPct} animKey={animKey} />
+            <View className="flex-row justify-between items-center">
+                <Text className="text-[11px] font-manrope-medium text-[#9CA3AF]">{paidPct}% paid</Text>
+                <Text className="text-[12px] font-manrope-bold text-[#4F48ED]">View Details →</Text>
+            </View>
+        </Pressable>
+    );
+});
 
 export default function MyDeals() {
     const [activeFilter, setActiveFilter] = useState("All Deals");
     const [animKey, setAnimKey] = useState(0);
     const router = useRouter();
+    const dispatch = useDispatch();
+    const { deals, stats, loading, error } = useSelector((state) => state.deals);
 
-    // Re-trigger animation every time the screen comes into focus
     useFocusEffect(useCallback(() => {
+        dispatch(fetchMyDeals());
         setAnimKey((k) => k + 1);
     }, []));
 
-    const filteredDeals = dealsData.filter(deal => {
-        if (activeFilter === "Active") return deal.isActive;
-        if (activeFilter === "Pending") return deal.isPending;
-        // All Deals: show if it is either active or pending
-        return deal.isActive || deal.isPending;
-    });
+    const filteredDeals = useMemo(() => deals.filter(deal => {
+        if (activeFilter === "Active") return deal.status === 'active';
+        if (activeFilter === "Pending") return deal.status === 'pending';
+        return true;
+    }), [deals, activeFilter]);
+
+    const totalValueFormatted = useMemo(() => {
+        const num = Number(stats.totalValue);
+        if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+        if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
+        return `₹${num.toLocaleString('en-IN')}`;
+    }, [stats.totalValue]);
 
     return (
         <View className="flex-1 bg-[#FAFAFA]">
@@ -75,19 +177,19 @@ export default function MyDeals() {
                         style={StyleSheet.absoluteFill}
                     />
                     <Text className="text-[20px] font-manrope-bold text-white mb-1 relative z-10">My Deals</Text>
-                    <Text className="text-[12px] font-manrope-medium text-white/80 mb-6 relative z-10">{headerStats.activeDeals} Active · {headerStats.pendingDeals} Pending</Text>
+                    <Text className="text-[12px] font-manrope-medium text-white/80 mb-6 relative z-10">{stats.active} Active · {stats.pending} Pending</Text>
 
                     <View className="flex-row justify-between gap-[8px] mt-6 relative z-10">
                         <View className="flex-1 w-[114px] h-[51px] bg-[rgba(255,255,255,0.15)] rounded-[10px] items-center justify-center">
-                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{headerStats.activeDeals}</Text>
+                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{stats.active}</Text>
                             <Text className="text-[13px] font-manrope-medium text-white/90">Active</Text>
                         </View>
                         <View className="flex-1 w-[114px] h-[51px] bg-[rgba(255,255,255,0.15)] rounded-[10px] items-center justify-center">
-                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{headerStats.pendingDeals}</Text>
+                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{stats.pending}</Text>
                             <Text className="text-[13px] font-manrope-medium text-white/90">Pending</Text>
                         </View>
                         <View className="flex-1 w-[114px] h-[51px] bg-[rgba(255,255,255,0.15)] rounded-[10px] items-center justify-center">
-                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{headerStats.totalValue}</Text>
+                            <Text className="text-[16px] font-manrope-bold text-white mb-0.5">{totalValueFormatted}</Text>
                             <Text className="text-[13px] font-manrope-medium text-white/90">Total Value</Text>
                         </View>
                     </View>
@@ -151,64 +253,20 @@ export default function MyDeals() {
                     </View>
                     {/* Deals List */}
                     <View className="px-5">
-                        {filteredDeals.length > 0 ? (
+                        {loading ? (
+                            [1, 2, 3].map(i => <DealCardSkeleton key={i} />)
+                        ) : error ? (
+                            <View className="flex-1 justify-center items-center py-20">
+                                <Text className="text-red-400 font-manrope-medium text-center">{error}</Text>
+                            </View>
+                        ) : filteredDeals.length > 0 ? (
                             filteredDeals.map((deal) => (
-                                <Pressable
+                                <DealCard
                                     key={deal.id}
+                                    deal={deal}
+                                    animKey={animKey}
                                     onPress={() => router.push(`/myDeals/${deal.id}`)}
-                                    activeOpacity={0.85}
-                                    className="bg-white rounded-[12px] p-3 mb-3"
-                                    style={{
-                                        borderWidth: 1,
-                                        borderColor: '#e4e5e8ff'
-                                    }}
-                                >
-                                    {/* Top: Image + Title + Status */}
-                                    <View className="flex-row items-center mb-2.5">
-                                        <Image source={{ uri: deal.image }} className="w-11 h-11 rounded-[8px] mr-2.5 bg-gray-100" />
-                                        <View className="flex-1">
-                                            <Text className="text-[14px] font-manrope-bold text-[#111827] mb-0.5">{deal.title}</Text>
-                                            <Text className="text-[11px] font-manrope-medium text-[#6B7280]">{deal.location}</Text>
-                                        </View>
-                                        <View className={`px-2 py-[2px] rounded-full ${deal.status === 'Active' ? 'bg-[#EAF8EE]' : 'bg-[#FFF8E6]'
-                                            }`}>
-                                            <Text className={`text-[10px] font-manrope-bold ${deal.status === 'Active' ? 'text-[#22A559]' : 'text-[#F59E0B]'
-                                                }`}>{deal.status}</Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Divider */}
-                                    <View className="h-[1px] bg-[#F3F4F6] mb-2.5" />
-
-                                    {/* Amounts Row */}
-                                    <View className="flex-row justify-between mb-3">
-                                        <View className="flex-1">
-                                            <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Total Value</Text>
-                                            <Text className="text-[13px] font-manrope-bold text-[#111827]">{deal.totalValue}</Text>
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Paid So Far</Text>
-                                            <Text className="text-[13px] font-manrope-bold text-[#111827]">{deal.paidSoFar}</Text>
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="text-[10px] font-manrope-medium text-[#9CA3AF] mb-0.5">Next Due</Text>
-                                            <Text className="text-[13px] font-manrope-bold text-[#4F48ED]">{deal.nextDue}</Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Progress Bar */}
-                                    <ProgressBar percentage={deal.completionPercentage ?? 0} animKey={animKey} />
-
-                                    {/* Footer (Percentage & Details Link) */}
-                                    <View className="flex-row justify-between items-center mt-0">
-                                        <Text className="text-[11px] font-manrope-medium text-[#9CA3AF]">{deal.completionPercentage}% paid</Text>
-                                        <Link href={`/myDeals/${deal.id}`} asChild>
-                                            <Pressable activeOpacity={0.8} className="py-0.5">
-                                                <Text className="text-[12px] font-manrope-bold text-[#4F48ED]">View Details →</Text>
-                                            </Pressable>
-                                        </Link>
-                                    </View>
-                                </Pressable>
+                                />
                             ))
                         ) : (
                             <View className="flex-1 justify-center items-center py-20">
