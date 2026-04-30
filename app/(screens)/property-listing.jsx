@@ -1,13 +1,14 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
-import { useState, useEffect } from "react";
+import { useRef, useState , useEffect } from "react"; 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
-import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
-import { fetchProjectListThunk } from "../../store/slices/projectSlice";
+import BHKFilterModal from "../../components/BHKFilterModal";
+import PossessionFilterModal from "../../components/PossessionFilterModal";
+import { openFilter, openBudgetFilter, setSearchQuery, clearFilters, clearNonTypeFilters } from "../../store/slices/filterSlice";
 import { useLocalSearchParams } from "expo-router";
 
 function applyFilters(projects, filter) {
@@ -29,6 +30,20 @@ function applyFilters(projects, filter) {
                 (p.city || '').toLowerCase().includes(q);
             if (!match) return false;
         }
+
+        const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
+        const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
+        if (budgetLowerActive && p.budgetMax < filter.budgetRange[0]) return false;
+        if (budgetUpperActive && p.budgetMin > filter.budgetRange[1]) return false;
+
+        const areaLowerActive = filter.areaRange[0] > AREA_MIN;
+        const areaUpperActive = filter.areaRange[1] < AREA_MAX;
+        if (areaLowerActive && p.areaSqft < filter.areaRange[0]) return false;
+        if (areaUpperActive && p.areaSqft > filter.areaRange[1]) return false;
+
+        if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(p.possessionStatus)) return false;
+
+        if (filter.reraOnly && !p.rera) return false;
 
         return true;
     });
@@ -88,10 +103,8 @@ export default function PropertyListing() {
     const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
     const [sortKey, setSortKey] = useState('relevance');
     const [sortOpen, setSortOpen] = useState(false);
-
-    useEffect(() => {
-        dispatch(fetchProjectListThunk());
-    }, []);
+    const [bhkOpen, setBhkOpen] = useState(false);
+    const [possessionOpen, setPossessionOpen] = useState(false);
 
     const SORT_OPTIONS = [
         { key: 'relevance', label: 'Relevance' },
@@ -118,6 +131,8 @@ export default function PropertyListing() {
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
             <FilterModal />
             <BudgetFilterModal />
+            <BHKFilterModal visible={bhkOpen} onClose={() => setBhkOpen(false)} />
+            <PossessionFilterModal visible={possessionOpen} onClose={() => setPossessionOpen(false)} />
 
             <Image
                 source={require('../../assets/images/blur (3).png')}
@@ -176,16 +191,35 @@ export default function PropertyListing() {
                         <Ionicons name="chevron-down" size={12} color="#6B7280" />
                     </TouchableOpacity>
 
-                    {['BHK', 'Possession'].map((f) => (
-                        <TouchableOpacity 
-                            key={f} 
-                            onPress={() => dispatch(openFilter())} 
-                            style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff', gap: 4 }}
-                        >
-                            <Text style={{ fontSize: 12, color: '#374151' }}>{f}</Text>
-                            <Ionicons name="chevron-down" size={12} color="#6B7280" />
-                        </TouchableOpacity>
-                    ))}
+                    <TouchableOpacity
+                        onPress={() => setBhkOpen(true)}
+                        style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: filter.propertySubTypes.length > 0 ? '#4A43EC' : '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: filter.propertySubTypes.length > 0 ? '#F5F3FF' : '#fff', gap: 4 }}
+                    >
+                        <Text style={{ fontSize: 12, color: filter.propertySubTypes.length > 0 ? '#4A43EC' : '#374151' }}>
+                            {filter.propertySubTypes.length > 0 ? filter.propertySubTypes.join(', ') : 'BHK'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={12} color={filter.propertySubTypes.length > 0 ? '#4A43EC' : '#6B7280'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setPossessionOpen(true)}
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            borderWidth: 1,
+                            borderColor: (filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#E5E7EB',
+                            borderRadius: 10,
+                            paddingHorizontal: 12,
+                            paddingVertical: 7,
+                            backgroundColor: (filter.possessionStatus.length > 0 || filter.reraOnly) ? '#F5F3FF' : '#fff',
+                            gap: 4,
+                        }}
+                    >
+                        <Text style={{ fontSize: 12, color: (filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#374151' }}>
+                            {filter.possessionStatus.length > 0 ? filter.possessionStatus.join(', ') : 'Possession'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={12} color={(filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#6B7280'} />
+                    </TouchableOpacity>
                 </View>
             </View>
             <View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center', marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
