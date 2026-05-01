@@ -3,17 +3,17 @@ import { BASE_URL } from './config';
 async function request(path, token = null) {
     try {
         const url = `${BASE_URL}${path}`;
-        console.log(' API Request:', { url, hasToken: !!token });
+        
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
         const res = await fetch(url, { headers });
         
-        console.log(' API Response Status:', res.status, res.statusText);
+        
         
         const text = await res.text();
-        console.log(' API Response Text (first 200 chars):', text.substring(0, 200));
+        
         
         let data;
         try {
@@ -61,4 +61,10 @@ export const projectApi = {
     // Get similar properties
     getSimilarProperties: (slug) =>
         request(`/api/v1/projects/${slug}/similar`),
+
+    // Get featured projects
+    getFeaturedProjects: (params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/projects/featured${query ? `?${query}` : ''}`);
+    },
 };

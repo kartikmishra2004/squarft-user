@@ -79,6 +79,17 @@ export const fetchSimilarPropertiesThunk = createAsyncThunk(
     }
 );
 
+export const fetchFeaturedProjectsThunk = createAsyncThunk(
+    'project/fetchFeatured',
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            return await projectApi.getFeaturedProjects(params);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const projectSlice = createSlice({
     name: 'project',
     initialState: {
@@ -89,6 +100,8 @@ const projectSlice = createSlice({
         landmarks: [],
         amenities: [],
         similarProperties: [],
+        featured: [],
+        featuredLoading: false,
         loading: false,
         error: null,
     },
@@ -131,7 +144,13 @@ const projectSlice = createSlice({
             })
             .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
                 state.similarProperties = action.payload.data || [];
-            });
+            })
+            .addCase(fetchFeaturedProjectsThunk.pending, (state) => { state.featuredLoading = true; })
+            .addCase(fetchFeaturedProjectsThunk.fulfilled, (state, action) => {
+                state.featuredLoading = false;
+                state.featured = action.payload.data || [];
+            })
+            .addCase(fetchFeaturedProjectsThunk.rejected, (state) => { state.featuredLoading = false; });
     },
 });
 
