@@ -1,10 +1,10 @@
 import { View, Text, Image, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRef, useEffect } from 'react';
+import { memo, useRef, useEffect } from 'react';
 import { timelineData } from "../../data/my-deals";
 import TimelineItem from './TimelineItem';
 
-export default function TabTimeline() {
+const TabTimeline = memo(function TabTimeline() {
     const lineAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -28,7 +28,7 @@ export default function TabTimeline() {
                 {/* Static grey track */}
                 <View className="absolute left-[9px] top-[14px] bottom-[40px] w-[2px] bg-[#E5E7EB]" />
 
-                {/* Animated purple fill — grows downward */}
+                {/* Animated purple fill */}
                 <Animated.View
                     style={{
                         position: 'absolute',
@@ -38,7 +38,6 @@ export default function TabTimeline() {
                         backgroundColor: '#6231FF',
                         height: lineAnim.interpolate({
                             inputRange: [0, 1],
-                            // completed steps = 4 out of 8, each ~48px apart
                             outputRange: ['0%', '55%'],
                         }),
                         borderRadius: 2,
@@ -98,4 +97,6 @@ export default function TabTimeline() {
             </View>
         </View>
     );
-}
+});
+
+export default TabTimeline;

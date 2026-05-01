@@ -25,9 +25,10 @@ import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
 import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import FeaturedCard from "../../components/FeaturedCard";
+import { fetchFeaturedProjectsThunk } from "../../store/slices/projectSlice";
 
 const CATEGORIES = [
   { id: "1", label: "Flat",       icon: "office-building", type: "Flat/Apartment" },
@@ -123,8 +124,15 @@ export default function Home() {
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
   const { properties: allProperties, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
+  const { featured: apiFeatured, featuredLoading } = useSelector((s) => s.project);
   const recommended = allProperties.filter((p) => p.tags.includes('recommended'));
-  const featured = allProperties.filter((p) => p.tags.includes('featured'));
+  const mockFeatured = allProperties.filter((p) => p.tags.includes('featured'));
+  const featuredProjects = apiFeatured.length > 0 ? apiFeatured : mockFeatured;
+
+  useEffect(() => {
+    dispatch(fetchFeaturedProjectsThunk());
+  }, []);
+
   if (searchActive) {
     return (
       <>
@@ -348,10 +356,10 @@ export default function Home() {
             </TouchableOpacity>
           </View>
           <FlatList
-            data={featured}
+            data={featuredProjects}
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}
             renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
           />
@@ -376,7 +384,7 @@ export default function Home() {
           </View>
           {/* Building image */}
           <Image
-            source={require("../../assets/images/unsplash_RFDP7_80v5A.png")}
+            source={require("../../assets/images/unsplash_RFDP7_80v5B.png")}
             style={{ position: "absolute", right: 0, bottom: 0, width: 130, height: 120 }}
             resizeMode="cover"
           />
