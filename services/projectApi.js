@@ -44,7 +44,7 @@ export const projectApi = {
 
    
     getProjectFloorPlans: (slug, token) =>
-        request(`/api/v1/projects/${slug}/floor-plans`, token),
+        request(`/api/v1/overview/${slug}/floor-plans`, token),
 
     // Get resale properties in a project
     getProjectResale: (slug) =>
