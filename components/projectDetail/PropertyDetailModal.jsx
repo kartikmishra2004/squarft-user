@@ -105,14 +105,15 @@ export default function PropertyDetailModal({
 
   if (!project || !variant) return null;
 
-  const variantId = `${project.id}_${variant.type.replace(/\s+/g, "_")}`;
+  // Safety check for variant.type
+  const variantType = variant.type || variant.title || "Property";
+  const variantId = `${project.id}_${variantType.replace(/\s+/g, "_")}`;
   const isAdded = bookedVisits.some((v) => v.id === variantId);
-  const amenities = project.amenities ?? [
-    "Gymnasium",
-    "Swimming Pool",
-    "24/7 Security",
-    "Power Backup",
-  ];
+  
+  // Handle amenities - can be array of strings or array of objects
+  const amenitiesList = project.amenities 
+    ? project.amenities.map(a => typeof a === 'string' ? a : a.name)
+    : ["Gymnasium", "Swimming Pool", "24/7 Security", "Power Backup"];
 
   return (
     <>
@@ -267,10 +268,10 @@ export default function PropertyDetailModal({
                 <View className="flex-row items-center justify-between mb-2">
                   <View>
                     <Text className="text-[12px] font-manrope-bold text-gray-500">
-                      {variant.type}
+                      {variantType}
                     </Text>
                     <Text className="text-[16px] font-manrope-extrabold text-[#0F172A]">
-                      {variant.priceRange}
+                      {variant.priceRange || variant.price || "Contact for price"}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -327,7 +328,7 @@ export default function PropertyDetailModal({
                       </View>
                     </TouchableOpacity>
                     <Text className="text-[11px] font-manrope-regular text-gray-400 mt-2">
-                      {variant.type} · {project.areaSqft} sq.ft.
+                      {variantType} · {project.areaSqft} sq.ft.
                     </Text>
                   </View>
                 )}
@@ -371,7 +372,7 @@ export default function PropertyDetailModal({
                   World-Class Amenities
                 </Text>
                 <View className="flex-row flex-wrap">
-                  {amenities.map((a, i) => (
+                  {amenitiesList.map((a, i) => (
                     <AmenityItem key={i} label={a} />
                   ))}
                 </View>
@@ -393,8 +394,8 @@ export default function PropertyDetailModal({
                         name: project.name,
                         location: project.location,
                         image: project.imageMain,
-                        variant: variant.type,
-                        price: variant.priceRange,
+                        variant: variantType,
+                        price: variant.priceRange || variant.price,
                       }),
                     );
                   }

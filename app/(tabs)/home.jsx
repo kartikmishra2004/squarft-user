@@ -294,7 +294,7 @@ export default function Home() {
           />
           <View className="flex-row justify-between items-center px-4 mt-2 mb-3">
             <Text className="text-[15px] font-manrope-extrabold text-gray-900">
-              Recommended Properties
+              Recommended Projects
             </Text>
             <TouchableOpacity className="flex-row items-center">
               <Text className="text-[12px] text-[#6C3BFF] font-manrope-bold">

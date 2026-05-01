@@ -52,11 +52,11 @@ export const projectApi = {
 
     // Get project landmarks
     getProjectLandmarks: (slug) =>
-        request(`/api/v1/projects/${slug}/landmarks`),
+        request(`/api/v1/highlights/${slug}/landmarks`),
 
     // Get project amenities
     getProjectAmenities: (slug) =>
-        request(`/api/v1/projects/${slug}/amenities`),
+        request(`/api/v1/highlights/${slug}/amenities`),
 
     // Get similar properties
     getSimilarProperties: (slug) =>

@@ -11,6 +11,12 @@ import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openFilter, openBudgetFilter, setSearchQuery, clearFilters, clearNonTypeFilters } from "../../store/slices/filterSlice";
 import { useLocalSearchParams } from "expo-router";
 
+// Filter constants
+const BUDGET_MIN = 2000000;
+const BUDGET_MAX = 50000000;
+const AREA_MIN = 0;
+const AREA_MAX = 5000;
+
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
         if (filter.address) {
@@ -51,36 +57,39 @@ function applyFilters(projects, filter) {
 
 function ProjectCard({ item }) {
     return (
-        <TouchableOpacity
-            activeOpacity={0.97}
-            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
+        <View
             className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 mx-4"
         >
-            <View className="flex-row h-36 w-full">
-                <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                    {item.cover_image_url
-                        ? <Image source={{ uri: item.cover_image_url }} className="w-full h-full" resizeMode="cover" />
-                        : <View className="w-full h-full bg-gray-200 items-center justify-center">
-                            <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
-                          </View>
-                    }
+            <TouchableOpacity
+                activeOpacity={0.97}
+                onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
+            >
+                <View className="flex-row h-36 w-full">
+                    <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
+                        {item.cover_image_url
+                            ? <Image source={{ uri: item.cover_image_url }} className="w-full h-full" resizeMode="cover" />
+                            : <View className="w-full h-full bg-gray-200 items-center justify-center">
+                                <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
+                              </View>
+                        }
+                    </View>
+                    <View className="flex-[1] relative bg-gray-100 items-center justify-center">
+                        <MaterialCommunityIcons name="image-outline" size={24} color="#D1D5DB" />
+                    </View>
                 </View>
-                <View className="flex-[1] relative bg-gray-100 items-center justify-center">
-                    <MaterialCommunityIcons name="image-outline" size={24} color="#D1D5DB" />
-                </View>
-            </View>
 
-            <View className="px-3 pt-3 pb-2">
-                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                    {item.area}, {item.city}
-                </Text>
-                <View className="flex-row items-center mb-1">
-                    <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{item.name}</Text>
+                <View className="px-3 pt-3 pb-2">
+                    <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
+                        {item.area}, {item.city}
+                    </Text>
+                    <View className="flex-row items-center mb-1">
+                        <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{item.name}</Text>
+                    </View>
+                    <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.pincode}</Text>
                 </View>
-                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.pincode}</Text>
-            </View>
 
-            <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
+                <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
+            </TouchableOpacity>
 
             <View className="px-3 pb-3">
                 <TouchableOpacity
@@ -90,7 +99,7 @@ function ProjectCard({ item }) {
                     <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
                 </TouchableOpacity>
             </View>
-        </TouchableOpacity>
+        </View>
     );
 }
 
@@ -150,7 +159,7 @@ export default function PropertyListing() {
                     <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                         <Ionicons name="chevron-back" size={20} color="#374151" />
                     </TouchableOpacity>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>Property Page</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>Project Page</Text>
                     <TouchableOpacity>
                         <Ionicons name="notifications-outline" size={22} color="#374151" />
                     </TouchableOpacity>

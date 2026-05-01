@@ -1,5 +1,70 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { properties, projectsInFocus, missedProperties, highGrowthLocalities } from '../../data/properties';
+import { propertyApi } from '../../services/propertyApi';
+
+// Fetch saved properties from API
+export const fetchSavedPropertiesThunk = createAsyncThunk(
+    'properties/fetchSaved',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (!token) {
+                console.log('❌ No token available for fetching saved properties');
+                return [];
+            }
+            console.log('📥 Fetching saved properties from API');
+            return await propertyApi.getSavedProperties(token);
+        } catch (e) {
+            console.log('❌ Error fetching saved properties:', e.message);
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
+// Save property to API
+export const savePropertyThunk = createAsyncThunk(
+    'properties/save',
+    async (propertyId, { getState, rejectWithValue }) => {
+        try {
+            const { token, isLoggedIn } = getState().auth;
+            console.log('💾 savePropertyThunk called:', { propertyId, isLoggedIn, hasToken: !!token });
+            
+            if (!isLoggedIn || !token) {
+                console.log('⚠️ User not logged in, skipping API save');
+                return null;
+            }
+            
+            console.log('📤 Calling API to save property:', propertyId);
+            const result = await propertyApi.saveProperty(token, propertyId);
+            console.log('✅ Property saved successfully:', result);
+            return propertyId;
+        } catch (e) {
+            console.log('❌ Error saving property:', e.message);
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
+// Unsave property from API
+export const unsavePropertyThunk = createAsyncThunk(
+    'properties/unsave',
+    async (propertyId, { getState, rejectWithValue }) => {
+        try {
+            const { token, isLoggedIn } = getState().auth;
+            if (!isLoggedIn || !token) {
+                console.log('⚠️ User not logged in, skipping API unsave');
+                return null;
+            }
+            console.log('🗑️ Unsaving property from API:', propertyId);
+            const result = await propertyApi.unsaveProperty(token, propertyId);
+            console.log('✅ Property unsaved successfully:', result);
+            return propertyId;
+        } catch (e) {
+            console.log('❌ Error unsaving property:', e.message);
+            return rejectWithValue(e.message);
+        }
+    }
+);
 
 const propertiesSlice = createSlice({
     name: 'properties',
@@ -9,10 +74,13 @@ const propertiesSlice = createSlice({
         missed: missedProperties.map((p) => ({ ...p })),
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
+        savedProperties: [], // API saved properties
         bookedSiteVisits: [],
         upcomingSiteVisits: [],
         selectedCategory: 'all',
         searchQuery: '',
+        loading: false,
+        error: null,
     },
     reducers: {
         toggleFavourite: (state, action) => {
@@ -71,6 +139,36 @@ const propertiesSlice = createSlice({
         cancelUpcomingVisit: (state, action) => {
             state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => v.id !== action.payload);
         },
+    },
+    extraReducers: (builder) => {
+        builder
+            // Fetch saved properties
+            .addCase(fetchSavedPropertiesThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchSavedPropertiesThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.savedProperties = action.payload.data || [];
+            })
+            .addCase(fetchSavedPropertiesThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Save property
+            .addCase(savePropertyThunk.fulfilled, (state, action) => {
+                // Optimistically add to favouriteProjects
+                if (!state.favouriteProjects.includes(action.payload)) {
+                    state.favouriteProjects.push(action.payload);
+                }
+            })
+            // Unsave property
+            .addCase(unsavePropertyThunk.fulfilled, (state, action) => {
+                // Optimistically remove from favouriteProjects
+                state.favouriteProjects = state.favouriteProjects.filter(id => id !== action.payload);
+                // Remove from savedProperties
+                state.savedProperties = state.savedProperties.filter(p => p.id !== action.payload);
+            });
     },
 });
 

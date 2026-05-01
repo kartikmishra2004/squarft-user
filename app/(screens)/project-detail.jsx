@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
 import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -37,6 +37,12 @@ export default function ProjectDetail() {
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
   const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
+  const { isLoggedIn, token } = useSelector((s) => s.auth);
+
+  // Debug: Log auth state
+  useEffect(() => {
+    console.log('🔐 Auth State:', { isLoggedIn, hasToken: !!token });
+  }, [isLoggedIn, token]);
 
   // Find project from API list or local fallback
   const listProject = projectList.find((p) => p.id === id) || allProjects.find((p) => p.id === id);
@@ -44,6 +50,46 @@ export default function ProjectDetail() {
 
   // Use slug from params or from list project
   const projectSlug = slug || listProject?.slug;
+
+  // Get property IDs from floor plans (for saving to API)
+  const propertyIds = floorPlans?.floor_plans?.map(fp => fp.id).filter(Boolean) || [];
+  
+  const handleToggleSave = async () => {
+    console.log('🔖 Toggle Save Clicked');
+    console.log('📊 Current State:', {
+      projectId: id,
+      projectSlug,
+      isSaved,
+      floorPlansLoaded: !!floorPlans,
+      floorPlansCount: floorPlans?.floor_plans?.length || 0,
+      propertyIds,
+    });
+    
+    // Toggle local state immediately
+    dispatch(toggleFavourite(id));
+    
+    // If we have property IDs, save/unsave them via API
+    if (propertyIds.length > 0) {
+      if (isSaved) {
+        console.log('🗑️ Unsaving properties:', propertyIds);
+        // Unsave all properties in this project
+        for (const propId of propertyIds) {
+          await dispatch(unsavePropertyThunk(propId));
+        }
+      } else {
+        console.log('💾 Saving properties:', propertyIds);
+        // Save all properties in this project
+        for (const propId of propertyIds) {
+          await dispatch(savePropertyThunk(propId));
+        }
+      }
+      console.log('✅ Save/Unsave operations completed');
+    } else {
+      console.log('⚠️ No property IDs available yet');
+      console.log('⚠️ Floor plans data:', floorPlans);
+      console.log('⚠️ Only saving locally, will sync when floor plans load');
+    }
+  };
 
   useEffect(() => {
     if (projectSlug && projectSlug !== 'none') {
@@ -56,6 +102,16 @@ export default function ProjectDetail() {
     }
     return () => dispatch(clearProject());
   }, [id, projectSlug]);
+
+  // Auto-sync saved state when floor plans load
+  useEffect(() => {
+    if (isSaved && propertyIds.length > 0 && isLoggedIn && token) {
+      console.log('🔄 Floor plans loaded for saved project, syncing to API...');
+      propertyIds.forEach(propId => {
+        dispatch(savePropertyThunk(propId));
+      });
+    }
+  }, [propertyIds.length, isSaved, isLoggedIn, token]);
 
   if (!listProject && !apiProject) {
     return (
@@ -76,12 +132,24 @@ export default function ProjectDetail() {
       reraId: apiProject.rera_id || base.reraId,
       possession: apiProject.possession || base.possession,
       builder: apiProject.developer?.name || base.builder,
-      units: apiProject.stats?.units || base.units,
-      launchedIn: apiProject.stats?.launched || base.launchedIn,
+      
+      units: (apiProject.stats?.units && apiProject.stats.units !== "N/A") ? apiProject.stats.units : base.units,
+      launchedIn: (apiProject.stats?.launched && apiProject.stats.launched !== "N/A") ? apiProject.stats.launched : base.launchedIn,
+      rating: apiProject.rating || base.rating,
+
+      subTypes: base.subTypes,
+      propertyType: base.propertyType,
+      avgPricePerSqft: base.avgPricePerSqft,
+      possessionStatus: base.possessionStatus,
+      rera: base.rera,
+      variants: base.variants,
     } : {
       name: base.name,
       location: base.location || (base.area && base.city ? `${base.area}, ${base.city}` : ''),
       possession: base.possession_date || base.possession,
+      units: base.units,
+      launchedIn: base.launchedIn,
+      rating: base.rating,
     }),
     floorPlans: floorPlans?.floor_plans || base.variants,
     resaleProperties: resale,
@@ -90,7 +158,7 @@ export default function ProjectDetail() {
     similarProperties: similarProperties,
   };
 
-  const bhkConfig = project.subTypes?.join(", ");
+  const bhkConfig = floorPlans?.summary?.configs || project.subTypes?.join(", ");
   const startingPrice =
     floorPlans?.summary?.starting_from
       ? `₹${(floorPlans.summary.starting_from / 100000).toFixed(0)}L`
@@ -117,7 +185,7 @@ export default function ProjectDetail() {
             <Ionicons name="chevron-back" size={22} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => dispatch(toggleFavourite(id))}
+            onPress={handleToggleSave}
             className="absolute right-4 w-[38px] h-[38px] rounded-full bg-white/85 items-center justify-center"
             style={{ top: insets.top + 10 }}
           >
