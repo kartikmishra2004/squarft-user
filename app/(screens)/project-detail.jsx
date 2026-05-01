@@ -11,7 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
-import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, clearProject } from "../../store/slices/projectSlice";
+import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -48,11 +48,18 @@ export default function ProjectDetail() {
   const listProject = projectList.find((p) => p.id === id) || allProjects.find((p) => p.id === id);
   const isSaved = savedProjects.includes(id);
 
-  // Use slug from params or from list project
+  // Use slug from params or from API project list (local allProjects has no slug)
   const projectSlug = slug || listProject?.slug;
 
   // Get property IDs from floor plans (for saving to API)
   const propertyIds = floorPlans?.floor_plans?.map(fp => fp.id).filter(Boolean) || [];
+
+  // If no slug available, fetch project list to resolve it
+  useEffect(() => {
+    if (!projectSlug || projectSlug === 'none') {
+      dispatch(fetchProjectListThunk());
+    }
+  }, []);
   
   const handleToggleSave = async () => {
     console.log('🔖 Toggle Save Clicked');
@@ -101,7 +108,7 @@ export default function ProjectDetail() {
       dispatch(fetchSimilarPropertiesThunk(projectSlug));
     }
     return () => dispatch(clearProject());
-  }, [id, projectSlug]);
+  }, [projectSlug]);
 
   // Auto-sync saved state when floor plans load
   useEffect(() => {
@@ -132,16 +139,18 @@ export default function ProjectDetail() {
       reraId: apiProject.rera_id || base.reraId,
       possession: apiProject.possession || base.possession,
       builder: apiProject.developer?.name || base.builder,
-      
+      builderLogo: apiProject.developer?.logo ? { uri: apiProject.developer.logo } : base.builderLogo,
+      developerId: apiProject.developer?.id || base.developerId,
+      imageMain: apiProject.cover_image ? { uri: apiProject.cover_image } : base.imageMain,
+      brochure: apiProject.brochure || base.brochure || null,
       units: (apiProject.stats?.units && apiProject.stats.units !== "N/A") ? apiProject.stats.units : base.units,
       launchedIn: (apiProject.stats?.launched && apiProject.stats.launched !== "N/A") ? apiProject.stats.launched : base.launchedIn,
       rating: apiProject.rating || base.rating,
-
       subTypes: base.subTypes,
       propertyType: base.propertyType,
       avgPricePerSqft: base.avgPricePerSqft,
       possessionStatus: base.possessionStatus,
-      rera: base.rera,
+      rera: apiProject.rera_id ? true : base.rera,
       variants: base.variants,
     } : {
       name: base.name,
@@ -322,18 +331,30 @@ export default function ProjectDetail() {
             <Text className="text-[11px] font-inter-bold text-[#94A3B8] tracking-widest">
               CONFIG
             </Text>
-            <Text className="text-[13px] font-inter-semibold text-[#0F172A]">
-              {bhkConfig ? `${bhkConfig} BHK` : project.propertyType}
-            </Text>
+            {bhkConfig ? (
+              <Text className="text-[13px] font-inter-semibold text-[#0F172A]">
+                {floorPlans?.summary?.configs ? bhkConfig : `${bhkConfig} BHK`}
+              </Text>
+            ) : (
+              <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">
+                {project.propertyType || "Loading..."}
+              </Text>
+            )}
           </View>
           <View className="w-px h-12 bg-gray-200" />
           <View className="flex-1 flex-row items-end pl-5 gap-4">
             <Text className="text-[12px] font-manrope-medium text-gray-500 mb-0.5">
               Starting from
             </Text>
-            <Text className="text-2xl font-manrope-bold text-[#4941EC]">
-              {startingPrice}*
-            </Text>
+            {startingPrice ? (
+              <Text className="text-2xl font-manrope-bold text-[#4941EC]">
+                {startingPrice}*
+              </Text>
+            ) : (
+              <Text className="text-[14px] font-manrope-medium text-[#94A3B8]">
+                Loading...
+              </Text>
+            )}
           </View>
         </View>
 

@@ -44,17 +44,25 @@ export default function Overview({ project }) {
                         style={{ width: CARD_WIDTH, ...cardShadow }}
                         className="bg-white rounded-3xl overflow-hidden border border-gray-100"
                     >
-                        <Image source={project.imageMain} style={{ width: "100%", height: 140 }} resizeMode="cover" />
+                        <Image
+                            source={v.image ? { uri: v.image } : project.imageMain}
+                            style={{ width: "100%", height: 140 }}
+                            resizeMode="cover"
+                        />
                         <View className="p-3">
                             <View className="flex-row items-center justify-between mb-1">
                                 <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type || v.title}</Text>
                                 <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
-                                    {v.priceRange ? v.priceRange.split("–")[0].trim() : (v.price ? `₹${(v.price/100000).toFixed(0)}L` : '—')}
+                                    {v.priceRange
+                                        ? v.priceRange.split("–")[0].trim()
+                                        : v.price
+                                            ? `₹${(Number(v.price) / 100000).toFixed(0)}L`
+                                            : "—"}
                                 </Text>
                             </View>
                             <View className="flex-row items-center gap-1 mb-5">
                                 <MaterialCommunityIcons name="floor-plan" size={13} color="#9CA3AF" />
-                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || project.areaSqft} sqft (Carpet Area)</Text>
+                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || (project.areaSqft ? `${project.areaSqft} sqft` : "—")} (Carpet Area)</Text>
                             </View>
                             <TouchableOpacity
                                 onPress={() => {
@@ -137,10 +145,13 @@ export default function Overview({ project }) {
             {/* About card */}
             <View className="mx-6 mb-3 mt-4 bg-white rounded-2xl p-4" style={cardShadow}>
                 <Text className="text-[15px] font-manrope-bold text-[#1A1A1A] mt-1 mb-3">About {project.name}</Text>
-                {[
-                    `Exclusive luxury residency located in ${project.location} with lush green surroundings.`,
-                    `Designed with sustainable architecture and world-class amenities by ${project.builder}.`,
-                ].map((point, i) => (
+                {(project.description
+                    ? [project.description]
+                    : [
+                        `Exclusive luxury residency located in ${project.location} with lush green surroundings.`,
+                        `Designed with sustainable architecture and world-class amenities by ${project.builder}.`,
+                    ]
+                ).map((point, i) => (
                     <View key={i} className="flex-row gap-2 mb-2">
                         <Text className="text-[#5E23DC] text-[18px] -top-[1px]">•</Text>
                         <Text className="text-[12px] font-manrope-regular text-[#4B5563] flex-1 leading-6 mb-1">{point}</Text>
