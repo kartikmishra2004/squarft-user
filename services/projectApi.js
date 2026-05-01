@@ -40,7 +40,7 @@ export const projectApi = {
 
     // Get project details by slug
     getProjectDetails: (slug) =>
-        request(`/api/v1/projects/${slug}`),
+        request(`/api/v1/overview/${slug}`),
 
    
     getProjectFloorPlans: (slug, token) =>
