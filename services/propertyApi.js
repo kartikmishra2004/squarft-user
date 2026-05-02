@@ -3,7 +3,7 @@ import { BASE_URL } from './config';
 async function request(path, options = {}) {
     try {
         const url = `${BASE_URL}${path}`;
-        console.log('🌐 Property API Request:', { url, method: options.method || 'GET' });
+        
 
         const { headers: optHeaders, ...restOptions } = options;
         

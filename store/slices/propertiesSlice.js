@@ -9,13 +9,13 @@ export const fetchSavedPropertiesThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) {
-                console.log('❌ No token available for fetching saved properties');
+                
                 return [];
             }
-            console.log('📥 Fetching saved properties from API');
+            
             return await propertyApi.getSavedProperties(token);
         } catch (e) {
-            console.log('❌ Error fetching saved properties:', e.message);
+            
             return rejectWithValue(e.message);
         }
     }

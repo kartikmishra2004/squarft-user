@@ -19,7 +19,7 @@ async function request(path, token = null) {
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.log(' Failed to parse JSON. Full response:', text);
+            
             throw new Error(`Invalid JSON response: ${e.message}`);
         }
         
@@ -35,32 +35,42 @@ async function request(path, token = null) {
 
 export const projectApi = {
     // Get all projects (for search suggestions)
-    listProjects: () =>
-        request('/api/v1/projects/list'),
+    listProjects: async (token) => {
+        const res = await request('/api/v1/projects/list', token);
+        
+        return res;
+    },
 
     // Get project details by slug
-    getProjectDetails: (slug) =>
-        request(`/api/v1/overview/${slug}`),
+    getProjectDetails: async (slug,token) => {
+        const res = await request(`/api/v1/overview/${slug}`, token);
+        
+        return res;
+    },
 
-   
-    getProjectFloorPlans: (slug, token) =>
-        request(`/api/v1/overview/${slug}/floor-plans`, token),
+    // Get project floor plans by slug
+    getProjectFloorPlans: async (slug, token) => {
+        const res = await request(`/api/v1/overview/${slug}/floor-plans`, token);
+        
+        return res;
+    },
 
+    
     // Get resale properties in a project
-    getProjectResale: (slug) =>
-        request(`/api/v1/projects/${slug}/resale`),
+    getProjectResale: (slug, token) =>
+        request(`/api/v1/overview/${slug}/resale`, token),
 
     // Get project landmarks
-    getProjectLandmarks: (slug) =>
-        request(`/api/v1/highlights/${slug}/landmarks`),
+    getProjectLandmarks: (slug, token) =>
+        request(`/api/v1/highlights/${slug}/landmarks`, token),
 
     // Get project amenities
-    getProjectAmenities: (slug) =>
-        request(`/api/v1/highlights/${slug}/amenities`),
+    getProjectAmenities: (slug, token) =>
+        request(`/api/v1/highlights/${slug}/amenities`, token),
 
     // Get similar properties
-    getSimilarProperties: (slug) =>
-        request(`/api/v1/projects/${slug}/similar`),
+    getSimilarProperties: (slug, token) =>
+        request(`/api/v1/projects/${slug}/similar`, token),
 
     // Get featured projects
     getFeaturedProjects: (params = {}) => {

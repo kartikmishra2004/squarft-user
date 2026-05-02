@@ -1,5 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
-import { useRef, useState , useEffect } from "react"; 
+import { useState, useEffect } from "react"; 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -8,7 +8,8 @@ import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
-import { openFilter, openBudgetFilter, setSearchQuery, clearFilters, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { useLocalSearchParams } from "expo-router";
 
 // Filter constants
@@ -39,13 +40,13 @@ function applyFilters(projects, filter) {
 
         const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
         const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
-        if (budgetLowerActive && p.budgetMax < filter.budgetRange[0]) return false;
-        if (budgetUpperActive && p.budgetMin > filter.budgetRange[1]) return false;
+        if (budgetLowerActive && (p.price_to ?? p.budgetMax) < filter.budgetRange[0]) return false;
+        if (budgetUpperActive && (p.price_from ?? p.budgetMin) > filter.budgetRange[1]) return false;
 
         const areaLowerActive = filter.areaRange[0] > AREA_MIN;
         const areaUpperActive = filter.areaRange[1] < AREA_MAX;
-        if (areaLowerActive && p.areaSqft < filter.areaRange[0]) return false;
-        if (areaUpperActive && p.areaSqft > filter.areaRange[1]) return false;
+        if (areaLowerActive && (p.areaSqft ?? 0) < filter.areaRange[0]) return false;
+        if (areaUpperActive && (p.areaSqft ?? Infinity) > filter.areaRange[1]) return false;
 
         if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(p.possessionStatus)) return false;
 
@@ -107,13 +108,23 @@ export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
-    const { list: apiProjects } = useSelector((state) => state.project);
+    const { list: apiProjects, loading: projectsLoading } = useSelector((state) => state.project);
     const { category } = useLocalSearchParams();
     const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
     const [sortKey, setSortKey] = useState('relevance');
     const [sortOpen, setSortOpen] = useState(false);
     const [bhkOpen, setBhkOpen] = useState(false);
     const [possessionOpen, setPossessionOpen] = useState(false);
+
+    // Fetch project list on mount if not already loaded
+    useEffect(() => {
+        dispatch(fetchProjectListThunk());
+    }, [dispatch]);
+
+    // Sync search input with Redux searchQuery when navigated from SearchOverlay
+    useEffect(() => {
+        setLocalQuery(filter.searchQuery || '');
+    }, [filter.searchQuery]);
 
     const SORT_OPTIONS = [
         { key: 'relevance', label: 'Relevance' },
@@ -281,11 +292,17 @@ export default function PropertyListing() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
                 ListEmptyComponent={
-                    <View style={{ alignItems: 'center', marginTop: 60 }}>
-                        <MaterialCommunityIcons name="home-search-outline" size={48} color="#D1D5DB" />
-                        <Text style={{ fontSize: 15, color: '#9CA3AF', marginTop: 12 }}>No properties match your filters</Text>
-                        <Text style={{ fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>Try adjusting or clearing filters</Text>
-                    </View>
+                    projectsLoading ? (
+                        <View style={{ alignItems: 'center', marginTop: 60 }}>
+                            <Text style={{ fontSize: 15, color: '#9CA3AF' }}>Loading projects...</Text>
+                        </View>
+                    ) : (
+                        <View style={{ alignItems: 'center', marginTop: 60 }}>
+                            <MaterialCommunityIcons name="home-search-outline" size={48} color="#D1D5DB" />
+                            <Text style={{ fontSize: 15, color: '#9CA3AF', marginTop: 12 }}>No properties match your filters</Text>
+                            <Text style={{ fontSize: 13, color: '#D1D5DB', marginTop: 4 }}>Try adjusting or clearing filters</Text>
+                        </View>
+                    )
                 }
             />
         </View>

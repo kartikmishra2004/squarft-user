@@ -100,12 +100,14 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (projectSlug && projectSlug !== 'none') {
+      console.log('🔍 Fetching project details for slug:', projectSlug);
       dispatch(fetchProjectDetailsThunk(projectSlug));
       dispatch(fetchFloorPlansThunk(projectSlug));
       dispatch(fetchResaleThunk(projectSlug));
       dispatch(fetchLandmarksThunk(projectSlug));
       dispatch(fetchAmenitiesThunk(projectSlug));
-      dispatch(fetchSimilarPropertiesThunk(projectSlug));
+    } else {
+      console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'projectSlug:', projectSlug);
     }
     return () => dispatch(clearProject());
   }, [projectSlug]);
@@ -164,10 +166,15 @@ export default function ProjectDetail() {
     resaleProperties: resale,
     landmarks: landmarks,
     amenities: amenities,
-    similarProperties: similarProperties,
+    similarProperties: similarProperties?.length > 0
+      ? similarProperties
+      : projectList.filter(p => p.id !== id && (p.city === base.city || p.area === base.area)).slice(0, 5),
   };
 
-  const bhkConfig = floorPlans?.summary?.configs || project.subTypes?.join(", ");
+  const rawConfig = floorPlans?.summary?.configs;
+  const bhkConfig = rawConfig
+    ? rawConfig.split(',').map(s => s.trim().replace(/\s*BHK$/i, '')).join(', ') + ' BHK'
+    : project.subTypes?.join(', ') + ' BHK';
   const startingPrice =
     floorPlans?.summary?.starting_from
       ? `₹${(floorPlans.summary.starting_from / 100000).toFixed(0)}L`
@@ -318,7 +325,7 @@ export default function ProjectDetail() {
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {project.builder} · {project.possessionStatus}
+                {project.builder} · {project.possession}
               </Text>
               <Ionicons name="chevron-forward" size={16} color="#4A43EC" />
             </TouchableOpacity>
@@ -333,7 +340,7 @@ export default function ProjectDetail() {
             </Text>
             {bhkConfig ? (
               <Text className="text-[13px] font-inter-semibold text-[#0F172A]">
-                {floorPlans?.summary?.configs ? bhkConfig : `${bhkConfig} BHK`}
+                {bhkConfig}
               </Text>
             ) : (
               <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">

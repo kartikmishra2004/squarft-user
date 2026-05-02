@@ -4,7 +4,7 @@ async function request(path, options = {}) {
     try {
         const url = `${BASE_URL}${path}`;
         const hasAuth = !!options.headers?.Authorization;
-        console.log('🌐 API Request:', { url, method: options.method || 'GET', hasAuth });
+        
 
         const { headers: optHeaders, ...restOptions } = options;
         
@@ -16,10 +16,10 @@ async function request(path, options = {}) {
             },
         });
         
-        console.log('📡 API Response Status:', res.status, res.statusText);
+     
         
         const text = await res.text();
-        console.log('📄 API Response Text (first 200 chars):', text.substring(0, 200));
+        
         
         let data;
         try {

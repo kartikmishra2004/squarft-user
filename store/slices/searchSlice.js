@@ -20,13 +20,13 @@ export const getSearchHistoryThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) {
-                console.log('❌ No token available for search history');
+                
                 throw new Error('Not authenticated');
             }
-            console.log('🔍 Fetching search history with token:', token.substring(0, 20) + '...');
+            
             return await searchApi.getSearchHistory(token);
         } catch (e) {
-            console.log('❌ Error fetching search history:', e.message);
+            
             return rejectWithValue(e.message);
         }
     }
@@ -39,13 +39,13 @@ export const saveSearchHistoryThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) {
-                console.log('❌ No token available for saving search history');
+                
                 throw new Error('Not authenticated');
             }
-            console.log('💾 Saving search history:', { query_text, filters, result_count });
+            
             return await searchApi.saveSearchHistory(token, query_text, filters, result_count);
         } catch (e) {
-            console.log('❌ Error saving search history:', e.message);
+           
             return rejectWithValue(e.message);
         }
     }
@@ -58,14 +58,14 @@ export const deleteSearchHistoryThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) {
-                console.log('❌ No token available for deleting search history');
+                
                 throw new Error('Not authenticated');
             }
-            console.log('🗑️ Deleting search history:', id);
+            
             await searchApi.deleteSearchHistory(token, id);
             return id; // Return the id to remove from state
         } catch (e) {
-            console.log('❌ Error deleting search history:', e.message);
+            
             return rejectWithValue(e.message);
         }
     }

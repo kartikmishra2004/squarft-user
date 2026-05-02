@@ -138,12 +138,7 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
 
     useEffect(() => {
         translateY.value = withTiming(0, TIMING);
-        console.log('📊 HistoryPanel data:', { 
-            searchHistoryCount: searchHistory?.length || 0, 
-            trendingSearchesCount: trendingSearches?.length || 0,
-            searchHistory: searchHistory,
-            trendingSearches: trendingSearches,
-        });
+        
     }, [searchHistory, trendingSearches]);
 
     const style = useAnimatedStyle(() => ({
@@ -260,10 +255,10 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         dispatch(getTrendingSearchesThunk());
         dispatch(fetchProjectListThunk());
         if (isLoggedIn && token) {
-            console.log('📱 Fetching search history for logged-in user');
+            
             dispatch(getSearchHistoryThunk());
         } else {
-            console.log('📱 User not logged in or no token:', { isLoggedIn, hasToken: !!token });
+            
         }
     }, [isLoggedIn, token, dispatch]);
 
@@ -309,26 +304,26 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         
         // Save search to history if user is logged in
         if (isLoggedIn && token) {
-            console.log('💾 Saving search to history:', searchTerm);
+            
             dispatch(saveSearchHistoryThunk({ 
                 query_text: searchTerm, 
                 filters: null, 
                 result_count: 0 
             }));
         } else {
-            console.log('⚠️ Not saving search - user not logged in or no token');
+            
         }
         
         router.push('/(screens)/property-listing');
     }, [isLoggedIn, token, dispatch]);
 
     const handleDeleteHistory = useCallback((id) => {
-        console.log('🗑️ Deleting search history item:', id);
+        
         dispatch(deleteSearchHistoryThunk(id));
     }, [dispatch]);
 
     const handleClearAll = useCallback(() => {
-        console.log('🗑️ Clearing all search history');
+        
         dispatch(clearAllSearchHistoryThunk());
     }, [dispatch]);
 
