@@ -8,7 +8,9 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Animated } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
 import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk, clearProject } from "../../store/slices/projectSlice";
@@ -27,6 +29,82 @@ const frame871 = require("../../assets/images/Frame 26086871.png");
 const group1597 = require("../../assets/images/Group 1597884495.png");
 
 const { width } = Dimensions.get("window");
+
+function SkeletonBox({ width: w, height: h, borderRadius = 8, style }) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmer, { toValue: 1, duration: 1100, useNativeDriver: true })
+    ).start();
+  }, []);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  return (
+    <View style={[{ width: w, height: h, borderRadius, backgroundColor: '#E5E7EB', overflow: 'hidden' }, style]}>
+      <Animated.View style={{ flex: 1, transform: [{ translateX }] }}>
+        <LinearGradient
+          colors={['transparent', 'rgba(255,255,255,0.55)', 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+function ProjectDetailSkeleton({ insets }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#F8F5FF' }}>
+      {/* Hero */}
+      <SkeletonBox width={width} height={380} borderRadius={0} />
+
+      {/* Back button */}
+      <View style={{ position: 'absolute', top: insets.top + 10, left: 16 }}>
+        <SkeletonBox width={38} height={38} borderRadius={19} />
+      </View>
+
+      {/* Main card */}
+      <View style={{ marginHorizontal: 16, marginTop: -96, backgroundColor: '#fff', borderRadius: 12, padding: 16, gap: 12 }}>
+        <SkeletonBox width={200} height={18} />
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <SkeletonBox width={100} height={80} borderRadius={12} />
+          <SkeletonBox width={width - 180} height={80} borderRadius={12} />
+        </View>
+        <SkeletonBox width="100%" height={44} borderRadius={12} />
+      </View>
+
+      {/* Config block */}
+      <View style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: '#fff', borderRadius: 10, padding: 16, flexDirection: 'row', gap: 16 }}>
+        <View style={{ gap: 8 }}>
+          <SkeletonBox width={60} height={10} />
+          <SkeletonBox width={100} height={14} />
+        </View>
+        <View style={{ width: 1, backgroundColor: '#E5E7EB' }} />
+        <View style={{ gap: 8 }}>
+          <SkeletonBox width={80} height={10} />
+          <SkeletonBox width={120} height={22} />
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 16, gap: 10 }}>
+        {[1, 2, 3].map(i => <SkeletonBox key={i} width={(width - 60) / 3} height={38} borderRadius={12} />)}
+      </View>
+
+      {/* Content lines */}
+      <View style={{ marginHorizontal: 16, marginTop: 20, gap: 10 }}>
+        <SkeletonBox width="90%" height={12} />
+        <SkeletonBox width="75%" height={12} />
+        <SkeletonBox width="85%" height={12} />
+      </View>
+    </View>
+  );
+}
 
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
@@ -123,11 +201,12 @@ export default function ProjectDetail() {
   }, [propertyIds.length, isSaved, isLoggedIn, token]);
 
   if (!listProject && !apiProject) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-400">Project not found</Text>
-      </View>
-    );
+    return <ProjectDetailSkeleton insets={insets} />;
+  }
+
+  // Show skeleton while API details are still loading
+  if (apiLoading && !apiProject) {
+    return <ProjectDetailSkeleton insets={insets} />;
   }
 
   // Merge API data with list/local fallback
