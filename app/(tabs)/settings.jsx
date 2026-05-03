@@ -241,6 +241,7 @@ export default function Settings() {
                     <SettingsRow
                         icon={<Ionicons name="notifications-outline" size={18} color="#475569" />}
                         label="Notifications"
+                        onPress={() => router.push("/(screens)/notifications")}
                         right={
                             <Switch
                                 value={notificationsOn}
