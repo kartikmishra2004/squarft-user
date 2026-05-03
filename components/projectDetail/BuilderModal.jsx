@@ -16,7 +16,17 @@ export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const [activeFilter, setActiveFilter] = useState("In 3 years");
 
-    const builderProjects = allProjects.filter((p) => p.builder === project?.builder);
+    // Get builder name and normalize it for comparison
+    const builderName = project?.builder || "";
+    const normalizeBuilder = (name) => name?.toLowerCase().trim() || "";
+    
+    // Filter projects by builder (case-insensitive partial match)
+    const builderProjects = allProjects.filter((p) => {
+        const projectBuilder = normalizeBuilder(p.builder);
+        const currentBuilder = normalizeBuilder(builderName);
+        return projectBuilder.includes(currentBuilder) || currentBuilder.includes(projectBuilder);
+    });
+    
     const filteredProjects = builderProjects.filter(FILTER_MAP[activeFilter] ?? (() => true));
 
     return (

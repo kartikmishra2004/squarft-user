@@ -3,23 +3,23 @@ import { BASE_URL } from './config';
 async function request(path, token = null) {
     try {
         const url = `${BASE_URL}${path}`;
-        console.log('🌐 API Request:', { url, hasToken: !!token });
+        
         
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
         const res = await fetch(url, { headers });
         
-        console.log('📡 API Response Status:', res.status, res.statusText);
+        
         
         const text = await res.text();
-        console.log('📄 API Response Text (first 200 chars):', text.substring(0, 200));
+        
         
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.log('❌ Failed to parse JSON. Full response:', text);
+            
             throw new Error(`Invalid JSON response: ${e.message}`);
         }
         
@@ -35,26 +35,46 @@ async function request(path, token = null) {
 
 export const projectApi = {
     // Get all projects (for search suggestions)
-    listProjects: () =>
-        request('/api/v1/projects/list'),
+    listProjects: async (token) => {
+        const res = await request('/api/v1/projects/list', token);
+        
+        return res;
+    },
 
     // Get project details by slug
-    getProjectDetails: (slug) =>
-        request(`/api/v1/projects/${slug}`),
+    getProjectDetails: async (slug,token) => {
+        const res = await request(`/api/v1/overview/${slug}`, token);
+        
+        return res;
+    },
 
-    // Get floor plans for a project (auth required)
-    getProjectFloorPlans: (slug, token) =>
-        request(`/api/v1/projects/${slug}/floor-plans`, token),
+    // Get project floor plans by slug
+    getProjectFloorPlans: async (slug, token) => {
+        const res = await request(`/api/v1/overview/${slug}/floor-plans`, token);
+        
+        return res;
+    },
 
+    
     // Get resale properties in a project
-    getProjectResale: (slug) =>
-        request(`/api/v1/projects/${slug}/resale`),
+    getProjectResale: (slug, token) =>
+        request(`/api/v1/overview/${slug}/resale`, token),
 
     // Get project landmarks
-    getProjectLandmarks: (slug) =>
-        request(`/api/v1/projects/${slug}/landmarks`),
+    getProjectLandmarks: (slug, token) =>
+        request(`/api/v1/highlights/${slug}/landmarks`, token),
 
     // Get project amenities
-    getProjectAmenities: (slug) =>
-        request(`/api/v1/projects/${slug}/amenities`),
+    getProjectAmenities: (slug, token) =>
+        request(`/api/v1/highlights/${slug}/amenities`, token),
+
+    // Get similar properties
+    getSimilarProperties: (slug, token) =>
+        request(`/api/v1/projects/${slug}/similar`, token),
+
+    // Get featured projects
+    getFeaturedProjects: (params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/projects/featured${query ? `?${query}` : ''}`);
+    },
 };

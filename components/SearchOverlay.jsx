@@ -11,7 +11,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
-import { getTrendingSearchesThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk } from "../store/slices/searchSlice";
+import { getTrendingSearchesThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../store/slices/searchSlice";
 import { fetchProjectListThunk } from "../store/slices/projectSlice";
 import { Image } from "react-native";
 
@@ -67,11 +67,20 @@ function HistoryIcon({ type }) {
     );
 }
 
-function SectionLabel({ text }) {
+function SectionLabel({ text, action, onActionPress }) {
     return (
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, paddingHorizontal: 20, marginTop: 20, marginBottom: 10 }}>
-            {text}
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 20, marginBottom: 10 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 }}>
+                {text}
+            </Text>
+            {action && (
+                <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#4A43EC', letterSpacing: 0.5 }}>
+                        {action}
+                    </Text>
+                </TouchableOpacity>
+            )}
+        </View>
     );
 }
 
@@ -123,18 +132,13 @@ function SuggestionItem({ item, index, onPress }) {
 }
 
 
-function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHistory }) {
+function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHistory, onClearAll }) {
     const opacity = useSharedValue(1);
     const translateY = useSharedValue(10);
 
     useEffect(() => {
         translateY.value = withTiming(0, TIMING);
-        console.log('📊 HistoryPanel data:', { 
-            searchHistoryCount: searchHistory?.length || 0, 
-            trendingSearchesCount: trendingSearches?.length || 0,
-            searchHistory: searchHistory,
-            trendingSearches: trendingSearches,
-        });
+        
     }, [searchHistory, trendingSearches]);
 
     const style = useAnimatedStyle(() => ({
@@ -157,7 +161,7 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
         <Animated.View style={style}>
             {formattedHistory.length > 0 && (
                 <>
-                    <SectionLabel text="SEARCH HISTORY" />
+                    <SectionLabel text="SEARCH HISTORY" action="Clear All" onActionPress={onClearAll} />
                     <View style={{ backgroundColor: '#fff' }}>
                         {formattedHistory.map((item, i) => (
                             <SearchHistoryItem key={item.id} item={item} index={i} total={formattedHistory.length} onSelect={onSelect} onDelete={onDeleteHistory} />
@@ -251,10 +255,10 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         dispatch(getTrendingSearchesThunk());
         dispatch(fetchProjectListThunk());
         if (isLoggedIn && token) {
-            console.log('📱 Fetching search history for logged-in user');
+            
             dispatch(getSearchHistoryThunk());
         } else {
-            console.log('📱 User not logged in or no token:', { isLoggedIn, hasToken: !!token });
+            
         }
     }, [isLoggedIn, token, dispatch]);
 
@@ -300,22 +304,27 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         
         // Save search to history if user is logged in
         if (isLoggedIn && token) {
-            console.log('💾 Saving search to history:', searchTerm);
+            
             dispatch(saveSearchHistoryThunk({ 
                 query_text: searchTerm, 
                 filters: null, 
                 result_count: 0 
             }));
         } else {
-            console.log('⚠️ Not saving search - user not logged in or no token');
+            
         }
         
         router.push('/(screens)/property-listing');
     }, [isLoggedIn, token, dispatch]);
 
     const handleDeleteHistory = useCallback((id) => {
-        console.log('🗑️ Deleting search history item:', id);
+        
         dispatch(deleteSearchHistoryThunk(id));
+    }, [dispatch]);
+
+    const handleClearAll = useCallback(() => {
+        
+        dispatch(clearAllSearchHistoryThunk());
     }, [dispatch]);
 
     return (
@@ -382,7 +391,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 ListHeaderComponent={
                     showSuggestions
                         ? <SuggestionsPanel key="suggestions" suggestions={suggestions} onSelect={handleSelect} />
-                        : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} onDeleteHistory={handleDeleteHistory} />
+                        : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} onDeleteHistory={handleDeleteHistory} onClearAll={handleClearAll} />
                 }
             />
 

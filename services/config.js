@@ -1,5 +1,4 @@
-// Update this to your machine's local IP when testing on a physical device
-// Android emulator: 10.0.2.2
-// iOS simulator: localhost
-// Physical device: your machine's local IP (run `ipconfig` to find it)
-export const BASE_URL = 'http://192.168.0.100:3000';
+// Backend API Base URL
+// To change the IP address, edit the .env file in the root directory
+export const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ;
+

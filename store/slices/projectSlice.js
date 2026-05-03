@@ -3,9 +3,10 @@ import { projectApi } from '../../services/projectApi';
 
 export const fetchProjectListThunk = createAsyncThunk(
     'project/fetchList',
-    async (_, { rejectWithValue }) => {
+    async (_, { getState, rejectWithValue }) => {
         try {
-            return await projectApi.listProjects();
+            const { token } = getState().auth;
+            return await projectApi.listProjects(token);
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -14,9 +15,10 @@ export const fetchProjectListThunk = createAsyncThunk(
 
 export const fetchProjectDetailsThunk = createAsyncThunk(
     'project/fetchDetails',
-    async (slug, { rejectWithValue }) => {
+    async (slug, { getState, rejectWithValue }) => {
         try {
-            return await projectApi.getProjectDetails(slug);
+            const { token } = getState().auth;
+            return await projectApi.getProjectDetails(slug, token);
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -37,9 +39,10 @@ export const fetchFloorPlansThunk = createAsyncThunk(
 
 export const fetchResaleThunk = createAsyncThunk(
     'project/fetchResale',
-    async (slug, { rejectWithValue }) => {
+    async (slug, { getState, rejectWithValue }) => {
         try {
-            return await projectApi.getProjectResale(slug);
+            const { token } = getState().auth;
+            return await projectApi.getProjectResale(slug, token);
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -48,9 +51,10 @@ export const fetchResaleThunk = createAsyncThunk(
 
 export const fetchLandmarksThunk = createAsyncThunk(
     'project/fetchLandmarks',
-    async (slug, { rejectWithValue }) => {
+    async (slug, { getState, rejectWithValue }) => {
         try {
-            return await projectApi.getProjectLandmarks(slug);
+            const { token } = getState().auth;
+            return await projectApi.getProjectLandmarks(slug, token);
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -59,9 +63,33 @@ export const fetchLandmarksThunk = createAsyncThunk(
 
 export const fetchAmenitiesThunk = createAsyncThunk(
     'project/fetchAmenities',
-    async (slug, { rejectWithValue }) => {
+    async (slug, { getState, rejectWithValue }) => {
         try {
-            return await projectApi.getProjectAmenities(slug);
+            const { token } = getState().auth;
+            return await projectApi.getProjectAmenities(slug, token);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
+export const fetchSimilarPropertiesThunk = createAsyncThunk(
+    'project/fetchSimilarProperties',
+    async (slug, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            return await projectApi.getSimilarProperties(slug, token);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
+export const fetchFeaturedProjectsThunk = createAsyncThunk(
+    'project/fetchFeatured',
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            return await projectApi.getFeaturedProjects(params);
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -77,6 +105,9 @@ const projectSlice = createSlice({
         resale: [],
         landmarks: [],
         amenities: [],
+        similarProperties: [],
+        featured: [],
+        featuredLoading: false,
         loading: false,
         error: null,
     },
@@ -87,13 +118,27 @@ const projectSlice = createSlice({
             state.resale = [];
             state.landmarks = [];
             state.amenities = [];
+            state.similarProperties = [];
             state.error = null;
         },
     },
     extraReducers: (builder) => {
         builder
+            .addCase(fetchProjectListThunk.pending, (state) => { state.loading = true; state.error = null; })
             .addCase(fetchProjectListThunk.fulfilled, (state, action) => {
-                state.list = action.payload.data || [];
+                state.loading = false;
+                // Handle both { data: [...] } and direct array responses
+                const payload = action.payload;
+                state.list = Array.isArray(payload) ? payload : (payload?.data || []);
+                
+                if (state.list.length > 0) {
+                    
+                }
+            })
+            .addCase(fetchProjectListThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+                console.log('❌ fetchProjectList failed:', action.payload);
             })
             .addCase(fetchProjectDetailsThunk.pending, (state) => { state.loading = true; state.error = null; })
             .addCase(fetchProjectDetailsThunk.fulfilled, (state, action) => {
@@ -103,6 +148,7 @@ const projectSlice = createSlice({
             .addCase(fetchProjectDetailsThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+                console.log('❌ fetchProjectDetails failed:', action.payload);
             })
             .addCase(fetchFloorPlansThunk.fulfilled, (state, action) => {
                 state.floorPlans = action.payload.data;
@@ -115,7 +161,16 @@ const projectSlice = createSlice({
             })
             .addCase(fetchAmenitiesThunk.fulfilled, (state, action) => {
                 state.amenities = action.payload.data || [];
-            });
+            })
+            .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
+                state.similarProperties = action.payload.data || [];
+            })
+            .addCase(fetchFeaturedProjectsThunk.pending, (state) => { state.featuredLoading = true; })
+            .addCase(fetchFeaturedProjectsThunk.fulfilled, (state, action) => {
+                state.featuredLoading = false;
+                state.featured = action.payload.data || [];
+            })
+            .addCase(fetchFeaturedProjectsThunk.rejected, (state) => { state.featuredLoading = false; });
     },
 });
 

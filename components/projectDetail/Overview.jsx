@@ -2,11 +2,12 @@ import { View, Text, ScrollView, Image, TouchableOpacity, Dimensions, ImageBackg
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
+import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
 import FeaturedCard from "../FeaturedCard";
 import { getResaleByProject } from "../../data/resaleProperties";
 import BuilderModal from "./BuilderModal";
-import FloorPlanModal from "./FloorPlanModal";
+
 import PropertyDetailModal from "./PropertyDetailModal";
 
 const { width } = Dimensions.get("window");
@@ -25,7 +26,7 @@ const cardShadow = {
 
 export default function Overview({ project }) {
     const [builderModalVisible, setBuilderModalVisible] = useState(false);
-    const [floorPlanVisible, setFloorPlanVisible] = useState(false);
+    
     const [propertyDetailVisible, setPropertyDetailVisible] = useState(false);
     const [selectedVariant, setSelectedVariant] = useState(null);
     return (
@@ -44,17 +45,25 @@ export default function Overview({ project }) {
                         style={{ width: CARD_WIDTH, ...cardShadow }}
                         className="bg-white rounded-3xl overflow-hidden border border-gray-100"
                     >
-                        <Image source={project.imageMain} style={{ width: "100%", height: 140 }} resizeMode="cover" />
+                        <Image
+                            source={v.image ? { uri: v.image } : project.imageMain}
+                            style={{ width: "100%", height: 140 }}
+                            resizeMode="cover"
+                        />
                         <View className="p-3">
                             <View className="flex-row items-center justify-between mb-1">
                                 <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type || v.title}</Text>
                                 <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
-                                    {v.priceRange ? v.priceRange.split("–")[0].trim() : (v.price ? `₹${(v.price/100000).toFixed(0)}L` : '—')}
+                                    {v.priceRange
+                                        ? v.priceRange.split("–")[0].trim()
+                                        : v.price
+                                            ? `₹${(Number(v.price) / 100000).toFixed(0)}L`
+                                            : "—"}
                                 </Text>
                             </View>
-                            <View className="flex-row items-center gap-1 mb-5">
+                            <View className="flex-row items-center gap-2 mb-5 px-0">
                                 <MaterialCommunityIcons name="floor-plan" size={13} color="#9CA3AF" />
-                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || project.areaSqft} sqft (Carpet Area)</Text>
+                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || (project.areaSqft ? `${project.areaSqft} sqft` : "—")} </Text>
                             </View>
                             <TouchableOpacity
                                 onPress={() => {
@@ -95,11 +104,6 @@ export default function Overview({ project }) {
                 project={project}
             />
 
-            <FloorPlanModal
-                visible={floorPlanVisible}
-                onClose={() => setFloorPlanVisible(false)}
-                project={project}
-            />
 
             <PropertyDetailModal
                 visible={propertyDetailVisible}
@@ -137,10 +141,13 @@ export default function Overview({ project }) {
             {/* About card */}
             <View className="mx-6 mb-3 mt-4 bg-white rounded-2xl p-4" style={cardShadow}>
                 <Text className="text-[15px] font-manrope-bold text-[#1A1A1A] mt-1 mb-3">About {project.name}</Text>
-                {[
-                    `Exclusive luxury residency located in ${project.location} with lush green surroundings.`,
-                    `Designed with sustainable architecture and world-class amenities by ${project.builder}.`,
-                ].map((point, i) => (
+                {(project.description
+                    ? [project.description]
+                    : [
+                        `Exclusive luxury residency located in ${project.location} with lush green surroundings.`,
+                        `Designed with sustainable architecture and world-class amenities by ${project.builder}.`,
+                    ]
+                ).map((point, i) => (
                     <View key={i} className="flex-row gap-2 mb-2">
                         <Text className="text-[#5E23DC] text-[18px] -top-[1px]">•</Text>
                         <Text className="text-[12px] font-manrope-regular text-[#4B5563] flex-1 leading-6 mb-1">{point}</Text>
@@ -181,7 +188,8 @@ export default function Overview({ project }) {
                         ? project.resaleProperties.map(r => ({
                             id: r.id,
                             title: r.title,
-                            price: r.base_price ? `₹${(r.base_price / 100000).toFixed(0)}L` : '—',
+                            price_from: r.base_price || r.price_from,
+                            price_to: r.price_to,
                             image: r.cover_image ? { uri: r.cover_image } : project.imageMain,
                             location: `${r.area}, ${r.city}`,
                         }))
@@ -227,12 +235,32 @@ export default function Overview({ project }) {
                     <TouchableOpacity><Text className="text-[13px] font-manrope-semibold text-indigo-600">Clear All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
-                    {allProjects.filter((p) => p.id !== project.id).slice(0, 5).map((item) => (
-                        <TouchableOpacity key={item.id} className="bg-white rounded-2xl overflow-hidden mb-2" style={{ width: 180, ...cardShadow }}>
+                    {(project.similarProperties?.length > 0
+                        ? project.similarProperties.map(p => ({
+                            id: p.id,
+                            slug: p.slug,
+                            name: p.name || p.title,
+                            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : (p.cover_image ? { uri: p.cover_image } : project.imageMain),
+                            location: `${p.area || ''}, ${p.city || ''}`.replace(/^,\s*/, ''),
+                            price_from: p.price_from || p.base_price,
+                            price_to: p.price_to,
+                        }))
+                        : allProjects.filter((p) => p.id !== project.id).slice(0, 5)
+                    ).map((item) => (
+                        <TouchableOpacity
+                            key={item.id}
+                            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
+                            className="bg-white rounded-2xl overflow-hidden mb-2"
+                            style={{ width: 180, ...cardShadow }}
+                        >
                             <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
                             <View className="p-3">
                                 <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
-                                <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">{item.variants[0]?.priceRange ?? item.avgPricePerSqft}</Text>
+                                <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">
+                                    {item.price_from
+                                        ? `₹${(item.price_from / 100000).toFixed(0)}L${item.price_to && item.price_to !== item.price_from ? ` – ₹${(item.price_to / 100000).toFixed(0)}L` : ''}`
+                                        : item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '—'}
+                                </Text>
                                 <View className="flex-row items-center gap-1">
                                     <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />
                                     <Text className="text-[10px] font-inter-regular text-gray-400" numberOfLines={1}>{item.location}</Text>

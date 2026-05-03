@@ -8,10 +8,12 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Animated } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite } from "../../store/slices/propertiesSlice";
-import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, clearProject } from "../../store/slices/projectSlice";
+import { toggleFavourite, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
+import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +30,82 @@ const group1597 = require("../../assets/images/Group 1597884495.png");
 
 const { width } = Dimensions.get("window");
 
+function SkeletonBox({ width: w, height: h, borderRadius = 8, style }) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmer, { toValue: 1, duration: 1100, useNativeDriver: true })
+    ).start();
+  }, []);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  return (
+    <View style={[{ width: w, height: h, borderRadius, backgroundColor: '#E5E7EB', overflow: 'hidden' }, style]}>
+      <Animated.View style={{ flex: 1, transform: [{ translateX }] }}>
+        <LinearGradient
+          colors={['transparent', 'rgba(255,255,255,0.55)', 'transparent']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+function ProjectDetailSkeleton({ insets }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#F8F5FF' }}>
+      {/* Hero */}
+      <SkeletonBox width={width} height={380} borderRadius={0} />
+
+      {/* Back button */}
+      <View style={{ position: 'absolute', top: insets.top + 10, left: 16 }}>
+        <SkeletonBox width={38} height={38} borderRadius={19} />
+      </View>
+
+      {/* Main card */}
+      <View style={{ marginHorizontal: 16, marginTop: -96, backgroundColor: '#fff', borderRadius: 12, padding: 16, gap: 12 }}>
+        <SkeletonBox width={200} height={18} />
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <SkeletonBox width={100} height={80} borderRadius={12} />
+          <SkeletonBox width={width - 180} height={80} borderRadius={12} />
+        </View>
+        <SkeletonBox width="100%" height={44} borderRadius={12} />
+      </View>
+
+      {/* Config block */}
+      <View style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: '#fff', borderRadius: 10, padding: 16, flexDirection: 'row', gap: 16 }}>
+        <View style={{ gap: 8 }}>
+          <SkeletonBox width={60} height={10} />
+          <SkeletonBox width={100} height={14} />
+        </View>
+        <View style={{ width: 1, backgroundColor: '#E5E7EB' }} />
+        <View style={{ gap: 8 }}>
+          <SkeletonBox width={80} height={10} />
+          <SkeletonBox width={120} height={22} />
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 16, gap: 10 }}>
+        {[1, 2, 3].map(i => <SkeletonBox key={i} width={(width - 60) / 3} height={38} borderRadius={12} />)}
+      </View>
+
+      {/* Content lines */}
+      <View style={{ marginHorizontal: 16, marginTop: 20, gap: 10 }}>
+        <SkeletonBox width="90%" height={12} />
+        <SkeletonBox width="75%" height={12} />
+        <SkeletonBox width="85%" height={12} />
+      </View>
+    </View>
+  );
+}
+
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
   const { id, slug, from } = useLocalSearchParams();
@@ -35,33 +113,100 @@ export default function ProjectDetail() {
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
-  const { details: apiProject, floorPlans, resale, landmarks, amenities, loading: apiLoading } = useSelector((s) => s.project);
+  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
+  const { isLoggedIn, token } = useSelector((s) => s.auth);
+
+  // Debug: Log auth state
+  useEffect(() => {
+    console.log('🔐 Auth State:', { isLoggedIn, hasToken: !!token });
+  }, [isLoggedIn, token]);
 
   // Find project from API list or local fallback
   const listProject = projectList.find((p) => p.id === id) || allProjects.find((p) => p.id === id);
   const isSaved = savedProjects.includes(id);
 
-  // Use slug from params or from list project
+  // Use slug from params or from API project list (local allProjects has no slug)
   const projectSlug = slug || listProject?.slug;
+
+  // Get property IDs from floor plans (for saving to API)
+  const propertyIds = floorPlans?.floor_plans?.map(fp => fp.id).filter(Boolean) || [];
+
+  // If no slug available, fetch project list to resolve it
+  useEffect(() => {
+    if (!projectSlug || projectSlug === 'none') {
+      dispatch(fetchProjectListThunk());
+    }
+  }, []);
+  
+  const handleToggleSave = async () => {
+    console.log('🔖 Toggle Save Clicked');
+    console.log('📊 Current State:', {
+      projectId: id,
+      projectSlug,
+      isSaved,
+      floorPlansLoaded: !!floorPlans,
+      floorPlansCount: floorPlans?.floor_plans?.length || 0,
+      propertyIds,
+    });
+    
+    // Toggle local state immediately
+    dispatch(toggleFavourite(id));
+    
+    // If we have property IDs, save/unsave them via API
+    if (propertyIds.length > 0) {
+      if (isSaved) {
+        console.log('🗑️ Unsaving properties:', propertyIds);
+        // Unsave all properties in this project
+        for (const propId of propertyIds) {
+          await dispatch(unsavePropertyThunk(propId));
+        }
+      } else {
+        console.log('💾 Saving properties:', propertyIds);
+        // Save all properties in this project
+        for (const propId of propertyIds) {
+          await dispatch(savePropertyThunk(propId));
+        }
+      }
+      console.log('✅ Save/Unsave operations completed');
+    } else {
+      console.log('⚠️ No property IDs available yet');
+      console.log('⚠️ Floor plans data:', floorPlans);
+      console.log('⚠️ Only saving locally, will sync when floor plans load');
+    }
+  };
 
   useEffect(() => {
     if (projectSlug && projectSlug !== 'none') {
+      console.log('🔍 Fetching project details for slug:', projectSlug);
       dispatch(fetchProjectDetailsThunk(projectSlug));
       dispatch(fetchFloorPlansThunk(projectSlug));
       dispatch(fetchResaleThunk(projectSlug));
       dispatch(fetchLandmarksThunk(projectSlug));
       dispatch(fetchAmenitiesThunk(projectSlug));
+    } else {
+      console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'projectSlug:', projectSlug);
     }
     return () => dispatch(clearProject());
-  }, [id, projectSlug]);
+  }, [projectSlug]);
+
+  // Auto-sync saved state when floor plans load
+  useEffect(() => {
+    if (isSaved && propertyIds.length > 0 && isLoggedIn && token) {
+      console.log('🔄 Floor plans loaded for saved project, syncing to API...');
+      propertyIds.forEach(propId => {
+        dispatch(savePropertyThunk(propId));
+      });
+    }
+  }, [propertyIds.length, isSaved, isLoggedIn, token]);
 
   if (!listProject && !apiProject) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-400">Project not found</Text>
-      </View>
-    );
+    return <ProjectDetailSkeleton insets={insets} />;
+  }
+
+  // Show skeleton while API details are still loading
+  if (apiLoading && !apiProject) {
+    return <ProjectDetailSkeleton insets={insets} />;
   }
 
   // Merge API data with list/local fallback
@@ -75,20 +220,40 @@ export default function ProjectDetail() {
       reraId: apiProject.rera_id || base.reraId,
       possession: apiProject.possession || base.possession,
       builder: apiProject.developer?.name || base.builder,
-      units: apiProject.stats?.units || base.units,
-      launchedIn: apiProject.stats?.launched || base.launchedIn,
+      builderLogo: apiProject.developer?.logo ? { uri: apiProject.developer.logo } : base.builderLogo,
+      developerId: apiProject.developer?.id || base.developerId,
+      imageMain: apiProject.cover_image ? { uri: apiProject.cover_image } : base.imageMain,
+      brochure: apiProject.brochure || base.brochure || null,
+      units: (apiProject.stats?.units && apiProject.stats.units !== "N/A") ? apiProject.stats.units : base.units,
+      launchedIn: (apiProject.stats?.launched && apiProject.stats.launched !== "N/A") ? apiProject.stats.launched : base.launchedIn,
+      rating: apiProject.rating || base.rating,
+      subTypes: base.subTypes,
+      propertyType: base.propertyType,
+      avgPricePerSqft: base.avgPricePerSqft,
+      possessionStatus: base.possessionStatus,
+      rera: apiProject.rera_id ? true : base.rera,
+      variants: base.variants,
     } : {
       name: base.name,
       location: base.location || (base.area && base.city ? `${base.area}, ${base.city}` : ''),
       possession: base.possession_date || base.possession,
+      units: base.units,
+      launchedIn: base.launchedIn,
+      rating: base.rating,
     }),
     floorPlans: floorPlans?.floor_plans || base.variants,
     resaleProperties: resale,
     landmarks: landmarks,
     amenities: amenities,
+    similarProperties: similarProperties?.length > 0
+      ? similarProperties
+      : projectList.filter(p => p.id !== id && (p.city === base.city || p.area === base.area)).slice(0, 5),
   };
 
-  const bhkConfig = project.subTypes?.join(", ");
+  const rawConfig = floorPlans?.summary?.configs;
+  const bhkConfig = rawConfig
+    ? rawConfig.split(',').map(s => s.trim().replace(/\s*BHK$/i, '')).join(', ') + ' BHK'
+    : project.subTypes?.join(', ') + ' BHK';
   const startingPrice =
     floorPlans?.summary?.starting_from
       ? `₹${(floorPlans.summary.starting_from / 100000).toFixed(0)}L`
@@ -115,7 +280,7 @@ export default function ProjectDetail() {
             <Ionicons name="chevron-back" size={22} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => dispatch(toggleFavourite(id))}
+            onPress={handleToggleSave}
             className="absolute right-4 w-[38px] h-[38px] rounded-full bg-white/85 items-center justify-center"
             style={{ top: insets.top + 10 }}
           >
@@ -239,7 +404,7 @@ export default function ProjectDetail() {
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {project.builder} · {project.possessionStatus}
+                {project.builder} · {project.possession}
               </Text>
               <Ionicons name="chevron-forward" size={16} color="#4A43EC" />
             </TouchableOpacity>
@@ -252,18 +417,30 @@ export default function ProjectDetail() {
             <Text className="text-[11px] font-inter-bold text-[#94A3B8] tracking-widest">
               CONFIG
             </Text>
-            <Text className="text-[13px] font-inter-semibold text-[#0F172A]">
-              {bhkConfig ? `${bhkConfig} BHK` : project.propertyType}
-            </Text>
+            {bhkConfig ? (
+              <Text className="text-[13px] font-inter-semibold text-[#0F172A]">
+                {bhkConfig}
+              </Text>
+            ) : (
+              <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">
+                {project.propertyType || "Loading..."}
+              </Text>
+            )}
           </View>
           <View className="w-px h-12 bg-gray-200" />
           <View className="flex-1 flex-row items-end pl-5 gap-4">
             <Text className="text-[12px] font-manrope-medium text-gray-500 mb-0.5">
               Starting from
             </Text>
-            <Text className="text-2xl font-manrope-bold text-[#4941EC]">
-              {startingPrice}*
-            </Text>
+            {startingPrice ? (
+              <Text className="text-2xl font-manrope-bold text-[#4941EC]">
+                {startingPrice}*
+              </Text>
+            ) : (
+              <Text className="text-[14px] font-manrope-medium text-[#94A3B8]">
+                Loading...
+              </Text>
+            )}
           </View>
         </View>
 
