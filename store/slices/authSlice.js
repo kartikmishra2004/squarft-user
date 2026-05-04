@@ -78,7 +78,7 @@ const authSlice = createSlice({
         otpToken: null,
         verifiedToken: null,
         rememberMe: false,
-        isLoggedIn: true,
+        isLoggedIn: false,
         token: null,
         user: null,
         profile: null,
