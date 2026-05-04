@@ -6,15 +6,19 @@ import filterSlice from './slices/filterSlice';
 import searchSlice from './slices/searchSlice';
 import projectSlice from './slices/projectSlice';
 import dealsSlice from './slices/dealsSlice';
+import notificationSlice from './slices/notificationSlice';
+
 
 export const store = configureStore({
-    reducer: {
-        app: appSlice,
-        auth: authSlice,
-        properties: propertiesSlice,
-        filter: filterSlice,
-        search: searchSlice,
-        project: projectSlice,
-        deals: dealsSlice,
-    },
+        reducer: {
+                app: appSlice,
+                auth: authSlice,
+                properties: propertiesSlice,
+                filter: filterSlice,
+                search: searchSlice,
+                project: projectSlice,
+                deals: dealsSlice,
+                notifications: notificationSlice,
+
+        },
 });
