@@ -1,14 +1,15 @@
 import {
     View, Text, Image, TouchableOpacity,
-    ScrollView, Switch, SafeAreaView, Alert,
+    ScrollView, Switch, Alert,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
-import { logout } from "../../store/slices/authSlice";
+import { logout, fetchProfileThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
+import { ProfileSkeleton } from "../../components/SkeletonLoader";
 
 const cardShadow = {
     shadowColor: "#7a7878ff",
@@ -81,6 +82,14 @@ export default function Settings() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
+    
+    const { profile, loading, isLoggedIn } = useSelector((state) => state.auth);
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            dispatch(fetchProfileThunk());
+        }
+    }, [isLoggedIn, dispatch]);
 
     const handleLogout = () => {
         Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -93,6 +102,19 @@ export default function Settings() {
             },
         ]);
     };
+
+    // Use profile data if available, otherwise fallback to currentUser
+    const displayName = profile?.user?.full_name || currentUser.name;
+    const displayEmail = profile?.user?.email || currentUser.email;
+    const displayPhone = profile?.user?.phone || currentUser.phone;
+    const displayRole = profile?.user?.role || 'PROPERTY OWNER';
+    const displayVerification = profile?.user?.verification_status || 'Verified Level 2';
+    // const listingsCount = profile?.activity?.listings_count || 12;
+    // const subscription = profile?.subscription;
+
+    if (loading && !profile) {
+        return <ProfileSkeleton />;
+    }
 
     return (
 
@@ -128,17 +150,17 @@ export default function Settings() {
                         </View>
                     </View>
                     <Text style={{ fontSize: 20, fontWeight: '700', color: '#0F172A', marginBottom: 6 }}>
-                        {currentUser.name}
+                        {displayName}
                     </Text>
                     <View style={{
                         backgroundColor: '#dee4f7ff', borderRadius: 25,
                         paddingHorizontal: 12, paddingVertical: 4, marginBottom: 6,
                     }}>
                         <Text style={{ fontSize: 11, fontWeight: '700', color: '#4A43EC', letterSpacing: 0.5 }}>
-                            PROPERTY OWNER
+                            {displayRole}
                         </Text>
                     </View>
-                    <Text style={{ fontSize: 13, color: '#64748B' }}>{currentUser.email}</Text>
+                    <Text style={{ fontSize: 13, color: '#64748B' }}>{displayEmail}</Text>
                 </View>
 
                 {/* Personal Information */}
@@ -147,17 +169,18 @@ export default function Settings() {
                     <SettingsRow
                         icon={<Ionicons name="person-outline" size={18} color="#4A43EC" />}
                         label="Legal Name"
-                        sublabel={currentUser.name}
+                        sublabel={displayName}
                     />
                     <SettingsRow
                         icon={<Feather name="phone" size={17} color="#4A43EC" />}
                         label="Phone Number"
-                        sublabel={currentUser.phone}
+                        sublabel={displayPhone}
+                        onPress={() => router.push('/(screens)/phone-number')}
                     />
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="card-account-details-outline" size={18} color="#4A43EC" />}
                         label="ID Verification"
-                        sublabel="Verified Level 2"
+                        sublabel={displayVerification}
                         sublabelColor="#10B981"
                         isLast
                     />
@@ -166,71 +189,16 @@ export default function Settings() {
                 {/* My Activity */}
                 <SectionLabel text="MY ACTIVITY" />
                 <SettingsCard>
-                    <SettingsRow
-                        icon={<MaterialCommunityIcons name="format-list-bulleted" size={18} color="#4A43EC" />}
-                        label="My Listings"
-                        right={
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <View style={{ backgroundColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#4A43EC' }}>12</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                            </View>
-                        }
-                    />
+                             
                     <SettingsRow
                         icon={<Ionicons name="heart-outline" size={18} color="#4A43EC" />}
-                        label="Saved Properties"
+                        label="Saved Projects"
+                        onPress={() => router.push('/(screens)/saved-properties')}
                     />
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="history" size={18} color="#4A43EC" />}
                         label="Recent Searches"
-                        isLast
-                    />
-                </SettingsCard>
-
-                {/* Services & Subscriptions */}
-                <SectionLabel text="SERVICES & SUBSCRIPTIONS" />
-                <SettingsCard style={{
-                    backgroundColor: '#eeedf5ff', shadowColor: "#4A43EC",
-                    shadowOffset: { width: 1, height: 1 },
-                    shadowRadius: 4,
-                    elevation: 1,
-                    borderWidth: 1,
-                    borderColor: '#cac9f1ff',
-                }}>
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        style={{
-                            flexDirection: 'row', alignItems: 'center',
-                            paddingHorizontal: 16, paddingVertical: 16,
-                        }}
-                    >
-                        <View style={{
-                            width: 36, height: 36, borderRadius: 10,
-                            backgroundColor: '#4A43EC',
-                            alignItems: 'center', justifyContent: 'center',
-                            marginRight: 12,
-                        }}>
-                            <MaterialCommunityIcons name="shield-star-outline" size={18} color="#fff" />
-                        </View>
-                        <View style={{ flex: 1, }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#4A43EC', }}>Premium Micro Area</Text>
-                            <Text style={{ fontSize: 12, color: '#6b66f3ff', marginTop: 1 }}>Expires in 14 days</Text>
-                        </View>
-                        <View style={{
-                            backgroundColor: '#4A43EC', borderRadius: 8,
-                            paddingHorizontal: 12, paddingVertical: 5,
-                        }}>
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>RENEW</Text>
-                        </View>
-                    </TouchableOpacity>
-                </SettingsCard>
-
-                <SettingsCard style={{ marginTop: 10, paddingVertical: 2 }}>
-                    <SettingsRow
-                        icon={<MaterialCommunityIcons name="clipboard-text-outline" size={18} color="#475569" />}
-                        label="Service History"
+                        onPress={() => router.push('/(screens)/recent-searches')}
                         isLast
                     />
                 </SettingsCard>

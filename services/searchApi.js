@@ -67,16 +67,16 @@ export const searchApi = {
 
     // Delete search history item (auth required)
     deleteSearchHistory: (token, id) =>
-        request(`/api/v1/search/history/${id}`, {
+        request(`/api/v1/search/history/single/${id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
             },
         }),
 
-    // Clear all search history (auth required)
+    // Clear all search history (auth required) - using dummy id since backend expects :id param
     clearAllSearchHistory: (token) =>
-        request('/api/v1/search/history', {
+        request('/api/v1/search/history/all', {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,

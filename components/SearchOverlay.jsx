@@ -302,20 +302,24 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         dispatch(setSearchQuery(searchTerm));
         onChangeText(searchTerm);
         
+        // Calculate result count based on current suggestions/matches
+        const resultCount = projectList.filter(p =>
+            p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.city?.toLowerCase().includes(searchTerm.toLowerCase())
+        ).length;
+        
         // Save search to history if user is logged in
         if (isLoggedIn && token) {
-            
             dispatch(saveSearchHistoryThunk({ 
                 query_text: searchTerm, 
                 filters: null, 
-                result_count: 0 
+                result_count: resultCount 
             }));
-        } else {
-            
         }
         
         router.push('/(screens)/property-listing');
-    }, [isLoggedIn, token, dispatch]);
+    }, [isLoggedIn, token, dispatch, projectList, onChangeText]);
 
     const handleDeleteHistory = useCallback((id) => {
         

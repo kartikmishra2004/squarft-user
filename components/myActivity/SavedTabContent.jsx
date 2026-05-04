@@ -1,11 +1,12 @@
 import React, { useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
 import EmptyState from "./EmptyState";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
+import { PropertyCardSkeleton } from "../SkeletonLoader";
 
 const SavedTabContent = () => {
   const dispatch = useDispatch();
@@ -22,9 +23,8 @@ const SavedTabContent = () => {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#4A43EC" />
-        <Text className="text-gray-500 mt-4">Loading saved properties...</Text>
+      <View className="flex-1 bg-white pt-10 px-4">
+        {[1, 2, 3].map(i => <PropertyCardSkeleton key={i} />)}
       </View>
     );
   }

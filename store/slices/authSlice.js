@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../../services/authApi';
+import { profileApi } from '../../services/profileApi';
 
 export const loginThunk = createAsyncThunk('auth/login', async ({ phone, password }, { rejectWithValue }) => {
     try {
@@ -50,6 +51,19 @@ export const resetPasswordThunk = createAsyncThunk('auth/resetPassword', async (
     }
 });
 
+// Fetch user profile
+export const fetchProfileThunk = createAsyncThunk('auth/fetchProfile', async (_, { getState, rejectWithValue }) => {
+    try {
+        const { token } = getState().auth;
+        if (!token) {
+            throw new Error('No authentication token');
+        }
+        return await profileApi.getUserProfile(token);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
 const authSlice = createSlice({
     name: 'auth',
     initialState: {
@@ -67,6 +81,7 @@ const authSlice = createSlice({
         isLoggedIn: false,
         token: null,
         user: null,
+        profile: null,
         loading: false,
         error: null,
     },
@@ -101,6 +116,7 @@ const authSlice = createSlice({
             state.password = '';
             state.token = null;
             state.user = null;
+            state.profile = null;
             state.isLoggedIn = false;
             state.error = null;
             state.otpToken = null;
@@ -157,6 +173,16 @@ const authSlice = createSlice({
                 state.verifiedToken = null;
             })
             .addCase(resetPasswordThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Fetch Profile
+            .addCase(fetchProfileThunk.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(fetchProfileThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.profile = action.payload;
+            })
+            .addCase(fetchProfileThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

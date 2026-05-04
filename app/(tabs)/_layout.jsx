@@ -132,11 +132,7 @@ export default function TabsLayout() {
                             Profile
                         </Text>
                     ),
-                    headerRight: () => (
-                        <TouchableOpacity style={{ marginRight: 16 }}>
-                            <Feather name="edit-2" size={20} color="#475569" />
-                        </TouchableOpacity>
-                    ),
+                   
                     headerStyle: { backgroundColor: '#F3F4F6' },
                     headerShadowVisible: false,
                     tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
