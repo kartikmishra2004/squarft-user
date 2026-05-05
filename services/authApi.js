@@ -20,37 +20,37 @@ async function request(path, options = {}) {
 
 export const authApi = {
     login: (phone, password) =>
-        request('/api/auth/auth/login', {
+        request('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ phone, password }),
         }),
 
     register: (phone, password, first_name, last_name) =>
-        request('/api/auth/auth/register', {
+        request('/auth/register', {
             method: 'POST',
             body: JSON.stringify({ phone, password, first_name, last_name }),
         }),
 
     sendOtp: (phone, purpose) =>
-        request('/api/auth/auth/send-otp', {
+        request('/auth/send-otp', {
             method: 'POST',
             body: JSON.stringify({ phone, purpose }),
         }),
 
     verifyOtp: (otp_token, otp) =>
-        request('/api/auth/auth/verify-otp', {
+        request('/auth/verify-otp', {
             method: 'POST',
             body: JSON.stringify({ otp_token, otp }),
         }),
 
     resetPassword: (verified_token, new_password) =>
-        request('/api/auth/auth/reset-password', {
+        request('/auth/reset-password', {
             method: 'POST',
             body: JSON.stringify({ verified_token, new_password }),
         }),
 
     googleLogin: (idToken) =>
-        request('/api/auth/auth/google', {
+        request('/auth/google', {
             method: 'POST',
             body: JSON.stringify({ idToken }),
         }),
