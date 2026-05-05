@@ -10,10 +10,10 @@ import RecentTabContent from "../../components/myActivity/RecentTabContent";
 
 export default function Favourite() {
   const [activeTab, setActiveTab] = useState("SAVED");
-  const { properties, savedProperties } = useSelector((state) => state.properties);
-  const savedCount = savedProperties.length; // Use API data
+  const { properties, savedProperties, contactedProperties } = useSelector((state) => state.properties);
+  const savedCount = savedProperties.length;
   const seenCount = properties.filter((p) => p.isSeen).length;
-  const contactedCount = properties.filter((p) => p.isContacted).length;
+  const contactedCount = contactedProperties.length;
   const recentCount = properties.filter((p) => p.isRecent).length;
 
   const TABS = [

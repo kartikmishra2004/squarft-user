@@ -66,6 +66,20 @@ export const unsavePropertyThunk = createAsyncThunk(
     }
 );
 
+// Fetch contacted properties from API
+export const fetchContactedPropertiesThunk = createAsyncThunk(
+    'properties/fetchContacted',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (!token) return [];
+            return await propertyApi.getContactedProperties(token);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const propertiesSlice = createSlice({
     name: 'properties',
     initialState: {
@@ -75,6 +89,7 @@ const propertiesSlice = createSlice({
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
         savedProperties: [], // API saved properties
+        contactedProperties: [], // API contacted properties
         bookedSiteVisits: [],
         upcomingSiteVisits: [],
         selectedCategory: 'all',
@@ -164,10 +179,21 @@ const propertiesSlice = createSlice({
             })
             // Unsave property
             .addCase(unsavePropertyThunk.fulfilled, (state, action) => {
-                // Optimistically remove from favouriteProjects
                 state.favouriteProjects = state.favouriteProjects.filter(id => id !== action.payload);
-                // Remove from savedProperties
                 state.savedProperties = state.savedProperties.filter(p => p.id !== action.payload);
+            })
+            // Fetch contacted properties
+            .addCase(fetchContactedPropertiesThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchContactedPropertiesThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.contactedProperties = action.payload.data || [];
+            })
+            .addCase(fetchContactedPropertiesThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
             });
     },
 });

@@ -64,4 +64,13 @@ export const propertyApi = {
                 'Authorization': `Bearer ${token}`,
             },
         }),
+
+    // Get contacted properties
+    getContactedProperties: (token) =>
+        request('/api/v1/properties/contacted', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        }),
 };
