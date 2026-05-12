@@ -29,13 +29,16 @@ import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import FeaturedCard from "../../components/FeaturedCard";
 import { fetchFeaturedProjectsThunk } from "../../store/slices/projectSlice";
+import { LinearGradient } from "expo-linear-gradient";
 
 const CATEGORIES = [
-  { id: "1", label: "Flat",       icon: "office-building", type: "Flat/Apartment" },
-  { id: "2", label: "Apartment",  icon: "magnify",         type: "Flat/Apartment" },
-  { id: "3", label: "Commercial", icon: "sofa",            type: "Commercial" },
-  { id: "4", label: "1 Rk",       icon: "domain",          type: "Flat/Apartment" },
-  { id: "5", label: "Plot",       icon: "store",           type: "Plot" },
+  { id: "1", label: "Plot",       image: require("../../assets/images/plot.png"),               type: "Plot" },
+  { id: "2", label: "Villa",      image: require("../../assets/images/villa.png"),               type: "Villa" },
+  { id: "3", label: "Apartment",  image: require("../../assets/images/apartment.png"),           type: "Apartment" },
+  { id: "4", label: "RowHouse",       image: require("../../assets/images/rowhouse.png"),        type: "RowHouse" },
+  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"),                      type: "Shop" },
+  { id: "6", label: "Showroom",   image: require("../../assets/images/showroom.png"),               type: "Commercial" },
+  { id: "7", label: "Office",     image: require("../../assets/images/office.png"),               type: "Commercial" },
 ];
 
 const cardShadow = {
@@ -164,25 +167,17 @@ export default function Home() {
             paddingTop: Platform.OS === "ios" ? insets.top : insets.top + 7,
             position: "relative",
             overflow: "hidden",
-            backgroundColor: "#F9FAFB",
           }}
         >
-          {/* Right blur shade */}
-          <Image
-            source={require("../../assets/images/blur (5).png")}
+          {/* Purple → transparent gradient background */}
+          <LinearGradient
+            colors={["#5751f7ff", "#bbb9e6ff", "#F9FAFB"]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
             pointerEvents="none"
-            style={{
-              position: "absolute",
-              left: 216,
-              top: 23,
-              width: 241,
-              height: 241,
-              borderRadius: 1000,
-              opacity: 1,
-            }}
-
           />
-          {/* Left blur shade */}
+        
           <Image
             source={require("../../assets/images/blur (3).png")}
             pointerEvents="none"
@@ -260,25 +255,21 @@ export default function Home() {
                   dispatch(togglePropertyType(cat.type));
                   router.push({ pathname: '/(screens)/property-listing', params: { category: cat.label } });
                 }}
-                className="items-center justify-center bg-white rounded-xl gap-2"
+                className="items-center bg-white rounded-xl overflow-hidden"
                 style={{
-                  width: 64,
-                  height: 78,
-                  backgroundColor: "#fff",
-                  //borderRadius: 12,
-                  shadowColor: "#f2afddff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4
-
-
+                  width: 78.01, height: 83,
+                  shadowColor: "#f2afddff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4,
                 }}
               >
-                <MaterialCommunityIcons
-                  name={cat.icon}
-                  size={22}
-                  color="#4F46E5"
-                />
-                <Text className="text-[9px] text-black font-inter-regular">
+               
+                <Text className="text-[9px] text-black font-inter-regular py-2">
                   {cat.label}
                 </Text>
+                 <Image
+                  source={cat.image}
+                  style={{ width: 60, height: 52, padding: 10 }}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
             ))}
           </ScrollView>
