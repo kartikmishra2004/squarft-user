@@ -193,7 +193,7 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
             <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 20, gap: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Image
-        source={require('../../squarft-user/assets/icons/squarlogo.png')} 
+        source={require('../assets/icons/squarlogo.png')} 
       />
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 }}>SquarFT</Text>
                 </View>
