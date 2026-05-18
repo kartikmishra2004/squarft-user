@@ -60,8 +60,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f6e4f121-61d2-4650-9bdf-139f0c7ef9e6"
+        "projectId": "021ccf11-9300-463f-8065-bde7b3ff89c1"
       }
-    }
+    },
+    "owner": "kartik2611mishra"
   }
 }
