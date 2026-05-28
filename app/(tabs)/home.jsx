@@ -213,6 +213,22 @@ export default function Home() {
                 </Text>
               </View>
             </View>
+            <TouchableOpacity
+              onPress={() => router.push("/(screens)/chat-bot")}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Open chat bot"
+              className="w-[44px] h-[44px] rounded-full bg-white items-center justify-center"
+              style={{
+                shadowColor: "#4A43EC",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.14,
+                shadowRadius: 12,
+                elevation: 5,
+              }}
+            >
+              <MaterialCommunityIcons name="robot-outline" size={23} color="#4A43EC" />
+            </TouchableOpacity>
           </View>
 
           {/* Search */}
