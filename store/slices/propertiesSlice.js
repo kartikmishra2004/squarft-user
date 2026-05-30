@@ -131,7 +131,10 @@ const propertiesSlice = createSlice({
         addSiteVisit: (state, action) => {
             const exists = state.bookedSiteVisits.some((v) => v.id === action.payload.id);
             if (!exists) {
-                state.bookedSiteVisits.push(action.payload);
+                state.bookedSiteVisits.push({
+                    ...action.payload,
+                    propertyIds: action.payload.propertyIds || [], // Store property IDs array
+                });
             }
         },
         removeSiteVisit: (state, action) => {

@@ -224,11 +224,6 @@ export default function Settings() {
                         label="Biometric Lock"
                     />
 
-                    <SettingsRow
-                        icon={<Ionicons name="lock-closed-outline" size={18} color="#475569" />}
-                        label="Change Password"
-                        isLast
-                    />
                 </SettingsCard>
 
                 {/* Support */}

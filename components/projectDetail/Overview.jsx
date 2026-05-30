@@ -26,9 +26,17 @@ const cardShadow = {
 
 export default function Overview({ project }) {
     const [builderModalVisible, setBuilderModalVisible] = useState(false);
-    
     const [propertyDetailVisible, setPropertyDetailVisible] = useState(false);
     const [selectedVariant, setSelectedVariant] = useState(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        if (project?.reraId) {
+            await Clipboard.setStringAsync(project.reraId);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
     return (
         <View>
 
@@ -129,12 +137,18 @@ export default function Overview({ project }) {
                     <View>
 
                         <Text className="text-[12px] font-manrope-regular text-[#6B7280] mb-1">RERA ID</Text>
-                        <View className="flex-row items-center gap-3">
-                            <Text className="text-[14px] font-manrope-medium text-[#1A1A1A]">{project.reraId}</Text>
-                            <TouchableOpacity onPress={() => Clipboard.setStringAsync(project.reraId)}>
-                                <MaterialCommunityIcons name="content-copy" size={18} color="#9CA3AF" />
-                            </TouchableOpacity>
-                        </View>
+                       <View className="flex-row items-center gap-3">
+    <Text className="text-[14px] font-manrope-medium text-[#1A1A1A]">
+        {project?.reraId || "N/A"}
+    </Text>
+    <TouchableOpacity onPress={handleCopy} activeOpacity={0.7}>
+        <MaterialCommunityIcons 
+            name={copied ? "check" : "content-copy"}
+            size={18} 
+            color={copied ? "#22C55E" : "#9CA3AF"} // Turns green when successfully copied
+        />
+    </TouchableOpacity>
+</View>
                     </View>
                 )}
             </View>

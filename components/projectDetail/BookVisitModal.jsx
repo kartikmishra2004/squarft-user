@@ -36,10 +36,20 @@ export default function BookVisitModal({ visible, onClose, project }) {
 
     const handleContinue = () => {
         if (selected.length === 0) return;
+        
+        // Extract property IDs from selected floor plans
+        const propertyIds = (project?.floorPlans || [])
+            .filter(fp => selected.includes(fp.type || fp.title))
+            .map(fp => fp.id)
+            .filter(Boolean); // Remove any undefined/null values
+        
+        console.log('📋 Selected property IDs:', propertyIds);
+        
         dispatch(addSiteVisit({
             ...project,
             selectedUnits: selected,
             projectId: project.id,
+            propertyIds: propertyIds, // Pass property IDs
             id: project.id + Date.now().toString(),
         }));
         onClose();

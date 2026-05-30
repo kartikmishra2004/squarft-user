@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
-import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Alert, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { confirmVisits } from "../../store/slices/propertiesSlice";
+import { fetchBranchListThunk, fetchAvailableSlotsThunk, createSiteVisitThunk, clearAvailableSlots } from "../../store/slices/visitSlice";
 import { TIME_SLOTS } from "../../data/visits";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
@@ -14,6 +15,8 @@ export default function BookSiteVisit() {
   const router = useRouter();
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
+  const { isLoggedIn, token } = useSelector((state) => state.auth);
+  const { branches, availableSlots, branchesLoading, slotsLoading, creating } = useSelector((state) => state.visit);
 
   // Deduplicate securely to prevent persisted duplicates lingering from old bug
   const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
@@ -26,11 +29,58 @@ export default function BookSiteVisit() {
   const [selectedTime, setSelectedTime] = useState(initialTime ? [initialTime] : []);
   const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
   const [notes, setNotes] = useState(initialNotes || "");
+  const [selectedBranch, setSelectedBranch] = useState(null);
   const insets = useSafeAreaInsets();
 
   const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => v.id);
-
   const visitCount = selectedPropertyIds.length || 1;
+
+  // Get first property to determine city for branch lookup
+  const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(v.id));
+  const propertyCity = firstProperty?.location?.split(',').pop()?.trim() || firstProperty?.city || 'Mumbai';
+
+  // Fetch branches when component mounts
+  useEffect(() => {
+    if (isLoggedIn && token && propertyCity) {
+      console.log('🏢 Fetching branches for city:', propertyCity);
+      dispatch(fetchBranchListThunk(propertyCity));
+    }
+  }, [propertyCity, isLoggedIn, token]);
+
+  // Auto-select first branch when branches load
+  useEffect(() => {
+    if (branches.length > 0 && !selectedBranch) {
+      setSelectedBranch(branches[0]);
+      console.log('✅ Auto-selected branch:', branches[0].name);
+    }
+  }, [branches]);
+
+  // Fetch available slots when date or branch changes
+  useEffect(() => {
+    if (isLoggedIn && token && selectedDate && selectedBranch && firstProperty) {
+      // Get property_id from stored data, fallback to project ID
+      const propertyId = firstProperty.propertyIds?.[0] || firstProperty.projectId || firstProperty.id.replace(/\d{13}$/, "");
+      
+      console.log('🕐 Fetching available slots:', {
+        property_id: propertyId,
+        date: selectedDate,
+        branch_id: selectedBranch.id
+      });
+      
+      dispatch(fetchAvailableSlotsThunk({
+        property_id: propertyId,
+        date: selectedDate,
+        branch_id: selectedBranch.id
+      }));
+    }
+  }, [selectedDate, selectedBranch, isLoggedIn, token]);
+
+  // Clear slots when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(clearAvailableSlots());
+    };
+  }, []);
 
   const allSlots = [
     ...(TIME_SLOTS.morning || []),
@@ -45,6 +95,122 @@ export default function BookSiteVisit() {
 
   const isSlotSelected = (slot) =>
     Array.isArray(selectedTime) ? selectedTime.includes(slot) : selectedTime === slot;
+
+  const handleConfirmVisit = async () => {
+    if (!isLoggedIn || !token) {
+      Alert.alert('Login Required', 'Please login to book a site visit');
+      return;
+    }
+
+    if (selectedTime.length === 0) {
+      Alert.alert('Select Time', 'Please select a time slot for your visit');
+      return;
+    }
+
+    const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
+    if (itemsToBook.length === 0) return;
+
+    const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
+    
+    // Convert selected date and time to ISO format for API
+    const [hours, minutes] = selectedTimeVal.replace(/[AP]M/, '').trim().split(':').map(Number);
+    const isPM = selectedTimeVal.includes('PM');
+    const hour24 = isPM && hours !== 12 ? hours + 12 : (!isPM && hours === 12 ? 0 : hours);
+    
+    const slotDateTime = new Date(selectedDate);
+    slotDateTime.setHours(hour24, minutes || 0, 0, 0);
+
+    try {
+      const firstItem = itemsToBook[0];
+      
+      // Get property ID from stored data, fallback to project ID
+      const propertyId = firstItem.propertyIds?.[0] || firstItem.projectId;
+      
+      if (!propertyId) {
+        Alert.alert('Error', 'Unable to determine property ID. Please try adding the project to cart again.');
+        return;
+      }
+      
+      console.log('📤 Creating site visit:', {
+        property_id: propertyId,
+        slot_start: slotDateTime.toISOString(),
+        user_note: notes || null,
+        branch_id: selectedBranch?.id
+      });
+
+      const result = await dispatch(createSiteVisitThunk({
+        property_id: propertyId, // Use stored property ID
+        slot_start: slotDateTime.toISOString(),
+        user_note: notes || null,
+        branch_id: selectedBranch?.id
+      })).unwrap();
+
+      console.log('✅ Site visit created:', result);
+
+      // Also update local Redux state for UI
+      const dateObj = new Date(selectedDate);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      const newUpcoming = itemsToBook.map(item => ({
+        id: result.data?.id || Math.random().toString(),
+        projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
+        title: item.title || item.name,
+        location: item.location,
+        image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+        status: "UPCOMING",
+        dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
+        isoDate: selectedDate,
+        visitors: visitors,
+        notes: notes,
+        bookingId: `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
+        visitorName: currentUser.name,
+        duration: "1.5 Hours",
+      }));
+
+      dispatch(confirmVisits(newUpcoming));
+
+      router.replace({
+        pathname: '/(screens)/booking-status',
+        params: {
+          date: selectedDate,
+          time: selectedTimeVal,
+          propertyName: newUpcoming[0].title,
+          propertyId: newUpcoming[0].projectId
+        }
+      });
+    } catch (error) {
+      console.log('❌ Error creating site visit:', error);
+      
+      // Handle specific error messages with user-friendly alerts
+      const errorMessage = error?.message || error || 'Failed to book site visit. Please try again.';
+      
+      if (errorMessage.includes('No officers available')) {
+        Alert.alert(
+          'No Officers Available',
+          'Unfortunately, no sales officers are available for this time slot. Please try selecting a different date or time.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else if (errorMessage.includes('already have a booking')) {
+        Alert.alert(
+          'Booking Conflict',
+          'You already have a site visit booked at this time. Please choose a different time slot.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else if (errorMessage.includes('fully booked')) {
+        Alert.alert(
+          'Slot Fully Booked',
+          'This time slot is fully booked. Please select another time.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Booking Failed',
+          errorMessage,
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    }
+  };
 
   return (
     <View className="flex-1 bg-white">
@@ -327,49 +493,20 @@ export default function BookSiteVisit() {
             </View>
           </View>
           <Pressable
-            onPress={() => {
-              const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
-
-              if (itemsToBook.length === 0) return;
-
-              const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
-              const dateObj = new Date(selectedDate);
-              const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-              const newUpcoming = itemsToBook.map(item => ({
-                id: Math.random().toString(),
-                projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
-                title: item.title || item.name,
-                location: item.location,
-                image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-                status: "UPCOMING",
-                dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
-                isoDate: selectedDate,
-                visitors: visitors,
-                notes: notes,
-                bookingId: `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
-                visitorName: currentUser.name,
-                duration: "1.5 Hours",
-              }));
-
-              dispatch(confirmVisits(newUpcoming));
-
-              router.replace({
-                pathname: '/(screens)/booking-status',
-                params: {
-                  date: selectedDate,
-                  time: selectedTimeVal,
-                  propertyName: newUpcoming[0].title,
-                  propertyId: newUpcoming[0].projectId
-                }
-              });
-            }}
-            className="bg-[#4A43EC] rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2"
+            onPress={handleConfirmVisit}
+            disabled={creating}
+            className={`rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2 ${creating ? 'bg-gray-400' : 'bg-[#4A43EC]'}`}
           >
-            <Text className="text-white font-manrope-bold text-[15px] mr-2">
-              Confirm Site Visit
-            </Text>
-            <Feather name="arrow-right" size={16} color="white" />
+            {creating ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Text className="text-white font-manrope-bold text-[15px] mr-2">
+                  Confirm Site Visit
+                </Text>
+                <Feather name="arrow-right" size={16} color="white" />
+              </>
+            )}
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

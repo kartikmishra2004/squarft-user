@@ -70,4 +70,44 @@ export const profileApi = {
       throw error;
     }
   },
+
+  changePassword: async (token, currentPassword, newPassword) => {
+    try {
+      console.log('🔐 Changing password...');
+      
+      const response = await fetch(`${BASE_URL}/api/v1/profile/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          current_password: currentPassword,
+          new_password: newPassword 
+        }),
+      });
+
+      console.log('📡 Change Password API Response Status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('❌ Change Password API Error:', errorText);
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || 'Failed to change password');
+        } catch (e) {
+          throw new Error('Failed to change password');
+        }
+      }
+
+      const data = await response.json();
+      console.log('✅ Password changed successfully');
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Error changing password:', error);
+      throw error;
+    }
+  },
 };

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, Switch } from "react-native";
-import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { togglePossession, toggleReraOnly } from "../store/slices/filterSlice";
@@ -57,7 +57,8 @@ export default function PossessionFilterModal({ visible, onClose }) {
             handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
             backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
         >
-            <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 }}>
+            {/* BottomSheetView properly wraps the layout elements inside the modal */}
+            <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 }}>
                 <Text style={{ fontSize: 17, fontWeight: '600', color: '#111827', marginBottom: 16, textAlign: 'center' }}>
                     Possession Status
                 </Text>
@@ -121,7 +122,6 @@ export default function PossessionFilterModal({ visible, onClose }) {
                         borderColor: reraOnly ? '#00B67A' : '#E5E7EB',
                         borderRadius: 12,
                         marginBottom: 14,
-                        
                         backgroundColor: reraOnly ? '#F0FDF8' : '#fff',
                     }}
                 >
@@ -160,7 +160,7 @@ export default function PossessionFilterModal({ visible, onClose }) {
                 >
                     <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Apply</Text>
                 </TouchableOpacity>
-            </View>
+            </BottomSheetView>
         </BottomSheetModal>
     );
 }

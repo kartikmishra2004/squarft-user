@@ -1,12 +1,13 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, Dimensions } from "react-native";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { View, Text, Pressable, ScrollView, Image, Dimensions, ActivityIndicator } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
 import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
-import { removeSiteVisit, addSiteVisit } from "../../store/slices/propertiesSlice";
+import { removeSiteVisit } from "../../store/slices/propertiesSlice";
+import { fetchVisitListThunk } from "../../store/slices/visitSlice";
 import { ALL_VISITS } from "../../data/visits";
 import { allProjects } from "../../data/projects";
 
@@ -17,6 +18,8 @@ export default function Visit() {
   const [activeTab, setActiveTab] = useState("Book visit");
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const reduxUpcomingVisits = useSelector((state) => state.properties.upcomingSiteVisits || []);
+  const { visits: apiVisits, loading: visitsLoading } = useSelector((state) => state.visit);
+  const { isLoggedIn, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -26,6 +29,15 @@ export default function Visit() {
       setActiveTab("Upcoming");
     }
   }, [tab]);
+
+  // Fetch visits from API when user is logged in and on Upcoming/Past tabs
+  useEffect(() => {
+    if (isLoggedIn && token && (activeTab === "Upcoming" || activeTab === "Past")) {
+      const status = activeTab === "Upcoming" ? "pending" : "completed";
+      console.log('🔍 Fetching visits with status:', status);
+      dispatch(fetchVisitListThunk(status));
+    }
+  }, [activeTab, isLoggedIn, token]);
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -41,7 +53,31 @@ export default function Visit() {
     return true;
   });
 
-  const allCombinedVisits = [...reduxUpcomingVisits, ...validMockVisits];
+  // Merge API visits with local mock visits
+  const apiVisitsFormatted = apiVisits.map(v => ({
+    id: v.id,
+    projectId: v.property_id,
+    title: v.property_title || 'Property',
+    location: v.property_address || '',
+    image: v.property_image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+    status: v.status.toUpperCase(),
+    dateFull: new Date(v.slot_start).toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true 
+    }),
+    isoDate: new Date(v.slot_start).toISOString().split('T')[0],
+    visitors: 1,
+    notes: v.user_note || '',
+    bookingId: v.id,
+    visitorName: v.user_first_name ? `${v.user_first_name} ${v.user_last_name}` : 'User',
+    duration: "1.5 Hours",
+  }));
+
+  const allCombinedVisits = [...reduxUpcomingVisits, ...apiVisitsFormatted, ...validMockVisits];
 
   // Filter and sort for upcoming
   const upcomingVisits = allCombinedVisits
@@ -193,7 +229,12 @@ export default function Visit() {
         {/* Upcoming VISITS */}
         {activeTab === "Upcoming" && (
           <View className="mt-1">
-            {upcomingVisits.length > 0 ? (
+            {visitsLoading ? (
+              <View className="flex-1 items-center justify-center py-20">
+                <ActivityIndicator size="large" color="#4A43EC" />
+                <Text className="text-gray-500 font-manrope mt-4">Loading visits...</Text>
+              </View>
+            ) : upcomingVisits.length > 0 ? (
               upcomingVisits.map((visit) => (
                 <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
                   <View className="p-3.5">
@@ -273,7 +314,12 @@ export default function Visit() {
         {/* Past VISITS */}
         {activeTab === "Past" && (
           <View className="mt-1">
-            {pastVisits.length > 0 ? (
+            {visitsLoading ? (
+              <View className="flex-1 items-center justify-center py-20">
+                <ActivityIndicator size="large" color="#4A43EC" />
+                <Text className="text-gray-500 font-manrope mt-4">Loading visits...</Text>
+              </View>
+            ) : pastVisits.length > 0 ? (
               pastVisits.map((visit) => {
                 const isCompleted = visit.status === "COMPLETED";
                 return (
@@ -366,9 +412,8 @@ export default function Visit() {
         )}
       </ScrollView>
 
-      {/* Sticky Footer for Book visit tab */}
       {activeTab === "Book visit" && bookedSiteVisits.length > 0 && (
-        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pt-6 pb-[110px]">
+        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pt-6 pb-[80px]">
           <View className="flex-row items-center justify-between">
             <View>
               <Text className="text-[10px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">

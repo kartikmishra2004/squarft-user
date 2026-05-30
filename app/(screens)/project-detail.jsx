@@ -145,13 +145,21 @@ export default function ProjectDetail() {
       projectId: id,
       projectSlug,
       isSaved,
+      isLoggedIn,
+      hasToken: !!token,
       floorPlansLoaded: !!floorPlans,
       floorPlansCount: floorPlans?.floor_plans?.length || 0,
       propertyIds,
     });
     
-    // Toggle local state immediately
+    // Toggle local state immediately for visual feedback
     dispatch(toggleFavourite(id));
+    
+    // Only proceed with API calls if user is logged in
+    if (!isLoggedIn || !token) {
+      console.log('⚠️ User not logged in, only saving locally');
+      return;
+    }
     
     // If we have property IDs, save/unsave them via API
     if (propertyIds.length > 0) {
@@ -187,7 +195,8 @@ export default function ProjectDetail() {
     } else {
       console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'projectSlug:', projectSlug);
     }
-    return () => dispatch(clearProject());
+    // Don't clear project on cleanup - it causes re-loading when navigating between projects
+    // Only clear when component actually unmounts (user leaves project detail screen)
   }, [projectSlug]);
 
   // Auto-sync saved state when floor plans load
@@ -404,9 +413,9 @@ export default function ProjectDetail() {
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {project.builder} · {project.possession}
+                {project.builder} 
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#4A43EC" />
+             
             </TouchableOpacity>
           </ImageBackground>
         </View>

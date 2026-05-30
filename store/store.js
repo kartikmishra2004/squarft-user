@@ -7,6 +7,8 @@ import searchSlice from './slices/searchSlice';
 import projectSlice from './slices/projectSlice';
 import dealsSlice from './slices/dealsSlice';
 import notificationSlice from './slices/notificationSlice';
+import visitSlice from './slices/visitSlice';
+import builderSlice from './slices/builderSlice';
 
 
 export const store = configureStore({
@@ -19,6 +21,8 @@ export const store = configureStore({
                 project: projectSlice,
                 deals: dealsSlice,
                 notifications: notificationSlice,
+                visit: visitSlice,
+                builder: builderSlice,
 
         },
 });

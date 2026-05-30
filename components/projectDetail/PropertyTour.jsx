@@ -230,9 +230,7 @@ export default function PropertyTour({ project }) {
                     <Ionicons name="person-outline" size={16} color="#F97316" />
                     <Text style={{ fontSize: 13, color: '#374151' }}>4 buyers contacted seller</Text>
                 </View>
-                <TouchableOpacity style={{ backgroundColor: '#4A43EC', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Schedule Site Visit</Text>
-                </TouchableOpacity>
+               
             </View>
 
         </View>
