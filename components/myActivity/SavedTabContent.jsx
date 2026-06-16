@@ -53,72 +53,92 @@ const SavedTabContent = () => {
     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       <StatusBar style="dark" />
       <View className="mt-10 px-4 mb-6">
-        {savedProperties.map((property, index) => (
-          <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
-            <View className="flex-row h-36 w-full">
-              <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                {property.cover_image ? (
-                  <Image source={{ uri: property.cover_image }} className="w-full h-full" resizeMode="cover" />
-                ) : (
-                  <View className="w-full h-full bg-gray-200 items-center justify-center">
-                    <Feather name="image" size={32} color="#9CA3AF" />
-                  </View>
-                )}
-                <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
-                  <Text className="text-white text-[10px] font-manrope">{property.type || 'Property'}</Text>
-                </View>
-              </View>
-              <View className="flex-[1] relative bg-gray-200">
-                {property.images && property.images.length > 1 ? (
-                  <Image source={{ uri: property.images[1] }} className="w-full h-full" resizeMode="cover" />
-                ) : (
-                  <View className="w-full h-full bg-gray-100 items-center justify-center">
-                    <Feather name="image" size={24} color="#D1D5DB" />
-                  </View>
-                )}
-                <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                  <Text className="text-white text-[10px] font-manrope">1/{property.total_images || 1}</Text>
-                </View>
-              </View>
-            </View>
-            <View className="px-3 pt-3 pb-2">
-              <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                {property.area}, {property.city}  •  {property.bedrooms} BHK
-              </Text>
-              <View className="flex-row items-center mb-1">
-                <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{property.title}</Text>
-                {property.rera_id && (
-                  <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
-                    <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
-                    <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
-                      <Feather name="check" size={6} color="white" />
+        {savedProperties.map((item, index) => {
+          // ✅ FIXED: Unpack the nested data layer safely to look up fields cleanly
+          const isPropertyType = item.type === 'property';
+          const propertyDetails = item.data || {};
+          const itemId = item.id || item.item_id || propertyDetails.id;
+          
+          // Fallback parsing blocks for cover images arrays
+          const coverImage = propertyDetails.cover_image_url || (propertyDetails.images && propertyDetails.images[0]?.url);
+
+          return (
+            <View key={(itemId || index) + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
+              <View className="flex-row h-36 w-full">
+                <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
+                  {coverImage ? (
+                    <Image source={{ uri: coverImage }} className="w-full h-full" resizeMode="cover" />
+                  ) : (
+                    <View className="w-full h-full bg-gray-200 items-center justify-center">
+                      <Feather name="image" size={32} color="#9CA3AF" />
                     </View>
+                  )}
+                  <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
+                    <Text className="text-white text-[10px] font-manrope">
+                      {isPropertyType ? (propertyDetails.type || 'Property') : 'Project'}
+                    </Text>
                   </View>
-                )}
+                </View>
+                <View className="flex-[1] relative bg-gray-200">
+                  {propertyDetails.images && propertyDetails.images.length > 1 ? (
+                    <Image source={{ uri: isPropertyType ? propertyDetails.images[1]?.url : propertyDetails.images[1] }} className="w-full h-full" resizeMode="cover" />
+                  ) : (
+                    <View className="w-full h-full bg-gray-100 items-center justify-center">
+                      <Feather name="image" size={24} color="#D1D5DB" />
+                    </View>
+                  )}
+                  <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
+                    <Text className="text-white text-[10px] font-manrope">1/{propertyDetails.images?.length || 1}</Text>
+                  </View>
+                </View>
               </View>
-              <Text className="text-[11px] text-[#9CA3AF] font-manrope">{property.pincode}</Text>
-            </View>
-            <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
-            <View className="flex-row justify-between px-3 pb-3">
-              <View>
-                <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">
-                  {property.bedrooms} BHK • {property.total_area_sqft} sqft
+              <View className="px-3 pt-3 pb-2">
+                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
+                  {propertyDetails.area || 'N/A'}, {propertyDetails.city || 'N/A'} {isPropertyType ? ` •  ${propertyDetails.bedrooms || 0} BHK` : ''}
                 </Text>
-                <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">
-                  {property.min_price ? `₹${(property.min_price / 100000).toFixed(1)}L` : 'Price on request'}
-                </Text>
+                <View className="flex-row items-center mb-1">
+                  <Text className="text-[15px] font-manrope-extrabold text-[#111827]">
+                    {propertyDetails.title || propertyDetails.name || 'Unnamed Asset'}
+                  </Text>
+                  {propertyDetails.rera_id && (
+                    <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
+                      <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
+                      <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
+                        <Feather name="check" size={6} color="white" />
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{propertyDetails.pincode || ''}</Text>
+              </View>
+              <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
+              <View className="flex-row justify-between px-3 pb-3">
+                <View>
+                  <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">
+                    {isPropertyType ? `${propertyDetails.bedrooms || 0} BHK • ${propertyDetails.total_area_sqft || 0} sqft` : 'Upcoming Core Project'}
+                  </Text>
+                  <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">
+                    {propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from ? 
+                      `₹${((propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from) / 100000).toFixed(1)}L` 
+                      : 'Price on request'}
+                  </Text>
+                </View>
+              </View>
+              <View className="px-3 pb-3">
+                <Pressable
+                  // ✅ FIXED: Explicitly maps incoming route payload references from inside the nested propertyDetails stack tree structure
+                  onPress={() => router.push({ 
+                    pathname: isPropertyType ? "/(screens)/property-type" : "/(screens)/project-detail", 
+                    params: { id: itemId, slug: propertyDetails.slug || 'none' } 
+                  })}
+                  className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
+                >
+                  <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
+                </Pressable>
               </View>
             </View>
-            <View className="px-3 pb-3">
-              <Pressable
-                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: property.id, slug: property.slug } })}
-                className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
-              >
-                <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
-              </Pressable>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
       <View className="px-4">
         <View className="flex-row justify-between items-center mb-3">

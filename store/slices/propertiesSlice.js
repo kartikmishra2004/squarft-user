@@ -8,65 +8,49 @@ export const fetchSavedPropertiesThunk = createAsyncThunk(
     async (_, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
-            if (!token) {
-                
-                return [];
-            }
-            
-            return await propertyApi.getSavedProperties(token);
+            if (!token) return [];
+            const response = await propertyApi.getSavedProperties(token);
+            return response?.data || response || [];
         } catch (e) {
-            
             return rejectWithValue(e.message);
         }
     }
 );
 
-// Save property to API
+// Save an item to API (property or project)
 export const savePropertyThunk = createAsyncThunk(
     'properties/save',
-    async (propertyId, { getState, rejectWithValue }) => {
+    async ({ itemType, itemId }, { getState, rejectWithValue }) => {
         try {
             const { token, isLoggedIn } = getState().auth;
-            console.log('💾 savePropertyThunk called:', { propertyId, isLoggedIn, hasToken: !!token });
+            if (!isLoggedIn || !token || !itemId) return null;
             
-            if (!isLoggedIn || !token) {
-                console.log('⚠️ User not logged in, skipping API save');
-                return null;
-            }
-            
-            console.log('📤 Calling API to save property:', propertyId);
-            const result = await propertyApi.saveProperty(token, propertyId);
-            console.log('✅ Property saved successfully:', result);
-            return propertyId;
+            console.log('📤 Dispatching Save API Call for:', { itemType, itemId });
+            await propertyApi.saveItem(token, itemType, itemId);
+            return { itemType, itemId };
         } catch (e) {
-            console.log('❌ Error saving property:', e.message);
             return rejectWithValue(e.message);
         }
     }
 );
 
-// Unsave property from API
+// Unsave an item from API (property or project)
 export const unsavePropertyThunk = createAsyncThunk(
     'properties/unsave',
-    async (propertyId, { getState, rejectWithValue }) => {
+    async ({ itemType, itemId }, { getState, rejectWithValue }) => {
         try {
             const { token, isLoggedIn } = getState().auth;
-            if (!isLoggedIn || !token) {
-                console.log('⚠️ User not logged in, skipping API unsave');
-                return null;
-            }
-            console.log('🗑️ Unsaving property from API:', propertyId);
-            const result = await propertyApi.unsaveProperty(token, propertyId);
-            console.log('✅ Property unsaved successfully:', result);
-            return propertyId;
+            if (!isLoggedIn || !token || !itemId) return null;
+
+            console.log('🗑️ Dispatching Unsave API Call for:', { itemType, itemId });
+            await propertyApi.unsaveItem(token, itemType, itemId);
+            return { itemType, itemId };
         } catch (e) {
-            console.log('❌ Error unsaving property:', e.message);
             return rejectWithValue(e.message);
         }
     }
 );
 
-// Fetch contacted properties from API
 export const fetchContactedPropertiesThunk = createAsyncThunk(
     'properties/fetchContacted',
     async (_, { getState, rejectWithValue }) => {
@@ -80,6 +64,52 @@ export const fetchContactedPropertiesThunk = createAsyncThunk(
     }
 );
 
+export const fetchRecommendedPropertiesThunk = createAsyncThunk(
+    'properties/fetchRecommended',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            return await propertyApi.getRecommendedProperties(token, { limit: 6 });
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
+const formatPrice = (value) => {
+    const num = Number(value);
+    if (!num || Number.isNaN(num)) return null;
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
+    return `₹${num.toLocaleString('en-IN')}`;
+};
+
+const normalizeRecommendedProperties = (payload) => {
+    const list = Array.isArray(payload) ? payload : (payload?.data || []);
+    return list.map((property) => {
+        const minPrice = property.min_price ?? property.price_from ?? property.priceFrom;
+        const maxPrice = property.max_price ?? property.price_to ?? property.priceTo;
+        const priceFrom = formatPrice(minPrice);
+        const priceTo = formatPrice(maxPrice);
+
+        return {
+            ...property,
+            id: property.id ?? property.property_id ?? property.slug,
+            title: property.title ?? property.name ?? property.project_name ?? property.property_name,
+            type: property.type ?? property.property_type ?? property.category ?? 'Property',
+            price: priceFrom && priceTo && minPrice !== maxPrice
+                ? `${priceFrom} – ${priceTo}`
+                : (priceFrom || priceTo || property.priceINR || property.price || property.avgPricePerSqft || ''),
+            area: property.area ?? property.size ?? property.area_sqft ?? property.cover_area ?? '',
+            beds: property.bedrooms ?? property.bhk ?? property.bedroom_count ?? '',
+            baths: property.bathrooms ?? property.bathroom_count ?? '',
+            image: property.image ?? property.cover_image ?? property.image_url ?? property.imageMain,
+            location: property.location ?? [property.area, property.city].filter(Boolean).join(', '),
+            isFavourite: Boolean(property.isFavourite),
+        };
+    });
+};
+
 const propertiesSlice = createSlice({
     name: 'properties',
     initialState: {
@@ -88,8 +118,10 @@ const propertiesSlice = createSlice({
         missed: missedProperties.map((p) => ({ ...p })),
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
         favouriteProjects: [],
-        savedProperties: [], // API saved properties
-        contactedProperties: [], // API contacted properties
+        savedProperties: [], 
+        contactedProperties: [], 
+        recommended: [],
+        recommendedLoading: false,
         bookedSiteVisits: [],
         upcomingSiteVisits: [],
         selectedCategory: 'all',
@@ -105,7 +137,6 @@ const propertiesSlice = createSlice({
             const missed = state.missed.find((p) => p.id === action.payload);
             if (missed) missed.isFavourite = !missed.isFavourite;
 
-            // also toggle for projects
             const idx = state.favouriteProjects.indexOf(action.payload);
             if (idx === -1) state.favouriteProjects.push(action.payload);
             else state.favouriteProjects.splice(idx, 1);
@@ -133,7 +164,7 @@ const propertiesSlice = createSlice({
             if (!exists) {
                 state.bookedSiteVisits.push({
                     ...action.payload,
-                    propertyIds: action.payload.propertyIds || [], // Store property IDs array
+                    propertyIds: action.payload.propertyIds || [], 
                 });
             }
         },
@@ -143,12 +174,8 @@ const propertiesSlice = createSlice({
         confirmVisits: (state, action) => {
             const newVisits = action.payload; 
             const newProjectIds = newVisits.map(v => v.projectId);
-            
-            // Deduplicate the upcoming visits (this effectively 'updates' the rescheduled visit)
             state.upcomingSiteVisits = state.upcomingSiteVisits.filter(v => !newProjectIds.includes(v.projectId));
             state.upcomingSiteVisits.push(...newVisits);
-            
-            // Clear items from the cart matching the booked projectIds
             state.bookedSiteVisits = state.bookedSiteVisits.filter(v => {
                 const targetId = v.projectId || v.id.replace(/_reschedule_.*/, "");
                 return !newProjectIds.includes(targetId);
@@ -160,32 +187,42 @@ const propertiesSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Fetch saved properties
             .addCase(fetchSavedPropertiesThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
             })
             .addCase(fetchSavedPropertiesThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                state.savedProperties = action.payload.data || [];
+                const items = action.payload || [];
+                state.savedProperties = items;
+                state.favouriteProjects = items.map(item => item.item_id || item.id || item.data?.id);
             })
             .addCase(fetchSavedPropertiesThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
-            // Save property
             .addCase(savePropertyThunk.fulfilled, (state, action) => {
-                // Optimistically add to favouriteProjects
-                if (!state.favouriteProjects.includes(action.payload)) {
-                    state.favouriteProjects.push(action.payload);
+                if (!action.payload) return;
+                const { itemId, itemType } = action.payload;
+                if (!state.favouriteProjects.includes(itemId)) {
+                    state.favouriteProjects.push(itemId);
+                }
+                const alreadyExists = state.savedProperties.some(p => p.id === itemId);
+                if (!alreadyExists) {
+                    state.savedProperties.push({
+                        id: itemId,
+                        item_id: itemId,
+                        item_type: itemType,
+                        data: { id: itemId, title: "Saved Item" }
+                    });
                 }
             })
-            // Unsave property
             .addCase(unsavePropertyThunk.fulfilled, (state, action) => {
-                state.favouriteProjects = state.favouriteProjects.filter(id => id !== action.payload);
-                state.savedProperties = state.savedProperties.filter(p => p.id !== action.payload);
+                if (!action.payload) return;
+                const { itemId } = action.payload;
+                state.favouriteProjects = state.favouriteProjects.filter(id => id !== itemId);
+                state.savedProperties = state.savedProperties.filter(p => p.id !== itemId && p.item_id !== itemId);
             })
-            // Fetch contacted properties
             .addCase(fetchContactedPropertiesThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
@@ -196,6 +233,18 @@ const propertiesSlice = createSlice({
             })
             .addCase(fetchContactedPropertiesThunk.rejected, (state, action) => {
                 state.loading = false;
+                state.error = action.payload;
+            })
+            .addCase(fetchRecommendedPropertiesThunk.pending, (state) => {
+                state.recommendedLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchRecommendedPropertiesThunk.fulfilled, (state, action) => {
+                state.recommendedLoading = false;
+                state.recommended = normalizeRecommendedProperties(action.payload);
+            })
+            .addCase(fetchRecommendedPropertiesThunk.rejected, (state, action) => {
+                state.recommendedLoading = false;
                 state.error = action.payload;
             });
     },

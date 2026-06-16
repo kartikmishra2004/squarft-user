@@ -3,8 +3,6 @@ import { BASE_URL } from './config';
 async function request(path, options = {}) {
     try {
         const url = `${BASE_URL}${path}`;
-        
-
         const { headers: optHeaders, ...restOptions } = options;
         
         const res = await fetch(url, {
@@ -16,7 +14,6 @@ async function request(path, options = {}) {
         });
         
         console.log('📡 Property API Response Status:', res.status);
-        
         const text = await res.text();
         
         let data;
@@ -38,39 +35,40 @@ async function request(path, options = {}) {
 }
 
 export const propertyApi = {
-    // Get saved properties
+    // Get saved properties - backend route is /api/v1/saved
     getSavedProperties: (token) =>
-        request('/api/v1/properties/saved', {
+        request('/api/v1/saved', {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         }),
 
-    // Save a property
-    saveProperty: (token, propertyId) =>
-        request(`/api/v1/properties/save/${propertyId}`, {
+    // ✅ FIXED: Matches backend route which is registered at /api/v1/save/:type/:id
+    saveItem: (token, itemType, itemId) =>
+        request(`/api/v1/save/${itemType}/${itemId}`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         }),
 
-    // Unsave a property
-    unsaveProperty: (token, propertyId) =>
-        request(`/api/v1/properties/save/${propertyId}`, {
+    // ✅ FIXED: Matches backend route which is registered at /api/v1/save/:type/:id
+    unsaveItem: (token, itemType, itemId) =>
+        request(`/api/v1/save/${itemType}/${itemId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         }),
+
+    // Get recommended properties
+    getRecommendedProperties: (token, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/properties/recommended${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        });
+    },
 
     // Get contacted properties
     getContactedProperties: (token) =>
         request('/api/v1/properties/contacted', {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         }),
 };

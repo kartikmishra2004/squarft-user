@@ -89,12 +89,63 @@ export const fetchFeaturedProjectsThunk = createAsyncThunk(
     'project/fetchFeatured',
     async (params = {}, { rejectWithValue }) => {
         try {
-            return await projectApi.getFeaturedProjects(params);
+            console.log('🔥 [fetchFeaturedProjectsThunk] Calling API with params:', params);
+            const response = await projectApi.getFeaturedProjects(params);
+            console.log('🔥 [fetchFeaturedProjectsThunk] API Response:', {
+                isArray: Array.isArray(response),
+                hasData: !!response?.data,
+                dataLength: Array.isArray(response) ? response.length : response?.data?.length,
+                sample: Array.isArray(response) ? response[0] : response?.data?.[0]
+            });
+            return response;
         } catch (e) {
+            console.log('❌ [fetchFeaturedProjectsThunk] Error:', e.message);
             return rejectWithValue(e.message);
         }
     }
 );
+
+const normalizeFeaturedProjects = (payload) => {
+    const list = Array.isArray(payload) ? payload : (payload?.data || []);
+    
+    console.log('🔄 [normalizeFeaturedProjects] Input:', {
+        isArray: Array.isArray(payload),
+        hasData: !!payload?.data,
+        listLength: list.length,
+        firstItem: list[0]
+    });
+
+    const normalized = list.map((project, index) => ({
+        ...project,
+        // ID mapping
+        id: project.id ?? project.project_id ?? project.slug ?? `featured-${index}`,
+        
+        // Name/Title mapping
+        title: project.name ?? project.title ?? project.project_name ?? project.projectTitle,
+        name: project.name ?? project.title ?? project.project_name ?? project.projectTitle,
+        
+        // Location mapping
+        location: project.location ?? [project.area, project.city].filter(Boolean).join(', '),
+        
+        // Image mapping - backend returns cover_image_url
+        image: project.cover_image_url ?? project.image_url ?? project.cover_image ?? project.image ?? project.imageMain,
+        image_url: project.cover_image_url ?? project.image_url ?? project.cover_image ?? project.image,
+        
+        // Price mapping - backend returns price_from and price_to
+        price_from: project.price_from ?? project.min_price ?? project.priceFrom,
+        price_to: project.price_to ?? project.max_price ?? project.priceTo,
+        
+        // Legacy price fields for backward compatibility
+        priceINR: project.priceINR ?? project.price ?? project.price_range ?? project.priceRange,
+    }));
+    
+    console.log('✅ [normalizeFeaturedProjects] Output:', {
+        count: normalized.length,
+        sample: normalized[0]
+    });
+    
+    return normalized;
+};
 
 const projectSlice = createSlice({
     name: 'project',
@@ -165,12 +216,27 @@ const projectSlice = createSlice({
             .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
                 state.similarProperties = action.payload.data || [];
             })
-            .addCase(fetchFeaturedProjectsThunk.pending, (state) => { state.featuredLoading = true; })
-            .addCase(fetchFeaturedProjectsThunk.fulfilled, (state, action) => {
-                state.featuredLoading = false;
-                state.featured = action.payload.data || [];
+            .addCase(fetchFeaturedProjectsThunk.pending, (state) => { 
+                console.log('⏳ [fetchFeaturedProjectsThunk] Pending...');
+                state.featuredLoading = true; 
             })
-            .addCase(fetchFeaturedProjectsThunk.rejected, (state) => { state.featuredLoading = false; });
+            .addCase(fetchFeaturedProjectsThunk.fulfilled, (state, action) => {
+                console.log('✅ [fetchFeaturedProjectsThunk] Fulfilled:', {
+                    payloadType: typeof action.payload,
+                    isArray: Array.isArray(action.payload),
+                    hasData: !!action.payload?.data
+                });
+                state.featuredLoading = false;
+                state.featured = normalizeFeaturedProjects(action.payload);
+                console.log('📦 [fetchFeaturedProjectsThunk] State updated:', {
+                    count: state.featured.length,
+                    items: state.featured.map(p => ({ id: p.id, name: p.name }))
+                });
+            })
+            .addCase(fetchFeaturedProjectsThunk.rejected, (state, action) => { 
+                console.log('❌ [fetchFeaturedProjectsThunk] Rejected:', action.error);
+                state.featuredLoading = false; 
+            });
     },
 });
 

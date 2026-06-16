@@ -86,10 +86,21 @@ export default function PropertyDetailModal({
     const variantType = variant.type || variant.title || "Property";
     const variantId = `${project.id}_${variantType.replace(/\s+/g, "_")}`;
     const isAdded = bookedVisits.some((v) => v.id === variantId);
-    
-    const amenitiesList = project.amenities 
-        ? project.amenities.map(a => typeof a === 'string' ? a : a.name)
-        : ["Gymnasium", "Swimming Pool", "24/7 Security", "Power Backup"];
+
+    const areaValue = variant.area_sqft ?? variant.total_area_sqft ?? variant.area ?? project.areaSqft ?? project.area_sqft ?? null;
+    const possessionValue = variant.possession_status || variant.possession || project.possessionStatus || project.possession || "—";
+    const towerValue = variant.tower_no || variant.tower || project.tower_no || project.towers || "—";
+    const basePriceValue = variant.base_price ?? variant.price ?? variant.priceRange ?? variant.price_from ?? null;
+    const priceText = basePriceValue !== null && basePriceValue !== undefined && basePriceValue !== ""
+        ? (typeof basePriceValue === 'number'
+            ? `₹${(basePriceValue / 100000).toFixed(0)}L`
+            : basePriceValue)
+        : "Contact for price";
+    const areaText = areaValue ? `${areaValue} sq.ft.` : "—";
+    const inventoryValue = variant.inventory ?? project.inventory ?? `${project.units ?? "—"}`;
+    const amenitiesList = (variant.amenities?.length ? variant.amenities : (project.amenities || []))
+        .map((a) => (typeof a === 'string' ? a : a?.name))
+        .filter(Boolean);
 
     return (
         <>
@@ -199,10 +210,10 @@ export default function PropertyDetailModal({
                     {/* Possession Info Row */}
                     <View className="flex-row items-center gap-5 mx-5 mt-3 mb-3.5">
                         <Text className="text-[12px] font-manrope-regular text-gray-500">
-                            Possession: {project.possession}
+                            Possession: {possessionValue}
                         </Text>
                         <Text className="text-[12px] font-manrope-regular text-gray-500">
-                            • Avg Price per sq ft: {project.avgPricePerSqft}
+                            • Base Price: {priceText}
                         </Text>
                     </View>
 
@@ -222,7 +233,7 @@ export default function PropertyDetailModal({
                             <View>
                                 <Text className="text-[12px] font-manrope-bold text-gray-500">{variantType}</Text>
                                 <Text className="text-[16px] font-manrope-extrabold text-[#0F172A]">
-                                    {variant.priceRange || variant.price || "Contact for price"}
+                                    {priceText}
                                 </Text>
                             </View>
                             <TouchableOpacity
@@ -270,7 +281,7 @@ export default function PropertyDetailModal({
                                     </View>
                                 </TouchableOpacity>
                                 <Text className="text-[11px] font-manrope-regular text-gray-400 mt-2">
-                                    {variantType} · {project.areaSqft} sq.ft.
+                                    {variantType} · {areaText}
                                 </Text>
                             </View>
                         )}
@@ -279,10 +290,10 @@ export default function PropertyDetailModal({
                     {/* Stats Metrics Matrix */}
                     <View className="flex-row flex-wrap mx-4 justify-between mb-3 mt-4">
                         {[
-                            { label: "AREA", value: `${project.areaSqft} sq.ft.` },
-                            { label: "POSSESSION", value: project.possession },
-                            { label: "TOWER", value: project.towers ?? "3" },
-                            { label: "INVENTORY", value: project.inventory ?? `${project.units ?? 50} of 150` },
+                            { label: "AREA", value: areaText },
+                            { label: "POSSESSION", value: possessionValue },
+                            { label: "TOWER", value: towerValue },
+                            { label: "INVENTORY", value: inventoryValue },
                         ].map((item) => (
                             <View
                                 key={item.label}
@@ -298,9 +309,13 @@ export default function PropertyDetailModal({
                     {/* Amenities Collection */}
                     <View className="mx-4 bg-white border border-gray-100 rounded-2xl p-4 px-5 mb-2">
                         <Text className="text-[15px] font-manrope-regular text-[#1A1A1A] mb-4">World-Class Amenities</Text>
-                        <View className="flex-row flex-wrap">
-                            {amenitiesList.map((a, i) => <AmenityItem key={i} label={a} />)}
-                        </View>
+                        {amenitiesList.length > 0 ? (
+                            <View className="flex-row flex-wrap">
+                                {amenitiesList.map((a, i) => <AmenityItem key={i} label={a} />)}
+                            </View>
+                        ) : (
+                            <Text className="text-[13px] font-manrope-regular text-gray-500">No amenities listed for this unit yet.</Text>
+                        )}
                     </View>
                 </BottomSheetScrollView>
 

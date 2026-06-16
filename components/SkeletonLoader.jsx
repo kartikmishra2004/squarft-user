@@ -105,6 +105,28 @@ export const SearchHistoryItemSkeleton = () => (
   </View>
 );
 
+export const HomeSectionSkeleton = ({ count = 2 }) => (
+  <View className="flex-row">
+    {Array.from({ length: count }).map((_, index) => (
+      <View
+        key={index}
+        className="bg-white rounded-2xl overflow-hidden p-2.5"
+        style={{ width: 166, height: 228, marginRight: index < count - 1 ? 12 : 0 }}
+      >
+        <Shimmer style={{ width: 144, height: 148, borderRadius: 12, marginBottom: 12 }} />
+        <Shimmer style={{ height: 14, width: '80%', marginBottom: 8 }} />
+        <Shimmer style={{ height: 12, width: '60%', marginBottom: 8 }} />
+        <View className="flex-row items-center">
+          <Shimmer style={{ width: 16, height: 16, borderRadius: 8, marginRight: 6 }} />
+          <Shimmer style={{ height: 10, width: '35%', marginRight: 10 }} />
+          <Shimmer style={{ width: 16, height: 16, borderRadius: 8, marginRight: 6 }} />
+          <Shimmer style={{ height: 10, width: '20%' }} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
 export const ProfileSkeleton = () => (
   <View className="flex-1 bg-[#F3F4F6]">
     <View className="items-center pt-8 pb-4">

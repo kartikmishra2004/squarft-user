@@ -127,29 +127,29 @@ export default function ProjectDetail() {
   const isSaved = savedProjects.includes(id);
 
   // Use slug from params or from API project list (local allProjects has no slug)
-  const projectSlug = slug || listProject?.slug;
+  const resolvedProjectSlug = slug || listProject?.slug || null;
 
-  // Get property IDs from floor plans (for saving to API)
-  const propertyIds = floorPlans?.floor_plans?.map(fp => fp.id).filter(Boolean) || [];
+  // Save the project itself, not the floor-plan properties
+  const projectSaveId = id || resolvedProjectSlug || listProject?.id;
 
   // If no slug available, fetch project list to resolve it
   useEffect(() => {
-    if (!projectSlug || projectSlug === 'none') {
+    if (!resolvedProjectSlug || resolvedProjectSlug === 'none') {
       dispatch(fetchProjectListThunk());
     }
-  }, []);
+  }, [dispatch, resolvedProjectSlug]);
   
   const handleToggleSave = async () => {
     console.log('🔖 Toggle Save Clicked');
     console.log('📊 Current State:', {
       projectId: id,
-      projectSlug,
+      projectSlug: resolvedProjectSlug,
       isSaved,
       isLoggedIn,
       hasToken: !!token,
       floorPlansLoaded: !!floorPlans,
       floorPlansCount: floorPlans?.floor_plans?.length || 0,
-      propertyIds,
+      projectSaveId,
     });
     
     // Toggle local state immediately for visual feedback
@@ -161,53 +161,34 @@ export default function ProjectDetail() {
       return;
     }
     
-    // If we have property IDs, save/unsave them via API
-    if (propertyIds.length > 0) {
+    if (projectSaveId) {
       if (isSaved) {
-        console.log('🗑️ Unsaving properties:', propertyIds);
-        // Unsave all properties in this project
-        for (const propId of propertyIds) {
-          await dispatch(unsavePropertyThunk(propId));
-        }
+        console.log('🗑️ Unsaving project via API:', projectSaveId);
+        await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: projectSaveId }));
       } else {
-        console.log('💾 Saving properties:', propertyIds);
-        // Save all properties in this project
-        for (const propId of propertyIds) {
-          await dispatch(savePropertyThunk(propId));
-        }
+        console.log('💾 Saving project via API:', projectSaveId);
+        await dispatch(savePropertyThunk({ itemType: 'project', itemId: projectSaveId }));
       }
       console.log('✅ Save/Unsave operations completed');
     } else {
-      console.log('⚠️ No property IDs available yet');
-      console.log('⚠️ Floor plans data:', floorPlans);
-      console.log('⚠️ Only saving locally, will sync when floor plans load');
+      console.log('⚠️ No project id available for save/unsave API');
     }
   };
 
   useEffect(() => {
-    if (projectSlug && projectSlug !== 'none') {
-      console.log('🔍 Fetching project details for slug:', projectSlug);
-      dispatch(fetchProjectDetailsThunk(projectSlug));
-      dispatch(fetchFloorPlansThunk(projectSlug));
-      dispatch(fetchResaleThunk(projectSlug));
-      dispatch(fetchLandmarksThunk(projectSlug));
-      dispatch(fetchAmenitiesThunk(projectSlug));
+    if (resolvedProjectSlug && resolvedProjectSlug !== 'none') {
+      console.log('🔍 Fetching project details for slug:', resolvedProjectSlug);
+      dispatch(fetchProjectDetailsThunk(resolvedProjectSlug));
+      dispatch(fetchFloorPlansThunk(resolvedProjectSlug));
+      dispatch(fetchResaleThunk(resolvedProjectSlug));
+      dispatch(fetchLandmarksThunk(resolvedProjectSlug));
+      dispatch(fetchAmenitiesThunk(resolvedProjectSlug));
     } else {
-      console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'projectSlug:', projectSlug);
+      console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'resolvedProjectSlug:', resolvedProjectSlug);
     }
     // Don't clear project on cleanup - it causes re-loading when navigating between projects
     // Only clear when component actually unmounts (user leaves project detail screen)
-  }, [projectSlug]);
-
-  // Auto-sync saved state when floor plans load
-  useEffect(() => {
-    if (isSaved && propertyIds.length > 0 && isLoggedIn && token) {
-      console.log('🔄 Floor plans loaded for saved project, syncing to API...');
-      propertyIds.forEach(propId => {
-        dispatch(savePropertyThunk(propId));
-      });
-    }
-  }, [propertyIds.length, isSaved, isLoggedIn, token]);
+  }, [dispatch, resolvedProjectSlug, id, slug]);
 
   if (!listProject && !apiProject) {
     return <ProjectDetailSkeleton insets={insets} />;
@@ -220,6 +201,13 @@ export default function ProjectDetail() {
 
   // Merge API data with list/local fallback
   const base = listProject || {};
+  const apiRating = apiProject?.rating ?? apiProject?.score ?? apiProject?.project_rating ?? base.rating;
+  const rawConfig = floorPlans?.summary?.configs ?? floorPlans?.configs ?? apiProject?.configs ?? apiProject?.config;
+  const rawStartingPrice = floorPlans?.summary?.starting_from ?? floorPlans?.summary?.startingFrom ?? floorPlans?.starting_from ?? floorPlans?.startingFrom ?? floorPlans?.price?.min ?? null;
+  const normalizedVariants = Array.isArray(floorPlans?.floor_plans) && floorPlans.floor_plans.length > 0
+    ? floorPlans.floor_plans
+    : (base.variants || []);
+
   const project = {
     ...base,
     ...(apiProject ? {
@@ -228,6 +216,7 @@ export default function ProjectDetail() {
       description: apiProject.description || base.description,
       reraId: apiProject.rera_id || base.reraId,
       possession: apiProject.possession || base.possession,
+      possessionStatus: apiProject.possession_status || base.possessionStatus || base.possession,
       builder: apiProject.developer?.name || base.builder,
       builderLogo: apiProject.developer?.logo ? { uri: apiProject.developer.logo } : base.builderLogo,
       developerId: apiProject.developer?.id || base.developerId,
@@ -235,7 +224,7 @@ export default function ProjectDetail() {
       brochure: apiProject.brochure || base.brochure || null,
       units: (apiProject.stats?.units && apiProject.stats.units !== "N/A") ? apiProject.stats.units : base.units,
       launchedIn: (apiProject.stats?.launched && apiProject.stats.launched !== "N/A") ? apiProject.stats.launched : base.launchedIn,
-      rating: apiProject.rating || base.rating,
+      rating: apiRating ?? base.rating,
       subTypes: base.subTypes,
       propertyType: base.propertyType,
       avgPricePerSqft: base.avgPricePerSqft,
@@ -250,7 +239,8 @@ export default function ProjectDetail() {
       launchedIn: base.launchedIn,
       rating: base.rating,
     }),
-    floorPlans: floorPlans?.floor_plans || base.variants,
+    variants: normalizedVariants,
+    floorPlans: normalizedVariants,
     resaleProperties: resale,
     landmarks: landmarks,
     amenities: amenities,
@@ -259,14 +249,14 @@ export default function ProjectDetail() {
       : projectList.filter(p => p.id !== id && (p.city === base.city || p.area === base.area)).slice(0, 5),
   };
 
-  const rawConfig = floorPlans?.summary?.configs;
   const bhkConfig = rawConfig
     ? rawConfig.split(',').map(s => s.trim().replace(/\s*BHK$/i, '')).join(', ') + ' BHK'
     : project.subTypes?.join(', ') + ' BHK';
-  const startingPrice =
-    floorPlans?.summary?.starting_from
-      ? `₹${(floorPlans.summary.starting_from / 100000).toFixed(0)}L`
-      : project.variants?.[0]?.priceRange?.split("–")[0]?.trim() ?? project.avgPricePerSqft;
+  const startingPrice = rawStartingPrice !== null && rawStartingPrice !== undefined
+    ? (typeof rawStartingPrice === 'number'
+        ? `₹${(rawStartingPrice / 100000).toFixed(0)}L`
+        : rawStartingPrice)
+    : project.variants?.[0]?.priceRange?.split("–")[0]?.trim() ?? project.avgPricePerSqft;
 
   return (
     <View className="flex-1 bg-[#F8F5FF]">

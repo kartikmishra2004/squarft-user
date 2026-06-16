@@ -175,25 +175,25 @@ export default function FilterModal() {
                 </View>
 
                 {/* Possession Status */}
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {POSSESSION.map((p) => <CheckBox key={p} label={p} checked={possessionStatus.includes(p)} onPress={() => dispatch(togglePossession(p))} />)}
                 </View>
 
             </BottomSheetScrollView>
 
-{/* bottom area */}
-            <View style={{ 
-                flexDirection: 'row', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                paddingHorizontal: 20, 
+            {/* bottom area */}
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 20,
                 paddingVertical: 14,
-                borderTopWidth: 1, 
+                borderTopWidth: 1,
                 borderTopColor: '#F3F4F6',
                 backgroundColor: '#fff',
             }}>
-              <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); setLiveBudget([BUDGET_MIN, BUDGET_MAX]); setLiveArea([AREA_MIN, AREA_MAX]); }}>
+                <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); setLiveBudget([BUDGET_MIN, BUDGET_MAX]); setLiveArea([AREA_MIN, AREA_MAX]); }}>
                     <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity

@@ -17,27 +17,27 @@ async function request(path, token, options = {}) {
 export const visitApi = {
     // Get list of visits by status
     getVisitList: (token, status) =>
-        request(`/api/v1/visit/list?status=${status}`, token),
+        request(`/api/v1/list?status=${status}`, token),
 
     // Get branches by city
     getBranchList: (token, city) =>
-        request(`/api/v1/visit/branches?city=${city}`, token),
+        request(`/api/v1/branches?city=${city}`, token),
 
     // Get available time slots
     getAvailableSlots: (token, property_id, date, branch_id) =>
-        request(`/api/v1/visit/slots?property_id=${property_id}&date=${date}&branch_id=${branch_id}`, token),
+        request(`/api/v1/slots?property_id=${property_id}&date=${date}&branch_id=${branch_id}`, token),
 
     // Create site visit
     createSiteVisit: (token, visitData) =>
-        request('/api/v1/visit/confirm', token, {
+        request('/api/v1/', token, {
             method: 'POST',
             body: JSON.stringify(visitData),
         }),
 
     // Update site visit
     updateSiteVisit: (token, visitId, updateData) =>
-        request(`/api/v1/visit/update/${visitId}`, token, {
-            method: 'POST',
+        request(`/api/v1/${visitId}`, token, {
+            method: 'PUT',
             body: JSON.stringify(updateData),
         }),
 };

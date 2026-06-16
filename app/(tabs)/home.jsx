@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,26 +20,26 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent } from "../../store/slices/propertiesSlice";
+import { useFocusEffect, useNavigation, router } from "expo-router";
+import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
 import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
 import FeaturedCard from "../../components/FeaturedCard";
-import { fetchFeaturedProjectsThunk } from "../../store/slices/projectSlice";
+import { fetchFeaturedProjectsThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { LinearGradient } from "expo-linear-gradient";
+import { HomeSectionSkeleton } from "../../components/SkeletonLoader";
 
 const CATEGORIES = [
-  { id: "1", label: "Plot",       image: require("../../assets/images/plot.png"),               type: "Plot" },
-  { id: "2", label: "Villa",      image: require("../../assets/images/villa.png"),               type: "Villa" },
-  { id: "3", label: "Apartment",  image: require("../../assets/images/apartment.png"),           type: "Apartment" },
-  { id: "4", label: "RowHouse",       image: require("../../assets/images/rowhouse.png"),        type: "RowHouse" },
-  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"),                      type: "Shop" },
-  { id: "6", label: "Showroom",   image: require("../../assets/images/showroom.png"),               type: "Commercial" },
-  { id: "7", label: "Office",     image: require("../../assets/images/office.png"),               type: "Commercial" },
+  { id: "1", label: "Plot", image: require("../../assets/images/plot.png"), type: "Plot" },
+  { id: "2", label: "Villa", image: require("../../assets/images/villa.png"), type: "Villa" },
+  { id: "3", label: "Apartment", image: require("../../assets/images/apartment.png"), type: "Apartment" },
+  { id: "4", label: "RowHouse", image: require("../../assets/images/rowhouse.png"), type: "RowHouse" },
+  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"), type: "Shop" },
+  { id: "6", label: "Showroom", image: require("../../assets/images/showroom.png"), type: "Commercial" },
+  { id: "7", label: "Office", image: require("../../assets/images/office.png"), type: "Commercial" },
 ];
 
 const cardShadow = {
@@ -49,23 +50,41 @@ const cardShadow = {
   elevation: 0.5,
 };
 
-function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, onToggleRecent }) {
+const formatProjectPrice = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "";
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)} Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
+  return `₹${num.toLocaleString('en-IN')}`;
+};
+
+const formatProjectPriceRange = (minValue, maxValue) => {
+  const minText = formatProjectPrice(minValue);
+  const maxText = formatProjectPrice(maxValue);
+  if (!minText && !maxText) return "";
+  if (minText && maxText) return `${minText} - ${maxText}`;
+  return minText || maxText;
+};
+
+function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, onToggleRecent, onPress }) {
   return (
     <TouchableOpacity
-      onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
+      onPress={onPress}
       activeOpacity={0.85}
       className="bg-white rounded-2xl overflow-hidden mr-3 p-2.5"
-      style={{ width: 166, height: 228, paddingTop: 15, paddingLeft: 10,
-         shadowColor: "#d2abc0ff",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 6,
-        }}
+      style={{
+        width: 166, height: 228, paddingTop: 15, paddingLeft: 10,
+        shadowColor: "#d2abc0ff",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.15,
+        shadowRadius: 2,
+        elevation: 6,
+      }}
     >
       <View style={{ position: "relative" }}>
         <Image
-          source={item.image}
+          source={typeof item.image === "string" ? { uri: item.image } : item.image}
           style={{ width: 144, height: 148, borderRadius: 12 }}
           resizeMode="cover"
         />
@@ -92,8 +111,8 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
       </View>
       <View className="px-1 pt-2 pb-2">
         <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-[12px] font-manrope-extrabold text-gray-900 ">
-            {item.type}
+          <Text className="text-[12px] font-manrope-extrabold text-gray-900" numberOfLines={2}>
+            {item.name || item.title || item.type}
           </Text>
           <Text className="text-[12px] font-bold text-[#4A43EC]">
             {item.price}
@@ -105,12 +124,11 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
             size={13}
             color="#FE8A71"
           />
-          <Text className="text-[11px] text-gray-600 mr-2">{item.area}</Text>
+          <Text className="text-[11px] text-gray-600 mr-2" numberOfLines={1}>{item.area || item.location}</Text>
           <MaterialCommunityIcons
             name="bed-outline"
             size={13}
             color="#FE8A71"
-
           />
           <Text className="text-[11px] text-gray-600 mr-2">{item.beds}</Text>
           <MaterialCommunityIcons name="shower" size={13} color="#FE8A71" />
@@ -124,17 +142,51 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
 export default function Home() {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
-  const { properties: allProperties, projectsInFocus, missed, highGrowthLocalities } = useSelector((s) => s.properties);
-  const { featured: apiFeatured, featuredLoading } = useSelector((s) => s.project);
-  const recommended = allProperties.filter((p) => p.tags.includes('recommended'));
-  const mockFeatured = allProperties.filter((p) => p.tags.includes('featured'));
-  const featuredProjects = apiFeatured.length > 0 ? apiFeatured : mockFeatured;
+  const { projectsInFocus, missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
+  const { featured: apiFeatured, featuredLoading, list: projectList, loading: projectLoading } = useSelector((s) => s.project);
+
+  const featuredProjects = useMemo(() => {
+    return (apiFeatured || []).map(project => ({
+      ...project,
+      isFavourite: favouriteProjects.includes(project.id),
+    }));
+  }, [apiFeatured, favouriteProjects]);
+
+  const refreshHomeData = useCallback(() => {
+    console.log('🔄 [Home Screen] Refreshing properties and project data sets from API...');
+    dispatch(fetchFeaturedProjectsThunk());
+    dispatch(fetchProjectListThunk());
+    dispatch(fetchRecommendedPropertiesThunk());
+  }, [dispatch]);
+  
+  useEffect(() => {
+    console.log('📊 [Home] Featured Projects State:', {
+      loading: featuredLoading,
+      count: featuredProjects.length,
+      data: featuredProjects.slice(0, 2)
+    });
+  }, [featuredProjects, featuredLoading]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshHomeData();
+      return () => undefined;
+    }, [refreshHomeData])
+  );
 
   useEffect(() => {
-    dispatch(fetchFeaturedProjectsThunk());
-  }, []);
+    const unsubscribe = navigation.addListener?.('tabPress', (event) => {
+      const targetPath = event?.target?.split('?')[0] ?? '';
+      if (targetPath.includes('home')) {
+        refreshHomeData();
+      }
+    });
+
+    return () => unsubscribe?.();
+  }, [navigation, refreshHomeData]);
 
   if (searchActive) {
     return (
@@ -150,12 +202,44 @@ export default function Home() {
     );
   }
 
-
-
-  const handleToggleFav = (id) => dispatch(toggleFavourite(id));
+  const handleToggleFav = (id) => {
+    const isSaved = favouriteProjects.includes(id);
+    if (isSaved) {
+      dispatch(unsavePropertyThunk({ itemType: 'project', itemId: id }));
+    } else {
+      dispatch(savePropertyThunk({ itemType: 'project', itemId: id }));
+    }
+    dispatch(toggleFavourite(id));
+  };
   const handleToggleSeen = (id) => dispatch(toggleSeen(id));
   const handleToggleContacted = (id) => dispatch(toggleContacted(id));
   const handleToggleRecent = (id) => dispatch(toggleRecent(id));
+
+  const recommendedProjects = (projectList || []).slice(0, 6).map((project) => {
+    const displayName = project.name || project.title || project.project_name || project.property_name || 'Project';
+    const locationText = [project.area, project.city].filter(Boolean).join(', ');
+    const displayPrice = formatProjectPriceRange(project.price_from ?? project.min_price, project.price_to ?? project.max_price)
+      || project.priceINR
+      || project.price
+      || project.priceRange
+      || '';
+
+    const projectId = project.id ?? project.project_id ?? project.slug;
+    return {
+      ...project,
+      id: projectId,
+      title: displayName,
+      name: displayName,
+      type: displayName,
+      price: displayPrice,
+      area: project.area || project.location || locationText || '',
+      beds: project.bedrooms || project.bhk ? `${project.bedrooms || project.bhk} BHK` : '',
+      baths: project.bathrooms ? `${project.bathrooms} Bath` : '',
+      image: project.cover_image_url || project.image_url || project.cover_image || project.imageMain || project.image || null,
+      location: project.location || locationText || '',
+      isFavourite: favouriteProjects.includes(projectId),
+    };
+  });
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
@@ -177,7 +261,7 @@ export default function Home() {
             style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
             pointerEvents="none"
           />
-        
+
           <Image
             source={require("../../assets/images/blur (3).png")}
             pointerEvents="none"
@@ -235,7 +319,7 @@ export default function Home() {
           <View className="flex-row px-5 gap-3 mb-5 ">
             <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-xl px-4 h-[44px] gap-[8px]" style={{ shadowColor: "#edabd8ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
               <FontAwesome name="search" size={20} color="#4A43EC" />
-             
+
               <TextInput
                 placeholder="Search..."
                 placeholderTextColor="#9CA3AF"
@@ -277,11 +361,11 @@ export default function Home() {
                   shadowColor: "#f2afddff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4,
                 }}
               >
-               
+
                 <Text className="text-[9px] text-black font-inter-regular py-2">
                   {cat.label}
                 </Text>
-                 <Image
+                <Image
                   source={cat.image}
                   style={{ width: 60, height: 52, padding: 10 }}
                   resizeMode="contain"
@@ -319,28 +403,51 @@ export default function Home() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={recommended}
-            extraData={allProperties}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              paddingHorizontal: 14,
-              paddingBottom: 12,
-              paddingTop: 2,
-            }}
-            renderItem={({ item }) => (
-              <RecommendedCard
-                item={item}
-                onToggleFav={handleToggleFav}
-                onToggleSeen={handleToggleSeen}
-                onToggleContacted={handleToggleContacted}
-                onToggleRecent={handleToggleRecent}
-              />
-            )}
-          />
+          {recommendedLoading ? (
+            <View className="px-5 py-4">
+              <HomeSectionSkeleton count={2} />
+            </View>
+          ) : recommendedProjects.length > 0 ? (
+            <FlatList
+              data={recommendedProjects}
+              extraData={recommendedProjects}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => String(item.id || item.slug)}
+              contentContainerStyle={{
+                paddingHorizontal: 14,
+                paddingBottom: 12,
+                paddingTop: 2,
+              }}
+              renderItem={({ item }) => {
+                const itemId = item.id || item.project_id || item.slug;
+                const itemSlug = item.slug || 'none';
+
+                return (
+                  <RecommendedCard
+                    item={item}
+                    onToggleFav={handleToggleFav}
+                    onToggleSeen={handleToggleSeen}
+                    onToggleContacted={handleToggleContacted}
+                    onToggleRecent={handleToggleRecent}
+                    onPress={() => {
+                      console.log('🔍 [Recommended Grid] Navigating to details screen:', { id: itemId, slug: itemSlug });
+                      router.push({
+                        pathname: "/(screens)/project-detail",
+                        params: { id: itemId, slug: itemSlug }
+                      });
+                    }}
+                  />
+                );
+              }}
+            />
+          ) : (
+            <View className="px-5 py-4">
+              <Text className="text-[13px] text-gray-500">No recommended projects available right now.</Text>
+            </View>
+          )}
         </View>
+
         {/* Featured Projects */}
         <View style={{ position: "relative" }}>
           <Image
@@ -362,15 +469,26 @@ export default function Home() {
               <Text className="text-[12px] text-[#6C3BFF] font-manrope-bold">View All</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={featuredProjects}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}
-            renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
-          />
+          {featuredLoading ? (
+            <View className="px-5 py-4">
+              <HomeSectionSkeleton count={2} />
+            </View>
+          ) : featuredProjects.length > 0 ? (
+            <FlatList
+              data={featuredProjects}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8 }}
+              renderItem={({ item }) => <FeaturedCard item={item} onToggleFav={handleToggleFav} />}
+            />
+          ) : (
+            <View className="px-5 py-4">
+              <Text className="text-[13px] text-gray-500">No featured projects available right now.</Text>
+            </View>
+          )}
         </View>
+
         {/* Cashback Banner */}
         <View className="mx-6 mt-6 mb-2 rounded-3xl overflow-hidden opacity-74" style={{ backgroundColor: "#6A5AE0", height: 115 }}>
           {/* Dark circle behind building */}
@@ -396,6 +514,7 @@ export default function Home() {
             resizeMode="cover"
           />
         </View>
+
         {/* Project in Focus */}
         <View className="flex-row justify-between items-center px-5 mt-6 mb-5 ml-2">
           <Text className="text-[15px] font-manrope-extrabold text-gray-900">Project in focus</Text>
@@ -410,14 +529,11 @@ export default function Home() {
             onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: project.id } })}
             className="mx-6 mb-4 rounded-2xl overflow-hidden h-[190px]"
           >
-            <Image source={project.image} className="w-full h-full zIndex-0" resizeMode="cover" />
-            {/* Dark overlay */}
+            <Image source={project.image} className="w-[full] h-full zIndex-0" resizeMode="cover" />
             <View className="absolute inset-0 bg-black/55" />
-            {/* Price pill top right */}
             <View className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1">
               <Text className="text-[11px] font-bold text-gray-900">{project.price}</Text>
             </View>
-            {/* Text bottom left */}
             <View className="absolute bottom-4 left-4">
               <Text className="text-[12px] font-public-bold text-[#e0733d] tracking-widest mb-1 zIndex-1">{project.tag}</Text>
               <Text className="text-[20px] font-public-bold text-white mb-0">{project.title}</Text>
@@ -494,6 +610,7 @@ export default function Home() {
             </TouchableOpacity>
           )}
         />
+
         {/* High Growth Localities */}
         <View className="flex-row justify-between items-center px-5 mt-10 mb-5">
           <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
@@ -507,18 +624,17 @@ export default function Home() {
             activeOpacity={0.85}
             onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
             className="mx-5 mb-3 bg-white rounded-2xl flex-row items-center border border-[#F1F5F9] px-2.5 py-3"
-            style={{ minHeight: 110,  
-                  shadowColor: "#bcc0c2ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 6.07, shadowRadius: 30, elevation: 1
- }}
+            style={{
+              minHeight: 110,
+              shadowColor: "#bcc0c2ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 6.07, shadowRadius: 30, elevation: 1
+            }}
           >
-            {/* Image with border */}
             <View className="w-[130px] h-[130px] rounded-2xl border border-indigo-100 overflow-hidden items-center justify-center">
               <Image source={item.image} className="w-[130px] h-[130px]" resizeMode="cover" />
               <View className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-indigo-100 items-center justify-center">
                 <MaterialCommunityIcons name="check-decagram-outline" size={16} color="#6366F1" />
               </View>
             </View>
-            {/* Right content */}
             <View className="flex-1 px-4 self-stretch justify-around">
               <View>
                 <Text className="text-[16px] font-public-bold text-[#0F172A]">{item.title}</Text>
@@ -534,6 +650,7 @@ export default function Home() {
             </View>
           </TouchableOpacity>
         ))}
+
         {/* Like the app? Share the app */}
         <View className="mx-4 mt-10 mb-15 rounded-3xl border border-[#4A43EC]/30 bg-white overflow-hidden">
           <View className="px-8 pt-6">
