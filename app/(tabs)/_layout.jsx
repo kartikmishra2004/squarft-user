@@ -1,44 +1,79 @@
 import { Tabs } from "expo-router";
-import { Platform, Text, TouchableOpacity } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Platform, Text } from "react-native";
 import { useSelector } from "react-redux";
-import { Image } from "expo-image";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const icons = {
-    home: {
-        inactive: require("../../assets/icons/tabs/home.png"),
-        active: require("../../assets/icons/tabs/home-active.png"),
-    },
-    myActivity: {
-        inactive: require("../../assets/icons/tabs/fav.png"),
-        active: require("../../assets/icons/tabs/fav-active.png"),
-    },
-    visit: {
-        inactive: require("../../assets/icons/tabs/book.png"),
-        active: require("../../assets/icons/tabs/book-active.png"),
-    },
-    myDeals: {
-        inactive: require("../../assets/icons/tabs/discount.png"),
-        active: require("../../assets/icons/tabs/discount-active.png"),
-    },
-    settings: {
-        inactive: require("../../assets/icons/tabs/settings.png"),
-        active: require("../../assets/icons/tabs/settings-active.png"),
-    },
+const TAB_COLOR = "#4A43EC";
+const MUTED_TAB_COLOR = "#94A3B8";
+
+const tabIcons = {
+    home: ["home", "home-outline"],
+    myActivity: ["pulse", "pulse-outline"],
+    visit: ["calendar", "calendar-outline"],
+    myDeals: ["pricetag", "pricetag-outline"],
+    settings: ["person-circle", "person-circle-outline"],
 };
 
-function TabIcon({ name, focused, size }) {
-    const icon = icons[name];
-    const activeSize = size?.active ?? { width: 44, height: 44 };
-    const inactiveSize = size?.inactive ?? { width: 24, height: 24 };
+function TabIcon({ name, focused }) {
+    const [activeIcon, inactiveIcon] = tabIcons[name];
+    const iconName = focused ? activeIcon : inactiveIcon;
+    const color = focused ? TAB_COLOR : MUTED_TAB_COLOR;
+    const scale = useRef(new Animated.Value(focused ? 1 : 0.94)).current;
+    const translateY = useRef(new Animated.Value(focused ? -2 : 0)).current;
+
+    useEffect(() => {
+        if (focused) {
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.timing(scale, {
+                        toValue: 1.18,
+                        duration: 120,
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(scale, {
+                        toValue: 1,
+                        friction: 4,
+                        tension: 140,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.sequence([
+                    Animated.timing(translateY, {
+                        toValue: -5,
+                        duration: 120,
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(translateY, {
+                        toValue: -2,
+                        friction: 5,
+                        tension: 120,
+                        useNativeDriver: true,
+                    }),
+                ]),
+            ]).start();
+            return;
+        }
+
+        Animated.parallel([
+            Animated.timing(scale, {
+                toValue: 0.94,
+                duration: 120,
+                useNativeDriver: true,
+            }),
+            Animated.timing(translateY, {
+                toValue: 0,
+                duration: 120,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [focused, scale, translateY]);
+
     return (
-        <Image
-            source={focused ? icon.active : icon.inactive}
-            style={[focused ? activeSize : inactiveSize]}
-            contentFit="contain"
-            transition={0}
-        />
+        <Animated.View style={{ transform: [{ translateY }, { scale }] }}>
+            <Ionicons name={iconName} size={24} color={color} />
+        </Animated.View>
     );
 }
 
@@ -51,7 +86,17 @@ export default function TabsLayout() {
     return (
         <Tabs
             screenOptions={{
-                tabBarShowLabel: false,
+                tabBarShowLabel: true,
+                tabBarActiveTintColor: TAB_COLOR,
+                tabBarInactiveTintColor: MUTED_TAB_COLOR,
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontFamily: "Inter_600SemiBold",
+                    marginTop: 2,
+                },
+                tabBarItemStyle: {
+                    paddingTop: 3,
+                },
                 tabBarStyle: searchActive ? { display: 'none' } : {
                     position: "absolute",
                     left: 0,
@@ -61,10 +106,10 @@ export default function TabsLayout() {
                     borderTopLeftRadius: 45,
                     borderTopColor: "transparent",
                     backgroundColor: "#fff",
-                    paddingTop: 15,
+                    paddingTop: 12,
                     paddingHorizontal: 15,
                     paddingBottom: iosBottomPadding,
-                    height: Platform.OS === "ios" ? 85 : 80,
+                    height: Platform.OS === "ios" ? 88 : 82,
                     ...Platform.select({
                         ios: {
                             shadowColor: "#000",
@@ -83,6 +128,7 @@ export default function TabsLayout() {
                 name="home"
                 options={{
                     headerShown: false,
+                    tabBarLabel: "Home",
                     tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
                 }}
             />
@@ -96,6 +142,7 @@ export default function TabsLayout() {
                         borderBottomWidth: 1.,
                         borderBottomColor: 'rgba(0,0,0,0.06)',
                     },
+                    tabBarLabel: "Activity",
                     tabBarIcon: ({ focused }) => <TabIcon name="myActivity" focused={focused} />,
                 }}
             />
@@ -104,22 +151,15 @@ export default function TabsLayout() {
                 options={{
                     headerTitle: "Book a site visit",
                     headerTitleAlign: "center",
-                    tabBarIcon: ({ focused }) => (
-                        <TabIcon
-                            name="visit"
-                            focused={focused}
-                            size={{
-                                active: { width: 56, height: 56, position: "absolute", bottom: 0 },
-                                inactive: { width: 56, height: 56, position: "absolute", bottom: 0 },
-                            }}
-                        />
-                    ),
+                    tabBarLabel: "Visit",
+                    tabBarIcon: ({ focused }) => <TabIcon name="visit" focused={focused} />,
                 }}
             />
             <Tabs.Screen
                 name="myDeals"
                 options={{
                     headerShown: false,
+                    tabBarLabel: "Deals",
                     tabBarIcon: ({ focused }) => <TabIcon name="myDeals" focused={focused} />,
                 }}
             />
@@ -135,6 +175,7 @@ export default function TabsLayout() {
                    
                     headerStyle: { backgroundColor: '#F3F4F6' },
                     headerShadowVisible: false,
+                    tabBarLabel: "Profile",
                     tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
                 }}
 
