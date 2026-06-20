@@ -504,13 +504,13 @@ export default function ChatBot() {
         <Pressable onPress={() => router.back()} className="h-10 w-10 items-center justify-center rounded-full bg-[#F4F5F7]">
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </Pressable>
-        <View className="items-center mr-10">
+        <View className="items-center">
           <Text className="text-[17px] font-lato-bold text-[#111827]">Sasha AI</Text>
           <Text className="mt-0.5 text-[11px] font-manrope-medium text-[#00A86B]">
             {isSending ? "Thinking..." : isStreaming ? "Typing..." : "Online"}
           </Text>
         </View>
-        <View />
+        <View className="h-10 w-10" />
       </View>
 
       <FlatList

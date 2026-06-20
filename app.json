@@ -42,6 +42,23 @@
           }
         }
       ],
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "audioType": "communication"
+          },
+          "ios": {
+            "enableMultitaskingCameraAccess": false
+          }
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "microphonePermission": "Allow SquarFT to use your microphone for AI voice calls."
+        }
+      ],
       "expo-font"
     ],
     "splash": {

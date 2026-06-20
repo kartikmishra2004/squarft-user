@@ -7,6 +7,28 @@ import { useDispatch } from "react-redux";
 import { addSiteVisit } from "../../store/slices/propertiesSlice";
 import { useRouter } from "expo-router";
 
+function formatCompactPrice(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    if (amount >= 10000000) {
+        const crores = amount / 10000000;
+        return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+    }
+
+    if (amount >= 100000) {
+        const lakhs = amount / 100000;
+        return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+    }
+
+    return `\u20B9${amount.toLocaleString('en-IN')}`;
+}
+
+function getImageSource(image, fallback) {
+    if (typeof image === 'string' && image) return { uri: image };
+    return image || fallback;
+}
+
 export default function BookVisitModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const [selected, setSelected] = useState([]);
@@ -82,6 +104,8 @@ export default function BookVisitModal({ visible, onClose, project }) {
             <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
                 {(project?.variants || project?.floorPlans || []).map((v, i) => {
                     const isSelected = selected.includes(v.type || v.title);
+                    const priceText = v.priceRange || formatCompactPrice(v.price ?? v.base_price ?? v.price_from) || '\u2014';
+                    const areaText = v.area || (v.area_sqft ? `${v.area_sqft} SQ.FT.` : (project.areaSqft ? `${project.areaSqft} SQ.FT.` : '\u2014'));
                     return (
                         <TouchableOpacity
                             key={i}
@@ -89,16 +113,16 @@ export default function BookVisitModal({ visible, onClose, project }) {
                             className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
                         >
                             <View className="w-24 h-24 rounded-xl bg-gray-100 mr-3 overflow-hidden">
-                                <Image source={project.imageMain} className="w-full h-full" resizeMode="cover" />
+                                <Image source={getImageSource(v.image, project.imageMain)} className="w-full h-full" resizeMode="cover" />
                             </View>
                             <View className="flex-1">
                                 <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5">{v.type || v.title}</Text>
                                 <Text className="text-[13px] font-inter-bold text-indigo-600 mb-0.5">
-                                    {v.priceRange || (v.price ? `₹${(v.price/100000).toFixed(0)}L` : '—')}
+                                    {priceText}
                                 </Text>
                                 <View className="flex-row items-center gap-1">
                                     <MaterialCommunityIcons name="floor-plan" size={11} color="#9CA3AF" />
-                                    <Text className="text-[11px] text-gray-400">{v.area || project.areaSqft} SQ.FT.</Text>
+                                    <Text className="text-[11px] text-gray-400">{areaText}</Text>
                                 </View>
                             </View>
                             <View className={`w-6 h-6 rounded-md border-2 items-center justify-center ml-2 ${isSelected ? "bg-indigo-600 border-indigo-600" : "border-gray-300"}`}>

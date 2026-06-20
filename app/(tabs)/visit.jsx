@@ -1,19 +1,91 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ScrollView, Image, ActivityIndicator, StyleSheet } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
 import BookVisitModal from "../../components/projectDetail/BookVisitModal";
-import { Link, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { removeSiteVisit } from "../../store/slices/propertiesSlice";
 import { fetchVisitListThunk } from "../../store/slices/visitSlice";
 import { ALL_VISITS } from "../../data/visits";
 import { allProjects } from "../../data/projects";
 
-const { width } = Dimensions.get('window');
+const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
+
+const styles = StyleSheet.create({
+  tabsOuter: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  tabsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tabButtonActive: {
+    backgroundColor: "#4A43EC",
+    borderColor: "#4A43EC",
+  },
+  tabButtonInactive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E7EB",
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: "manrope-bold",
+  },
+  tabTextActive: {
+    color: "#FFFFFF",
+  },
+  tabTextInactive: {
+    color: "#7C8597",
+  },
+});
+
+const getVisitTimestamp = (visit) => {
+  const value = visit.slot_start || visit.isoDate;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+const normalizeStatus = (status) => {
+  if (status === 'pending_confirmation') return 'PENDING';
+  return String(status || '').toUpperCase();
+};
+
+const getVisitTimeLabel = (visit) => {
+  const timestamp = getVisitTimestamp(visit);
+  if (timestamp) {
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+
+  if (visit.dateFull?.includes('·')) return visit.dateFull.split('·')[1].trim();
+  if (visit.dateFull?.includes('|')) return visit.dateFull.split('|')[1].trim();
+  return "10:00 AM";
+};
+
+const uniqueById = (items) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};
 
 export default function Visit() {
+  const router = useRouter();
   const { tab } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Book visit");
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
@@ -33,11 +105,13 @@ export default function Visit() {
   // Fetch visits from API when user is logged in and on Upcoming/Past tabs
   useEffect(() => {
     if (isLoggedIn && token && (activeTab === "Upcoming" || activeTab === "Past")) {
-      const status = activeTab === "Upcoming" ? "pending" : "completed";
+      const status = activeTab === "Upcoming"
+        ? "pending,pending_confirmation,confirmed"
+        : "completed,cancelled,rescheduled";
       console.log('🔍 Fetching visits with status:', status);
       dispatch(fetchVisitListThunk(status));
     }
-  }, [activeTab, isLoggedIn, token]);
+  }, [activeTab, dispatch, isLoggedIn, token]);
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -56,11 +130,13 @@ export default function Visit() {
   // Merge API visits with local mock visits
   const apiVisitsFormatted = apiVisits.map(v => ({
     id: v.id,
-    projectId: v.property_id,
+    projectId: v.project_id || v.property_id,
+    propertyIds: v.property_id ? [v.property_id] : [],
+    isApiVisit: true,
     title: v.property_title || 'Property',
     location: v.property_address || '',
     image: v.property_image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    status: v.status.toUpperCase(),
+    status: normalizeStatus(v.status),
     dateFull: new Date(v.slot_start).toLocaleString('en-US', { 
       month: 'short', 
       day: 'numeric', 
@@ -69,31 +145,44 @@ export default function Visit() {
       minute: '2-digit',
       hour12: true 
     }),
-    isoDate: new Date(v.slot_start).toISOString().split('T')[0],
+    isoDate: v.slot_start,
     visitors: 1,
     notes: v.user_note || '',
     bookingId: v.id,
     visitorName: v.user_first_name ? `${v.user_first_name} ${v.user_last_name}` : 'User',
-    duration: "1.5 Hours",
+    duration: v.slot_start && v.slot_end
+      ? `${Math.max(1, Math.round((new Date(v.slot_end) - new Date(v.slot_start)) / 60000))} Minutes`
+      : "1.5 Hours",
   }));
 
-  const allCombinedVisits = [...reduxUpcomingVisits, ...apiVisitsFormatted, ...validMockVisits];
+  const allCombinedVisits = uniqueById([
+    ...apiVisitsFormatted,
+    ...reduxUpcomingVisits,
+    ...(isLoggedIn ? [] : validMockVisits),
+  ]);
 
   // Filter and sort for upcoming
   const upcomingVisits = allCombinedVisits
-    .filter((v) => new Date(v.isoDate) >= now)
-    .sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
+    .filter((v) => getVisitTimestamp(v) >= now.getTime())
+    .sort((a, b) => getVisitTimestamp(a) - getVisitTimestamp(b));
 
   // Filter and sort for past
   const pastVisits = allCombinedVisits
-    .filter((v) => new Date(v.isoDate) < now)
-    .sort((a, b) => new Date(b.isoDate) - new Date(a.isoDate));
+    .filter((v) => getVisitTimestamp(v) < now.getTime())
+    .sort((a, b) => getVisitTimestamp(b) - getVisitTimestamp(a));
 
   const bottomSheetModalRef = useRef(null);
 
   const openModal = useCallback(() => {
     bottomSheetModalRef.current?.present();
   }, []);
+
+  const handleRescheduleVisit = useCallback((params) => {
+    router.push({
+      pathname: "/(screens)/book-site-visit",
+      params,
+    });
+  }, [router]);
 
   const [selectedVisit, setSelectedVisit] = useState(null);
 
@@ -113,25 +202,39 @@ export default function Visit() {
     <View className="flex-1 bg-[#ffffff]">
       <StatusBar style="dark" />
 
-      {/* Header Tabs */}
-      <View className="px-4 pt-6 pb-4">
-        <View className="flex-row gap-2">
-          {tabs.map((tabItem) => {
-            const isActive = activeTab === tabItem;
-            return (
-              <Pressable
-                key={tabItem}
-                className={`flex-1 items-center py-2 rounded-lg border ${isActive ? "bg-[#4A43EC] border-[#4A43EC]" : "bg-white border-gray-100"}`}
-                onPress={() => setActiveTab(tabItem)}
-              >
-                <Text
-                  className={`text-[12px] font-manrope-bold ${isActive ? "text-white" : "text-[#6B7280]"}`}
+      <View className="bg-white pb-4">
+        <Image
+          source={siteVisitBanner}
+          className="w-full h-[205px]"
+          resizeMode="cover"
+        />
+
+        {/* Header Tabs */}
+        <View style={styles.tabsOuter}>
+          <View style={styles.tabsRow}>
+            {tabs.map((tabItem) => {
+              const isActive = activeTab === tabItem;
+              return (
+                <Pressable
+                  key={tabItem}
+                  style={[
+                    styles.tabButton,
+                    isActive ? styles.tabButtonActive : styles.tabButtonInactive,
+                  ]}
+                  onPress={() => setActiveTab(tabItem)}
                 >
-                  {tabItem}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.tabText,
+                      isActive ? styles.tabTextActive : styles.tabTextInactive,
+                    ]}
+                  >
+                    {tabItem}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -186,25 +289,30 @@ export default function Visit() {
                             </View>
                           </Pressable>
 
-                          <Link href={`/project-detail?id=${visit.projectId || fallbackId}&from=visit`} asChild>
-                            <Pressable className="items-center justify-center pl-2 pr-1 z-20">
-                              <Feather name="chevron-right" size={20} color="#9CA3AF" />
-                              <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
-                            </Pressable>
-                          </Link>
+                          <Pressable
+                            className="items-center justify-center pl-2 pr-1 z-20"
+                            onPress={() => router.push({
+                              pathname: "/(screens)/project-detail",
+                              params: { id: visit.projectId || fallbackId, from: "visit" },
+                            })}
+                          >
+                            <Feather name="chevron-right" size={20} color="#9CA3AF" />
+                            <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
+                          </Pressable>
                         </View>
                       </View>
                     );
                   })}
 
-                  <Link href="/(tabs)/myActivity" asChild>
-                    <Pressable className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50">
-                      <Feather name="plus-circle" size={18} color="#94A3B8" />
-                      <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
-                        Add more properties to visit
-                      </Text>
-                    </Pressable>
-                  </Link>
+                  <Pressable
+                    className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50"
+                    onPress={() => router.push("/(tabs)/myActivity")}
+                  >
+                    <Feather name="plus-circle" size={18} color="#94A3B8" />
+                    <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
+                      Add more properties to visit
+                    </Text>
+                  </Pressable>
                 </View>
               </>
             ) : (
@@ -213,14 +321,15 @@ export default function Visit() {
                 title="No Properties Added" 
                 message="You haven't added any properties to visit yet. Explore our listings and add some to your itinerary."
               >
-                <Link href="/(tabs)/myActivity" asChild>
-                  <Pressable className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50 mt-2">
-                    <Feather name="plus-circle" size={18} color="#94A3B8" />
-                    <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
-                      Add properties to visit
-                    </Text>
-                  </Pressable>
-                </Link>
+                <Pressable
+                  className="w-full border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50 mt-2"
+                  onPress={() => router.push("/(tabs)/myActivity")}
+                >
+                  <Feather name="plus-circle" size={18} color="#94A3B8" />
+                  <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
+                    Add properties to visit
+                  </Text>
+                </Pressable>
               </EmptyState>
             )}
           </View>
@@ -270,7 +379,7 @@ export default function Visit() {
                           DATE & TIME
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {getVisitTimeLabel(visit)}
                         </Text>
                       </View>
                       <View className="w-7 h-7 rounded-full bg-white items-center justify-center border border-gray-100">
@@ -356,29 +465,45 @@ export default function Visit() {
                           VISITED ON
                         </Text>
                         <Text className="text-[12px] font-manrope-bold text-gray-700">
-                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {visit.dateFull?.includes('·') ? visit.dateFull.split('·')[1].trim() : visit.dateFull?.includes('|') ? visit.dateFull.split('|')[1].trim() : "10:00 AM"}
+                          {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {getVisitTimeLabel(visit)}
                         </Text>
                       </View>
 
                       {isCompleted ? (
                         <View className="flex-col gap-2">
-                          <Link href={{ pathname: "/review", params: { title: visit.title, image: visit.image, location: visit.location, dateFull: visit.dateFull } }} asChild>
-                            <Pressable className="w-full bg-[#4A43EC] rounded-lg py-3 flex-row items-center justify-center">
-                              <Feather name="edit-3" size={14} color="white" />
-                              <Text className="text-white font-manrope-bold text-[13px] ml-2">
-                                Write Review
-                              </Text>
-                            </Pressable>
-                          </Link>
+                          <Pressable
+                            className="w-full bg-[#4A43EC] rounded-lg py-3 flex-row items-center justify-center"
+                            onPress={() => router.push({
+                              pathname: "/(screens)/review",
+                              params: {
+                                title: visit.title,
+                                image: visit.image,
+                                location: visit.location,
+                                dateFull: visit.dateFull,
+                              },
+                            })}
+                          >
+                            <Feather name="edit-3" size={14} color="white" />
+                            <Text className="text-white font-manrope-bold text-[13px] ml-2">
+                              Write Review
+                            </Text>
+                          </Pressable>
 
-                          <Link href={`/project-detail?id=${visit.projectId || visit.id.replace(/\d{13}$/, "")}&from=visit`} asChild>
-                            <Pressable className="w-full border border-gray-200 rounded-lg py-3 flex-row items-center justify-center bg-white">
-                              <Feather name="eye" size={14} color="#6B7280" />
-                              <Text className="text-[#111827] font-manrope-bold text-[13px] ml-2">
-                                View Property Details
-                              </Text>
-                            </Pressable>
-                          </Link>
+                          <Pressable
+                            className="w-full border border-gray-200 rounded-lg py-3 flex-row items-center justify-center bg-white"
+                            onPress={() => router.push({
+                              pathname: "/(screens)/project-detail",
+                              params: {
+                                id: visit.projectId || visit.id.replace(/\d{13}$/, ""),
+                                from: "visit",
+                              },
+                            })}
+                          >
+                            <Feather name="eye" size={14} color="#6B7280" />
+                            <Text className="text-[#111827] font-manrope-bold text-[13px] ml-2">
+                              View Property Details
+                            </Text>
+                          </Pressable>
                         </View>
                       ) : (
                         <Pressable
@@ -436,17 +561,22 @@ export default function Visit() {
                 )}
               </View>
             </View>
-            <Link href={{ pathname: "/(screens)/book-site-visit", params: { selectedIds: selectedForBooking.join(",") } }} asChild>
-              <Pressable
-                className={`rounded-xl py-3.5 px-6 flex-row items-center justify-center ${selectedForBooking.length > 0 ? 'bg-[#6C3BFF]' : 'bg-gray-300'}`}
-                disabled={selectedForBooking.length === 0}
-              >
-                <Text className="text-white font-manrope-bold text-[14px] mr-2">
-                  Book Site Visit
-                </Text>
-                <Feather name="calendar" size={16} color="white" />
-              </Pressable>
-            </Link>
+            <Pressable
+              className={`rounded-xl py-3.5 px-6 flex-row items-center justify-center ${selectedForBooking.length > 0 ? 'bg-[#6C3BFF]' : 'bg-gray-300'}`}
+              disabled={selectedForBooking.length === 0}
+              onPress={() => {
+                if (selectedForBooking.length === 0) return;
+                router.push({
+                  pathname: "/(screens)/book-site-visit",
+                  params: { selectedIds: selectedForBooking.join(",") },
+                });
+              }}
+            >
+              <Text className="text-white font-manrope-bold text-[14px] mr-2">
+                Book Site Visit
+              </Text>
+              <Feather name="calendar" size={16} color="white" />
+            </Pressable>
           </View>
         </View>
       )}
@@ -454,6 +584,7 @@ export default function Visit() {
       <RescheduleBottomSheet
         ref={bottomSheetModalRef}
         visitData={selectedVisit}
+        onReschedule={handleRescheduleVisit}
       />
 
       {selectedProjectForRebook && (

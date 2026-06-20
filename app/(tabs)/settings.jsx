@@ -103,6 +103,27 @@ export default function Settings() {
         ]);
     };
 
+    const startCustomerSupportCall = () => {
+        const phoneNumber = profile?.user?.phone || profile?.user?.phone_number || currentUser.phone;
+        const name = profile?.user?.full_name || currentUser.name || 'App User';
+
+        if (!phoneNumber) {
+            Alert.alert(
+                'Phone number needed',
+                'Please complete your profile phone number before starting a support call.'
+            );
+            return;
+        }
+
+        router.push({
+            pathname: '/(screens)/voice-agent',
+            params: {
+                phoneNumber,
+                name,
+            },
+        });
+    };
+
     // Use profile data if available, otherwise fallback to currentUser
     const displayName = profile?.user?.full_name || currentUser.name;
     const displayEmail = profile?.user?.email || currentUser.email;
@@ -230,8 +251,9 @@ export default function Settings() {
                 <SectionLabel text="SUPPORT" />
                 <SettingsCard>
                     <SettingsRow
-                        icon={<MaterialCommunityIcons name="help-circle-outline" size={18} color="#475569" />}
-                        label="Help Center"
+                        icon={<Ionicons name="call-outline" size={18} color="#475569" />}
+                        label="Customer Support"
+                        onPress={startCustomerSupportCall}
                     />
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="email-outline" size={18} color="#475569" />}

@@ -14,6 +14,37 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.55;
 const rectangle = require("../../assets/images/Rectangle 5183.png");
 
+function formatCompactPrice(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    if (amount >= 10000000) {
+        const crores = amount / 10000000;
+        return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+    }
+
+    if (amount >= 100000) {
+        const lakhs = amount / 100000;
+        return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+    }
+
+    return `\u20B9${amount.toLocaleString('en-IN')}`;
+}
+
+function getImageSource(image, fallback) {
+    if (typeof image === 'string' && image) return { uri: image };
+    return image || fallback;
+}
+
+function getVariantPrice(variant) {
+    if (variant.priceRange) return variant.priceRange.split(/\u2013|â€“|-/)[0].trim();
+    return formatCompactPrice(variant.price ?? variant.base_price ?? variant.price_from) || "\u2014";
+}
+
+function getVariantArea(variant, project) {
+    return variant.area || (variant.area_sqft ? `${variant.area_sqft} sqft` : null) || (project.areaSqft ? `${project.areaSqft} sqft` : "\u2014");
+}
+
 
 
 const cardShadow = {
@@ -54,7 +85,7 @@ export default function Overview({ project }) {
                         className="bg-white rounded-3xl overflow-hidden border border-gray-100"
                     >
                         <Image
-                            source={v.image ? { uri: v.image } : project.imageMain}
+                            source={getImageSource(v.image, project.imageMain)}
                             style={{ width: "100%", height: 140 }}
                             resizeMode="cover"
                         />
@@ -62,16 +93,12 @@ export default function Overview({ project }) {
                             <View className="flex-row items-center justify-between mb-1">
                                 <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type || v.title}</Text>
                                 <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
-                                    {v.priceRange
-                                        ? v.priceRange.split("–")[0].trim()
-                                        : v.price
-                                            ? `₹${(Number(v.price) / 100000).toFixed(0)}L`
-                                            : "—"}
+                                    {getVariantPrice(v)}
                                 </Text>
                             </View>
                             <View className="flex-row items-center gap-2 mb-5 px-0">
                                 <MaterialCommunityIcons name="floor-plan" size={13} color="#9CA3AF" />
-                                <Text className="text-[12px] font-public-regular text-[#64748B]">{v.area || (project.areaSqft ? `${project.areaSqft} sqft` : "—")} </Text>
+                                <Text className="text-[12px] font-public-regular text-[#64748B]">{getVariantArea(v, project)} </Text>
                             </View>
                             <TouchableOpacity
                                 onPress={() => {
@@ -91,7 +118,7 @@ export default function Overview({ project }) {
             <View className="mx-6 mb-7 bg-white mt-5 rounded-2xl p-4 flex-row items-center justify-between" style={cardShadow}>
                 <View className="flex-row items-center gap-3 flex-1">
                     <View className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100">
-                        <Image source={project.builderLogo} className="w-full h-full" resizeMode="cover" />
+                        <Image source={project.builderLogo || project.imageMain} className="w-full h-full" resizeMode="cover" />
                     </View>
                     <View className="flex-1 pr-2">
                         <Text className="text-[11px] text-gray-400 ">Posted by</Text>
@@ -204,7 +231,7 @@ export default function Overview({ project }) {
                             title: r.title,
                             price_from: r.base_price || r.price_from,
                             price_to: r.price_to,
-                            image: r.cover_image ? { uri: r.cover_image } : project.imageMain,
+                            image: getImageSource(r.cover_image || r.cover_image_url || r.image, project.imageMain),
                             location: `${r.area}, ${r.city}`,
                         }))
                         : getResaleByProject(project.id)
@@ -254,7 +281,7 @@ export default function Overview({ project }) {
                             id: p.id,
                             slug: p.slug,
                             name: p.name || p.title,
-                            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : (p.cover_image ? { uri: p.cover_image } : project.imageMain),
+                            imageMain: getImageSource(p.cover_image_url || p.cover_image || p.image, project.imageMain),
                             location: `${p.area || ''}, ${p.city || ''}`.replace(/^,\s*/, ''),
                             price_from: p.price_from || p.base_price,
                             price_to: p.price_to,
@@ -263,7 +290,12 @@ export default function Overview({ project }) {
                     ).map((item) => (
                         <TouchableOpacity
                             key={item.id}
-                            onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
+                            onPress={() => {
+                                if (item.slug) {
+                                    router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } });
+                                }
+                            }}
+                            disabled={!item.slug}
                             className="bg-white rounded-2xl overflow-hidden mb-2"
                             style={{ width: 180, ...cardShadow }}
                         >
@@ -272,8 +304,8 @@ export default function Overview({ project }) {
                                 <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
                                 <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">
                                     {item.price_from
-                                        ? `₹${(item.price_from / 100000).toFixed(0)}L${item.price_to && item.price_to !== item.price_from ? ` – ₹${(item.price_to / 100000).toFixed(0)}L` : ''}`
-                                        : item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '—'}
+                                        ? `${formatCompactPrice(item.price_from)}${item.price_to && item.price_to !== item.price_from ? ` \u2013 ${formatCompactPrice(item.price_to)}` : ''}`
+                                        : item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '\u2014'}
                                 </Text>
                                 <View className="flex-row items-center gap-1">
                                     <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />

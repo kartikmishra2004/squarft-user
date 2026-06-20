@@ -21,7 +21,7 @@ import {
 } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useFocusEffect, useNavigation, router } from "expo-router";
-import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, fetchSavedPropertiesThunk, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
@@ -34,10 +34,10 @@ import { HomeSectionSkeleton } from "../../components/SkeletonLoader";
 
 const CATEGORIES = [
   { id: "1", label: "Plot", image: require("../../assets/images/plot.png"), type: "Plot" },
-  { id: "2", label: "Villa", image: require("../../assets/images/villa.png"), type: "Villa" },
-  { id: "3", label: "Apartment", image: require("../../assets/images/apartment.png"), type: "Apartment" },
-  { id: "4", label: "RowHouse", image: require("../../assets/images/rowhouse.png"), type: "RowHouse" },
-  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"), type: "Shop" },
+  { id: "2", label: "Villa", image: require("../../assets/images/villa.png"), type: "House/Villa" },
+  { id: "3", label: "Apartment", image: require("../../assets/images/apartment.png"), type: "Flat/Apartment" },
+  { id: "4", label: "RowHouse", image: require("../../assets/images/rowhouse.png"), type: "House/Villa" },
+  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"), type: "Commercial" },
   { id: "6", label: "Showroom", image: require("../../assets/images/showroom.png"), type: "Commercial" },
   { id: "7", label: "Office", image: require("../../assets/images/office.png"), type: "Commercial" },
 ];
@@ -67,6 +67,14 @@ const formatProjectPriceRange = (minValue, maxValue) => {
   return minText || maxText;
 };
 
+const formatUnitCount = (value, singular, plural = `${singular}s`) => {
+  if (value === null || value === undefined || value === "") return "";
+  const text = String(value).trim();
+  const number = Number(text);
+  if (Number.isFinite(number)) return `${number} ${number === 1 ? singular : plural}`;
+  return text;
+};
+
 function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, onToggleRecent, onPress }) {
   return (
     <TouchableOpacity
@@ -74,7 +82,7 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
       activeOpacity={0.85}
       className="bg-white rounded-2xl overflow-hidden mr-3 p-2.5"
       style={{
-        width: 166, height: 228, paddingTop: 15, paddingLeft: 10,
+        width: 166, height: 252, paddingTop: 15, paddingLeft: 10,
         shadowColor: "#d2abc0ff",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.15,
@@ -110,29 +118,29 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
         </TouchableOpacity>
       </View>
       <View className="px-1 pt-2 pb-2">
-        <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-[12px] font-manrope-extrabold text-gray-900" numberOfLines={2}>
-            {item.name || item.title || item.type}
-          </Text>
-          <Text className="text-[12px] font-bold text-[#4A43EC]">
+        <Text className="text-[12px] font-manrope-extrabold text-gray-900" numberOfLines={1}>
+          {item.name || item.title || item.type}
+        </Text>
+        {!!item.price && (
+          <Text className="mt-1 text-[12px] font-bold text-[#4A43EC]" numberOfLines={1}>
             {item.price}
           </Text>
+        )}
+        <View className="mt-1 flex-row items-center">
+          <Ionicons name="location-outline" size={12} color="#FE8A71" />
+          <Text className="ml-1 flex-1 text-[11px] text-gray-600" numberOfLines={1}>
+            {item.location || item.area}
+          </Text>
         </View>
-        <View className="flex-row items-center gap-1">
-          <MaterialCommunityIcons
-            name="vector-square"
-            size={13}
-            color="#FE8A71"
-          />
-          <Text className="text-[11px] text-gray-600 mr-2" numberOfLines={1}>{item.area || item.location}</Text>
-          <MaterialCommunityIcons
-            name="bed-outline"
-            size={13}
-            color="#FE8A71"
-          />
-          <Text className="text-[11px] text-gray-600 mr-2">{item.beds}</Text>
+        <View className="mt-2 flex-row items-center">
+          <MaterialCommunityIcons name="bed-outline" size={13} color="#FE8A71" />
+          <Text className="ml-1 mr-3 text-[11px] text-gray-600" numberOfLines={1}>
+            {item.beds || "Beds N/A"}
+          </Text>
           <MaterialCommunityIcons name="shower" size={13} color="#FE8A71" />
-          <Text className="text-[11px] text-gray-600">{item.baths}</Text>
+          <Text className="ml-1 flex-1 text-[11px] text-gray-600" numberOfLines={1}>
+            {item.baths || "Baths N/A"}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -145,8 +153,10 @@ export default function Home() {
   const navigation = useNavigation();
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
+  const { token } = useSelector((s) => s.auth);
   const { projectsInFocus, missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
   const { featured: apiFeatured, featuredLoading, list: projectList, loading: projectLoading } = useSelector((s) => s.project);
+  const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
 
   const featuredProjects = useMemo(() => {
     return (apiFeatured || []).map(project => ({
@@ -156,11 +166,13 @@ export default function Home() {
   }, [apiFeatured, favouriteProjects]);
 
   const refreshHomeData = useCallback(() => {
+    if (!token) return;
     console.log('🔄 [Home Screen] Refreshing properties and project data sets from API...');
     dispatch(fetchFeaturedProjectsThunk());
     dispatch(fetchProjectListThunk());
     dispatch(fetchRecommendedPropertiesThunk());
-  }, [dispatch]);
+    dispatch(fetchSavedPropertiesThunk());
+  }, [dispatch, token]);
   
   useEffect(() => {
     console.log('📊 [Home] Featured Projects State:', {
@@ -202,14 +214,24 @@ export default function Home() {
     );
   }
 
-  const handleToggleFav = (id) => {
+  const handleToggleFav = async (id) => {
+    if (!id) return;
     const isSaved = favouriteProjects.includes(id);
-    if (isSaved) {
-      dispatch(unsavePropertyThunk({ itemType: 'project', itemId: id }));
-    } else {
-      dispatch(savePropertyThunk({ itemType: 'project', itemId: id }));
+    if (!token) {
+      dispatch(toggleFavourite(id));
+      return;
     }
-    dispatch(toggleFavourite(id));
+
+    try {
+      if (isSaved) {
+        await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: id })).unwrap();
+      } else {
+        await dispatch(savePropertyThunk({ itemType: 'project', itemId: id })).unwrap();
+      }
+      dispatch(fetchSavedPropertiesThunk());
+    } catch (error) {
+      console.log('Save toggle failed:', error);
+    }
   };
   const handleToggleSeen = (id) => dispatch(toggleSeen(id));
   const handleToggleContacted = (id) => dispatch(toggleContacted(id));
@@ -233,8 +255,8 @@ export default function Home() {
       type: displayName,
       price: displayPrice,
       area: project.area || project.location || locationText || '',
-      beds: project.bedrooms || project.bhk ? `${project.bedrooms || project.bhk} BHK` : '',
-      baths: project.bathrooms ? `${project.bathrooms} Bath` : '',
+      beds: formatUnitCount(project.bedrooms || project.bhk || project.bedroom_count, 'Bed'),
+      baths: formatUnitCount(project.bathrooms || project.bathroom_count, 'Bath'),
       image: project.cover_image_url || project.image_url || project.cover_image || project.imageMain || project.image || null,
       location: project.location || locationText || '',
       isFavourite: favouriteProjects.includes(projectId),
@@ -277,7 +299,7 @@ export default function Home() {
           />
           {/* Header Row */}
           <View className="flex-row justify-between items-center px-5 pt-2 pb-4 mb-4">
-            <View className="flex-row items-center gap-4">
+            <View className="flex-1 flex-row items-center gap-4 mr-3">
               <View className="w-[46px] h-[46px] relative">
                 <Image
                   source={currentUser.avatar}
@@ -285,9 +307,9 @@ export default function Home() {
                   resizeMode="cover"
                 />
               </View>
-              <View>
+              <View className="flex-1">
                 <View className="flex-row items-center gap-2">
-                  <Text className="text-[17px] font-lato-bold mt-1 text-[#3F3838]">
+                  <Text className="flex-1 text-[17px] font-lato-bold mt-1 text-[#3F3838]" numberOfLines={1}>
                     {currentUser.name}
                   </Text>
                   <MaterialIcons name="verified" size={20} color="#3AFF08" />
@@ -297,22 +319,47 @@ export default function Home() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => router.push("/(screens)/chat-bot")}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Open chat bot"
-              className="w-[44px] h-[44px] rounded-full bg-white items-center justify-center"
-              style={{
-                shadowColor: "#4A43EC",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.14,
-                shadowRadius: 12,
-                elevation: 5,
-              }}
-            >
-              <MaterialCommunityIcons name="robot-outline" size={23} color="#4A43EC" />
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity
+                onPress={() => router.push("/(screens)/notifications")}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Open notifications"
+                className="w-[44px] h-[44px] rounded-full bg-white items-center justify-center relative"
+                style={{
+                  shadowColor: "#4A43EC",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.14,
+                  shadowRadius: 12,
+                  elevation: 5,
+                }}
+              >
+                <Ionicons name="notifications-outline" size={23} color="#4A43EC" />
+                {unreadNotifications > 0 && (
+                  <View className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] rounded-full bg-[#FF3B30] border-2 border-white items-center justify-center px-1">
+                    <Text className="text-white text-[8px] font-manrope-bold">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/(screens)/chat-bot")}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Open chat bot"
+                className="w-[44px] h-[44px] rounded-full bg-white items-center justify-center"
+                style={{
+                  shadowColor: "#4A43EC",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.14,
+                  shadowRadius: 12,
+                  elevation: 5,
+                }}
+              >
+                <MaterialCommunityIcons name="robot-outline" size={23} color="#4A43EC" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search */}

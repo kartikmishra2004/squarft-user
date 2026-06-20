@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, savePropertyThunk, unsavePropertyThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk, clearProject } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -106,14 +106,83 @@ function ProjectDetailSkeleton({ insets }) {
   );
 }
 
+function getRouteParam(value) {
+  const param = Array.isArray(value) ? value[0] : value;
+  return param && param !== 'none' ? param : null;
+}
+
+function formatCompactPrice(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (amount >= 10000000) {
+    const crores = amount / 10000000;
+    return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+  }
+
+  if (amount >= 100000) {
+    const lakhs = amount / 100000;
+    return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+  }
+
+  return `\u20B9${amount.toLocaleString('en-IN')}`;
+}
+
+function formatProjectDate(value) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString('en-IN', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function normalizeConfigLabel(value) {
+  if (!value) return null;
+
+  if (Array.isArray(value)) {
+    const cleaned = value.map((item) => String(item).trim()).filter(Boolean);
+    return cleaned.length > 0 ? `${cleaned.join(', ')} BHK` : null;
+  }
+
+  const cleaned = String(value)
+    .split(',')
+    .map((item) => item.trim().replace(/\s*BHK$/i, ''))
+    .filter((item) => item && item.toLowerCase() !== 'undefined' && item.toLowerCase() !== 'null');
+
+  return cleaned.length > 0 ? `${cleaned.join(', ')} BHK` : null;
+}
+
+function normalizeFloorPlan(plan) {
+  const title = plan.title || (plan.bedrooms ? `${plan.bedrooms} BHK` : 'Unit');
+  const areaSqft = plan.area_sqft ?? plan.total_area_sqft ?? plan.areaSqft ?? null;
+
+  return {
+    ...plan,
+    title,
+    type: plan.type || title,
+    area_sqft: areaSqft,
+    area: plan.area || (areaSqft ? `${areaSqft} sqft` : null),
+    price: plan.price ?? plan.base_price ?? plan.price_from ?? null,
+    image: plan.image || plan.floor_plan_url || plan.cover_image || null,
+    amenities: Array.isArray(plan.amenities) ? plan.amenities : [],
+  };
+}
+
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
-  const { id, slug, from } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const id = getRouteParam(params.id);
+  const slug = getRouteParam(params.slug);
+  const from = getRouteParam(params.from);
   const [activeTab, setActiveTab] = useState("Overview");
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
-  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading } = useSelector((s) => s.project);
+  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading, currentDetailSlug } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
   const { isLoggedIn, token } = useSelector((s) => s.auth);
 
@@ -128,6 +197,9 @@ export default function ProjectDetail() {
 
   // Use slug from params or from API project list (local allProjects has no slug)
   const resolvedProjectSlug = slug || listProject?.slug || null;
+  const activeApiProject = apiProject && (!id || String(apiProject.id) === String(id)) && currentDetailSlug === resolvedProjectSlug
+    ? apiProject
+    : null;
 
   // Save the project itself, not the floor-plan properties
   const projectSaveId = id || resolvedProjectSlug || listProject?.id;
@@ -152,24 +224,28 @@ export default function ProjectDetail() {
       projectSaveId,
     });
     
-    // Toggle local state immediately for visual feedback
-    dispatch(toggleFavourite(id));
-    
     // Only proceed with API calls if user is logged in
     if (!isLoggedIn || !token) {
       console.log('⚠️ User not logged in, only saving locally');
+      dispatch(toggleFavourite(id));
       return;
     }
     
     if (projectSaveId) {
+      try {
       if (isSaved) {
         console.log('🗑️ Unsaving project via API:', projectSaveId);
-        await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: projectSaveId }));
+        await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: projectSaveId })).unwrap();
       } else {
         console.log('💾 Saving project via API:', projectSaveId);
-        await dispatch(savePropertyThunk({ itemType: 'project', itemId: projectSaveId }));
+        await dispatch(savePropertyThunk({ itemType: 'project', itemId: projectSaveId })).unwrap();
       }
+      dispatch(toggleFavourite(id));
+      dispatch(fetchSavedPropertiesThunk());
       console.log('✅ Save/Unsave operations completed');
+      } catch (error) {
+        console.log('❌ Save/Unsave operation failed:', error);
+      }
     } else {
       console.log('⚠️ No project id available for save/unsave API');
     }
@@ -183,6 +259,7 @@ export default function ProjectDetail() {
       dispatch(fetchResaleThunk(resolvedProjectSlug));
       dispatch(fetchLandmarksThunk(resolvedProjectSlug));
       dispatch(fetchAmenitiesThunk(resolvedProjectSlug));
+      dispatch(fetchSimilarPropertiesThunk(resolvedProjectSlug));
     } else {
       console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'resolvedProjectSlug:', resolvedProjectSlug);
     }
@@ -190,46 +267,59 @@ export default function ProjectDetail() {
     // Only clear when component actually unmounts (user leaves project detail screen)
   }, [dispatch, resolvedProjectSlug, id, slug]);
 
-  if (!listProject && !apiProject) {
+  if (!listProject && !activeApiProject) {
     return <ProjectDetailSkeleton insets={insets} />;
   }
 
   // Show skeleton while API details are still loading
-  if (apiLoading && !apiProject) {
+  if (apiLoading && !activeApiProject && !listProject) {
     return <ProjectDetailSkeleton insets={insets} />;
   }
 
   // Merge API data with list/local fallback
   const base = listProject || {};
-  const apiRating = apiProject?.rating ?? apiProject?.score ?? apiProject?.project_rating ?? base.rating;
-  const rawConfig = floorPlans?.summary?.configs ?? floorPlans?.configs ?? apiProject?.configs ?? apiProject?.config;
-  const rawStartingPrice = floorPlans?.summary?.starting_from ?? floorPlans?.summary?.startingFrom ?? floorPlans?.starting_from ?? floorPlans?.startingFrom ?? floorPlans?.price?.min ?? null;
+  const apiRating = activeApiProject?.rating ?? activeApiProject?.score ?? activeApiProject?.project_rating ?? base.rating;
+  const rawConfig = floorPlans?.summary?.configs ?? floorPlans?.configs ?? activeApiProject?.summary?.configs ?? activeApiProject?.configs ?? activeApiProject?.config;
+  const rawStartingPrice = floorPlans?.summary?.starting_from
+    ?? floorPlans?.summary?.startingFrom
+    ?? floorPlans?.starting_from
+    ?? floorPlans?.startingFrom
+    ?? floorPlans?.price?.min
+    ?? activeApiProject?.summary?.starting_from
+    ?? activeApiProject?.starting_from
+    ?? activeApiProject?.price_from
+    ?? base.price_from
+    ?? base.min_price
+    ?? null;
   const normalizedVariants = Array.isArray(floorPlans?.floor_plans) && floorPlans.floor_plans.length > 0
-    ? floorPlans.floor_plans
+    ? floorPlans.floor_plans.map(normalizeFloorPlan)
     : (base.variants || []);
 
   const project = {
     ...base,
-    ...(apiProject ? {
-      name: apiProject.name || base.name,
-      location: apiProject.location || base.location,
-      description: apiProject.description || base.description,
-      reraId: apiProject.rera_id || base.reraId,
-      possession: apiProject.possession || base.possession,
-      possessionStatus: apiProject.possession_status || base.possessionStatus || base.possession,
-      builder: apiProject.developer?.name || base.builder,
-      builderLogo: apiProject.developer?.logo ? { uri: apiProject.developer.logo } : base.builderLogo,
-      developerId: apiProject.developer?.id || base.developerId,
-      imageMain: apiProject.cover_image ? { uri: apiProject.cover_image } : base.imageMain,
-      brochure: apiProject.brochure || base.brochure || null,
-      units: (apiProject.stats?.units && apiProject.stats.units !== "N/A") ? apiProject.stats.units : base.units,
-      launchedIn: (apiProject.stats?.launched && apiProject.stats.launched !== "N/A") ? apiProject.stats.launched : base.launchedIn,
+    ...(activeApiProject ? {
+      name: activeApiProject.name || base.name,
+      location: activeApiProject.location || base.location,
+      description: activeApiProject.description || base.description,
+      reraId: activeApiProject.rera_id || base.reraId,
+      possession: activeApiProject.possession || base.possession,
+      possessionStatus: activeApiProject.possession || activeApiProject.possession_status || base.possessionStatus || base.possession,
+      builder: activeApiProject.developer?.name || base.builder,
+      builderLogo: activeApiProject.developer?.logo ? { uri: activeApiProject.developer.logo } : base.builderLogo,
+      developerId: activeApiProject.developer?.id || base.developerId,
+      imageMain: activeApiProject.cover_image ? { uri: activeApiProject.cover_image } : base.imageMain,
+      brochure: activeApiProject.brochure || base.brochure || null,
+      units: (activeApiProject.stats?.units && activeApiProject.stats.units !== "N/A") ? activeApiProject.stats.units : base.units,
+      launchedIn: (activeApiProject.stats?.launched && activeApiProject.stats.launched !== "N/A") ? formatProjectDate(activeApiProject.stats.launched) : base.launchedIn,
       rating: apiRating ?? base.rating,
       subTypes: base.subTypes,
-      propertyType: base.propertyType,
+      propertyType: base.propertyType || activeApiProject.property_type,
       avgPricePerSqft: base.avgPricePerSqft,
-      possessionStatus: base.possessionStatus,
-      rera: apiProject.rera_id ? true : base.rera,
+      price_from: activeApiProject.price_from ?? base.price_from,
+      price_to: activeApiProject.price_to ?? base.price_to,
+      rera: activeApiProject.rera_approved !== undefined
+        ? Boolean(activeApiProject.rera_approved)
+        : Boolean(base.rera),
       variants: base.variants,
     } : {
       name: base.name,
@@ -249,9 +339,10 @@ export default function ProjectDetail() {
       : projectList.filter(p => p.id !== id && (p.city === base.city || p.area === base.area)).slice(0, 5),
   };
 
-  const bhkConfig = rawConfig
-    ? rawConfig.split(',').map(s => s.trim().replace(/\s*BHK$/i, '')).join(', ') + ' BHK'
-    : project.subTypes?.join(', ') + ' BHK';
+  const bhkConfig = normalizeConfigLabel(rawConfig)
+    || normalizeConfigLabel(project.subTypes)
+    || project.propertyType
+    || null;
   const startingPrice = rawStartingPrice !== null && rawStartingPrice !== undefined
     ? (typeof rawStartingPrice === 'number'
         ? `₹${(rawStartingPrice / 100000).toFixed(0)}L`
@@ -280,13 +371,13 @@ export default function ProjectDetail() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleToggleSave}
-            className="absolute right-4 w-[38px] h-[38px] rounded-full bg-white/85 items-center justify-center"
+            className={`absolute right-4 w-[38px] h-[38px] rounded-full items-center justify-center ${isSaved ? "bg-black/85" : "bg-white/85"}`}
             style={{ top: insets.top + 10 }}
           >
             <MaterialCommunityIcons
               name={isSaved ? "bookmark-plus" : "bookmark-plus-outline"}
               size={20}
-              color={isSaved ? "#0c0c0cff" : "#111827"}
+              color={isSaved ? "#FFFFFF" : "#111827"}
             />
           </TouchableOpacity>
         </View>
@@ -422,7 +513,7 @@ export default function ProjectDetail() {
               </Text>
             ) : (
               <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">
-                {project.propertyType || "Loading..."}
+                Config on request
               </Text>
             )}
           </View>
@@ -433,11 +524,11 @@ export default function ProjectDetail() {
             </Text>
             {startingPrice ? (
               <Text className="text-2xl font-manrope-bold text-[#4941EC]">
-                {startingPrice}*
+                {formatCompactPrice(rawStartingPrice) || startingPrice}*
               </Text>
             ) : (
               <Text className="text-[14px] font-manrope-medium text-[#94A3B8]">
-                Loading...
+                Price on request
               </Text>
             )}
           </View>

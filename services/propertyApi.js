@@ -21,6 +21,9 @@ async function request(path, options = {}) {
             data = JSON.parse(text);
         } catch (e) {
             console.log('❌ Failed to parse JSON:', text.substring(0, 200));
+            if (!res.ok) {
+                throw new Error(`Request failed with status ${res.status}`);
+            }
             throw new Error(`Invalid JSON response: ${e.message}`);
         }
         

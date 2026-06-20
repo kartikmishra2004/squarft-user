@@ -69,6 +69,7 @@ export const fetchRecommendedPropertiesThunk = createAsyncThunk(
     async (_, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
+            if (!token) return [];
             return await propertyApi.getRecommendedProperties(token, { limit: 6 });
         } catch (e) {
             return rejectWithValue(e.message);

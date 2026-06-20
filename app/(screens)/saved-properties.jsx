@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
@@ -6,8 +6,37 @@ import { router } from "expo-router";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { PropertyCardSkeleton } from "../../components/SkeletonLoader";
 
+function compactPrice(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (amount >= 10000000) {
+    const crores = amount / 10000000;
+    return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+  }
+
+  if (amount >= 100000) {
+    const lakhs = amount / 100000;
+    return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+  }
+
+  return `\u20B9${amount.toLocaleString('en-IN')}`;
+}
+
+function imageUrl(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  return value.url || value.thumbnail_url || null;
+}
+
+function joinParts(parts, fallback = '') {
+  const text = parts.filter(Boolean).join(', ');
+  return text || fallback;
+}
+
 export default function SavedProperties() {
   const dispatch = useDispatch();
+  const navigatingRef = useRef(false);
   const { savedProperties, loading } = useSelector((state) => state.properties);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
 
@@ -60,41 +89,68 @@ export default function SavedProperties() {
               </Pressable>
             </View>
           ) : (
-            savedProperties.map((property, index) => (
-              <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+            savedProperties.map((property, index) => {
+              const propertyDetails = property.data || property;
+              const itemType = property.type || property.item_type || propertyDetails.item_type || 'property';
+              const isProject = itemType === 'project';
+              const itemId = property.item_id || propertyDetails.id || property.id;
+              const title = propertyDetails.name || propertyDetails.title || 'Unnamed Property';
+              const location = joinParts([propertyDetails.area, propertyDetails.city], 'Location on request');
+              const primaryImage = imageUrl(propertyDetails.cover_image_url || propertyDetails.cover_image || propertyDetails.image || propertyDetails.images?.[0]);
+              const secondaryImage = imageUrl(propertyDetails.images?.[1]);
+              const imageCount = propertyDetails.total_images || propertyDetails.images?.length || (primaryImage ? 1 : 0);
+              const bhkText = !isProject && propertyDetails.bedrooms ? `${propertyDetails.bedrooms} BHK` : null;
+              const areaText = propertyDetails.total_area_sqft ? `${propertyDetails.total_area_sqft} sqft` : null;
+              const summaryText = [bhkText, areaText].filter(Boolean).join(' \u2022 ') || (isProject ? 'Project' : 'Property');
+              const price = compactPrice(propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from);
+
+              const openDetails = () => {
+                if (navigatingRef.current) return;
+                navigatingRef.current = true;
+                router.push({
+                  pathname: "/(screens)/project-detail",
+                  params: { id: itemId, slug: propertyDetails.slug || 'none' },
+                });
+                setTimeout(() => {
+                  navigatingRef.current = false;
+                }, 700);
+              };
+
+              return (
+              <View key={(itemId || property.id || index) + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
                 <View className="flex-row h-36 w-full">
                   <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                    {property.cover_image ? (
-                      <Image source={{ uri: property.cover_image }} className="w-full h-full" resizeMode="cover" />
+                    {primaryImage ? (
+                      <Image source={{ uri: primaryImage }} className="w-full h-full" resizeMode="cover" />
                     ) : (
                       <View className="w-full h-full bg-gray-200 items-center justify-center">
                         <Feather name="image" size={32} color="#9CA3AF" />
                       </View>
                     )}
                     <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
-                      <Text className="text-white text-[10px] font-manrope">{property.type || 'Property'}</Text>
+                      <Text className="text-white text-[10px] font-manrope capitalize">{itemType}</Text>
                     </View>
                   </View>
                   <View className="flex-[1] relative bg-gray-200">
-                    {property.images && property.images.length > 1 ? (
-                      <Image source={{ uri: property.images[1] }} className="w-full h-full" resizeMode="cover" />
+                    {secondaryImage ? (
+                      <Image source={{ uri: secondaryImage }} className="w-full h-full" resizeMode="cover" />
                     ) : (
                       <View className="w-full h-full bg-gray-100 items-center justify-center">
                         <Feather name="image" size={24} color="#D1D5DB" />
                       </View>
                     )}
                     <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                      <Text className="text-white text-[10px] font-manrope">1/{property.total_images || 1}</Text>
+                      <Text className="text-white text-[10px] font-manrope">1/{Math.max(imageCount, 1)}</Text>
                     </View>
                   </View>
                 </View>
                 <View className="px-3 pt-3 pb-2">
                   <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                    {property.area}, {property.city}  •  {property.bedrooms} BHK
+                    {bhkText ? `${location}  \u2022  ${bhkText}` : location}
                   </Text>
                   <View className="flex-row items-center mb-1">
-                    <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{property.title}</Text>
-                    {property.rera_id && (
+                    <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={2}>{title}</Text>
+                    {(propertyDetails.rera_id || propertyDetails.rera_number) && (
                       <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
                         <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
                         <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
@@ -103,29 +159,30 @@ export default function SavedProperties() {
                       </View>
                     )}
                   </View>
-                  <Text className="text-[11px] text-[#9CA3AF] font-manrope">{property.pincode}</Text>
+                  <Text className="text-[11px] text-[#9CA3AF] font-manrope">{propertyDetails.pincode || ''}</Text>
                 </View>
                 <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
                 <View className="flex-row justify-between px-3 pb-3">
                   <View>
                     <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">
-                      {property.bedrooms} BHK • {property.total_area_sqft} sqft
+                      {summaryText}
                     </Text>
                     <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">
-                      {property.min_price ? `₹${(property.min_price / 100000).toFixed(1)}L` : 'Price on request'}
+                      {price || 'Price on request'}
                     </Text>
                   </View>
                 </View>
                 <View className="px-3 pb-3">
                   <Pressable
-                    onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: property.id, slug: property.slug } })}
+                    onPress={openDetails}
                     className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
                   >
                     <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
                   </Pressable>
                 </View>
               </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>

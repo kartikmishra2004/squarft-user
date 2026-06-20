@@ -18,39 +18,145 @@ const BUDGET_MAX = 50000000;
 const AREA_MIN = 0;
 const AREA_MAX = 5000;
 
+const normalizeText = (value) => String(value ?? '').toLowerCase().trim();
+
+const getSearchText = (project) => [
+    project.name,
+    project.title,
+    project.project_name,
+    project.property_name,
+    project.area,
+    project.city,
+    project.location,
+    project.pincode,
+    project.category,
+    project.property_type,
+    project.property_subtype,
+    project.type,
+].map(normalizeText).filter(Boolean).join(' ');
+
+const getNumber = (...values) => {
+    for (const value of values) {
+        if (value === null || value === undefined || value === '') continue;
+        const number = Number(String(value).replace(/[^0-9.]/g, ''));
+        if (Number.isFinite(number) && number > 0) return number;
+    }
+    return null;
+};
+
+const getProjectPriceRange = (project) => {
+    const min = getNumber(project.price_from, project.min_price, project.budgetMin, project.priceMin, project.base_price, project.price);
+    const max = getNumber(project.price_to, project.max_price, project.budgetMax, project.priceMax, project.price) ?? min;
+    return { min, max };
+};
+
+const getProjectArea = (project) =>
+    getNumber(project.total_area_sqft, project.area_sqft, project.areaSqft, project.total_area, project.carpet_area);
+
+const getProjectTypeText = (project) => [
+    project.propertyType,
+    project.property_type,
+    project.property_subtype,
+    project.category,
+    project.type,
+    project.name,
+].map(normalizeText).filter(Boolean).join(' ');
+
+const matchesPropertyType = (project, selectedTypes) => {
+    if (selectedTypes.length === 0) return true;
+
+    const text = getProjectTypeText(project);
+    return selectedTypes.some((type) => {
+        const selected = normalizeText(type);
+        if (selected === 'flat/apartment') return /\b(flat|apartment|residential)\b/.test(text);
+        if (selected === 'house/villa') return /\b(house|villa|rowhouse|row house)\b/.test(text);
+        if (selected === 'plot') return /\b(plot|land)\b/.test(text);
+        if (selected === 'commercial') return /\b(commercial|shop|showroom|office|retail)\b/.test(text);
+        return text.includes(selected);
+    });
+};
+
+const getBhkValues = (project) => {
+    const values = new Set();
+    const fields = [
+        project.bedrooms,
+        project.bhk,
+        project.configuration,
+        project.configurations,
+        project.property_subtype,
+        project.propertyType,
+        project.type,
+        project.name,
+        ...(Array.isArray(project.subTypes) ? project.subTypes : []),
+        ...(Array.isArray(project.variants) ? project.variants.map((variant) => variant.type || variant.title) : []),
+    ];
+
+    fields.forEach((field) => {
+        const text = normalizeText(field);
+        if (!text) return;
+        const matches = text.match(/\d+\+?\s*bhk|\d+\+/g) || [];
+        matches.forEach((match) => values.add(match.replace(/\s*bhk/g, '').trim()));
+        const plainNumber = Number(text);
+        if (Number.isFinite(plainNumber) && plainNumber > 0) values.add(String(plainNumber));
+    });
+
+    return values;
+};
+
+const matchesBhk = (project, selectedSubTypes) => {
+    if (selectedSubTypes.length === 0) return true;
+
+    const bhkValues = getBhkValues(project);
+    return selectedSubTypes.some((subType) => {
+        const selected = normalizeText(subType).replace(/\s*bhk/g, '').trim();
+        return bhkValues.has(selected);
+    });
+};
+
+const getPossessionStatus = (project) => {
+    const text = normalizeText(project.possessionStatus || project.possession_status || project.possession);
+    if (!text) return '';
+    if (text.includes('ready') || text.includes('immediate')) return 'Ready to Move';
+    if (text.includes('under') || text.includes('construction')) return 'Under Construction';
+    return project.possessionStatus || project.possession_status || project.possession;
+};
+
+const hasRera = (project) => Boolean(project.rera || project.rera_id || project.reraId || project.rera_number);
+
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
+        const searchText = getSearchText(p);
+
         if (filter.address) {
             const q = filter.address.toLowerCase().trim();
-            const match =
-                (p.name || '').toLowerCase().includes(q) ||
-                (p.area || '').toLowerCase().includes(q) ||
-                (p.city || '').toLowerCase().includes(q);
-            if (!match) return false;
+            if (!searchText.includes(q)) return false;
         }
 
         if (filter.searchQuery) {
             const q = filter.searchQuery.toLowerCase().trim();
-            const match =
-                (p.name || '').toLowerCase().includes(q) ||
-                (p.area || '').toLowerCase().includes(q) ||
-                (p.city || '').toLowerCase().includes(q);
-            if (!match) return false;
+            if (!searchText.includes(q)) return false;
         }
 
+        if (!matchesPropertyType(p, filter.propertyTypes)) return false;
+        if (!matchesBhk(p, filter.propertySubTypes)) return false;
+
+        const priceRange = getProjectPriceRange(p);
         const budgetLowerActive = filter.budgetRange[0] > BUDGET_MIN;
         const budgetUpperActive = filter.budgetRange[1] < BUDGET_MAX;
-        if (budgetLowerActive && (p.price_to ?? p.budgetMax) < filter.budgetRange[0]) return false;
-        if (budgetUpperActive && (p.price_from ?? p.budgetMin) > filter.budgetRange[1]) return false;
+        if ((budgetLowerActive || budgetUpperActive) && (!priceRange.min || !priceRange.max)) return false;
+        if (budgetLowerActive && priceRange.max < filter.budgetRange[0]) return false;
+        if (budgetUpperActive && priceRange.min > filter.budgetRange[1]) return false;
 
+        const projectArea = getProjectArea(p);
         const areaLowerActive = filter.areaRange[0] > AREA_MIN;
         const areaUpperActive = filter.areaRange[1] < AREA_MAX;
-        if (areaLowerActive && (p.areaSqft ?? 0) < filter.areaRange[0]) return false;
-        if (areaUpperActive && (p.areaSqft ?? Infinity) > filter.areaRange[1]) return false;
+        if ((areaLowerActive || areaUpperActive) && !projectArea) return false;
+        if (areaLowerActive && projectArea < filter.areaRange[0]) return false;
+        if (areaUpperActive && projectArea > filter.areaRange[1]) return false;
 
-        if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(p.possessionStatus)) return false;
+        if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(getPossessionStatus(p))) return false;
 
-        if (filter.reraOnly && !p.rera) return false;
+        if (filter.reraOnly && !hasRera(p)) return false;
 
         return true;
     });

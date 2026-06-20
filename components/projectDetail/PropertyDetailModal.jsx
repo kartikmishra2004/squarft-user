@@ -20,6 +20,28 @@ const naksha = require("../../assets/images/building_naksha.png");
 
 const { width } = Dimensions.get("window");
 
+function formatCompactPrice(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    if (amount >= 10000000) {
+        const crores = amount / 10000000;
+        return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+    }
+
+    if (amount >= 100000) {
+        const lakhs = amount / 100000;
+        return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+    }
+
+    return `\u20B9${amount.toLocaleString('en-IN')}`;
+}
+
+function getImageSource(image, fallback) {
+    if (typeof image === 'string' && image) return { uri: image };
+    return image || fallback;
+}
+
 const AMENITY_ICONS = {
     Gymnasium: { icon: "dumbbell", color: "#4A43EC" },
     "Swimming Pool": { icon: "pool", color: "#4A43EC" },
@@ -87,16 +109,17 @@ export default function PropertyDetailModal({
     const variantId = `${project.id}_${variantType.replace(/\s+/g, "_")}`;
     const isAdded = bookedVisits.some((v) => v.id === variantId);
 
-    const areaValue = variant.area_sqft ?? variant.total_area_sqft ?? variant.area ?? project.areaSqft ?? project.area_sqft ?? null;
-    const possessionValue = variant.possession_status || variant.possession || project.possessionStatus || project.possession || "—";
-    const towerValue = variant.tower_no || variant.tower || project.tower_no || project.towers || "—";
+    const areaValue = variant.area_sqft ?? variant.total_area_sqft ?? project.areaSqft ?? project.area_sqft ?? null;
+    const possessionValue = variant.possession_status || variant.possession || project.possessionStatus || project.possession || "\u2014";
+    const towerValue = variant.tower_no || variant.tower || project.tower_no || project.towers || "\u2014";
     const basePriceValue = variant.base_price ?? variant.price ?? variant.priceRange ?? variant.price_from ?? null;
     const priceText = basePriceValue !== null && basePriceValue !== undefined && basePriceValue !== ""
         ? (typeof basePriceValue === 'number'
-            ? `₹${(basePriceValue / 100000).toFixed(0)}L`
+            ? formatCompactPrice(basePriceValue)
             : basePriceValue)
         : "Contact for price";
-    const areaText = areaValue ? `${areaValue} sq.ft.` : "—";
+    const areaText = variant.area || (areaValue ? `${areaValue} sq.ft.` : "\u2014");
+    const floorPlanSource = getImageSource(variant.image || variant.floor_plan_url, naksha);
     const inventoryValue = variant.inventory ?? project.inventory ?? `${project.units ?? "—"}`;
     const amenitiesList = (variant.amenities?.length ? variant.amenities : (project.amenities || []))
         .map((a) => (typeof a === 'string' ? a : a?.name))
@@ -263,7 +286,7 @@ export default function PropertyDetailModal({
                             >
                                 <TouchableOpacity onPress={() => setZoomVisible(true)} activeOpacity={0.85}>
                                     <Image
-                                        source={naksha}
+                                        source={floorPlanSource}
                                         style={{ width: width * 0.75, height: 200 }}
                                         resizeMode="contain"
                                     />
@@ -356,7 +379,7 @@ export default function PropertyDetailModal({
             <ZoomableImage
                 visible={zoomVisible}
                 onClose={() => setZoomVisible(false)}
-                source={naksha}
+                source={floorPlanSource}
             />
         </>
     );

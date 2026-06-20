@@ -57,7 +57,7 @@ const SavedTabContent = () => {
           // ✅ FIXED: Unpack the nested data layer safely to look up fields cleanly
           const isPropertyType = item.type === 'property';
           const propertyDetails = item.data || {};
-          const itemId = item.id || item.item_id || propertyDetails.id;
+          const itemId = item.item_id || propertyDetails.id || item.id;
           
           // Fallback parsing blocks for cover images arrays
           const coverImage = propertyDetails.cover_image_url || (propertyDetails.images && propertyDetails.images[0]?.url);

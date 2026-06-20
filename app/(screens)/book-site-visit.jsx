@@ -1,27 +1,59 @@
 import { useState, useRef, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Alert, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, Alert, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { confirmVisits } from "../../store/slices/propertiesSlice";
-import { fetchBranchListThunk, fetchAvailableSlotsThunk, createSiteVisitThunk, clearAvailableSlots } from "../../store/slices/visitSlice";
-import { TIME_SLOTS } from "../../data/visits";
+import { fetchBranchListThunk, fetchAvailableSlotsThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots } from "../../store/slices/visitSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { currentUser } from "../../data/user";
+
+const formatSlotTime = (value) =>
+  new Date(value).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).replace(/^0/, '');
+
+const getSlotHour = (slot) => new Date(slot.slot_start).getHours();
+
+const groupAvailableSlots = (slots) => {
+  const groups = { morning: [], afternoon: [], evening: [] };
+  slots.forEach((slot) => {
+    const hour = getSlotHour(slot);
+    if (hour < 12) groups.morning.push(slot);
+    else if (hour < 17) groups.afternoon.push(slot);
+    else groups.evening.push(slot);
+  });
+  return groups;
+};
+
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
+const getPropertyIdForVisit = (item) => {
+  const candidates = [
+    item?.propertyIds?.[0],
+    item?.property_id,
+    item?.propertyId,
+    item?.id,
+  ];
+  return candidates.find(isUuid);
+};
 
 export default function BookSiteVisit() {
   const router = useRouter();
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
-  const { branches, availableSlots, branchesLoading, slotsLoading, creating } = useSelector((state) => state.visit);
+  const { branches, availableSlots, slotsLoading, creating } = useSelector((state) => state.visit);
 
   // Deduplicate securely to prevent persisted duplicates lingering from old bug
   const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
 
-  const { selectedIds, initialDate, initialTime, initialVisitors, initialNotes } = useLocalSearchParams();
+  const { selectedIds, initialDate, initialTime, initialVisitors, initialNotes, rescheduleVisitId } = useLocalSearchParams();
 
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const [calendarMonth, setCalendarMonth] = useState(initialDate || new Date().toISOString().split('T')[0]);
@@ -33,7 +65,6 @@ export default function BookSiteVisit() {
   const insets = useSafeAreaInsets();
 
   const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => v.id);
-  const visitCount = selectedPropertyIds.length || 1;
 
   // Get first property to determine city for branch lookup
   const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(v.id));
@@ -41,11 +72,13 @@ export default function BookSiteVisit() {
 
   // Fetch branches when component mounts
   useEffect(() => {
+    setSelectedBranch(null);
+    setSelectedTime([]);
     if (isLoggedIn && token && propertyCity) {
       console.log('🏢 Fetching branches for city:', propertyCity);
       dispatch(fetchBranchListThunk(propertyCity));
     }
-  }, [propertyCity, isLoggedIn, token]);
+  }, [dispatch, propertyCity, isLoggedIn, token]);
 
   // Auto-select first branch when branches load
   useEffect(() => {
@@ -53,13 +86,17 @@ export default function BookSiteVisit() {
       setSelectedBranch(branches[0]);
       console.log('✅ Auto-selected branch:', branches[0].name);
     }
-  }, [branches]);
+  }, [branches, selectedBranch]);
 
   // Fetch available slots when date or branch changes
   useEffect(() => {
     if (isLoggedIn && token && selectedDate && selectedBranch && firstProperty) {
       // Get property_id from stored data, fallback to project ID
-      const propertyId = firstProperty.propertyIds?.[0] || firstProperty.projectId || firstProperty.id.replace(/\d{13}$/, "");
+      const propertyId = getPropertyIdForVisit(firstProperty);
+      if (!propertyId) {
+        dispatch(clearAvailableSlots());
+        return;
+      }
       
       console.log('🕐 Fetching available slots:', {
         property_id: propertyId,
@@ -73,28 +110,58 @@ export default function BookSiteVisit() {
         branch_id: selectedBranch.id
       }));
     }
-  }, [selectedDate, selectedBranch, isLoggedIn, token]);
+  }, [dispatch, selectedDate, selectedBranch, firstProperty, isLoggedIn, token]);
+
+  useEffect(() => {
+    if (!selectedTime.length) return;
+    const availableLabels = new Set(availableSlots.map(slot => formatSlotTime(slot.slot_start)));
+    if (availableLabels.size > 0 && !availableLabels.has(selectedTime[0])) {
+      setSelectedTime([]);
+    }
+  }, [availableSlots, selectedTime]);
 
   // Clear slots when component unmounts
   useEffect(() => {
     return () => {
       dispatch(clearAvailableSlots());
     };
-  }, []);
+  }, [dispatch]);
 
-  const allSlots = [
-    ...(TIME_SLOTS.morning || []),
-    ...(TIME_SLOTS.afternoon || []),
-    ...(TIME_SLOTS.evening || []),
-  ];
+  const slotGroups = availableSlots.length > 0
+    ? groupAvailableSlots(availableSlots)
+    : { morning: [], afternoon: [], evening: [] };
 
   const handleSlotPress = (slot) => {
-    const idx = allSlots.indexOf(slot);
-    setSelectedTime(allSlots.slice(idx, idx + visitCount));
+    setSelectedTime([typeof slot === 'string' ? slot : formatSlotTime(slot.slot_start)]);
   };
 
   const isSlotSelected = (slot) =>
     Array.isArray(selectedTime) ? selectedTime.includes(slot) : selectedTime === slot;
+
+  const renderSlotSection = (label, icon, slots) => (
+    <>
+      <View className="flex-row items-center mb-3.5">
+        <Feather name={icon} size={12} color="#9CA3AF" />
+        <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">{label}</Text>
+      </View>
+      <View className="flex-row flex-wrap gap-3 mb-5">
+        {slots.map(slot => {
+          const labelText = formatSlotTime(slot.slot_start);
+          return (
+            <Pressable
+              key={slot.slot_start}
+              onPress={() => handleSlotPress(slot)}
+              className={`min-w-[92px] flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(labelText) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+            >
+              <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(labelText) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
+                {labelText}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
 
   const handleConfirmVisit = async () => {
     if (!isLoggedIn || !token) {
@@ -111,6 +178,7 @@ export default function BookSiteVisit() {
     if (itemsToBook.length === 0) return;
 
     const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
+    const selectedApiSlot = availableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal);
     
     // Convert selected date and time to ISO format for API
     const [hours, minutes] = selectedTimeVal.replace(/[AP]M/, '').trim().split(':').map(Number);
@@ -124,7 +192,7 @@ export default function BookSiteVisit() {
       const firstItem = itemsToBook[0];
       
       // Get property ID from stored data, fallback to project ID
-      const propertyId = firstItem.propertyIds?.[0] || firstItem.projectId;
+      const propertyId = getPropertyIdForVisit(firstItem);
       
       if (!propertyId) {
         Alert.alert('Error', 'Unable to determine property ID. Please try adding the project to cart again.');
@@ -133,19 +201,30 @@ export default function BookSiteVisit() {
       
       console.log('📤 Creating site visit:', {
         property_id: propertyId,
-        slot_start: slotDateTime.toISOString(),
+        slot_start: selectedApiSlot?.slot_start || slotDateTime.toISOString(),
         user_note: notes || null,
         branch_id: selectedBranch?.id
       });
 
       const result = await dispatch(createSiteVisitThunk({
         property_id: propertyId, // Use stored property ID
-        slot_start: slotDateTime.toISOString(),
+        slot_start: selectedApiSlot?.slot_start || slotDateTime.toISOString(),
         user_note: notes || null,
         branch_id: selectedBranch?.id
       })).unwrap();
 
       console.log('✅ Site visit created:', result);
+
+      if (rescheduleVisitId) {
+        try {
+          await dispatch(updateSiteVisitThunk({
+            visitId: rescheduleVisitId,
+            updateData: { status: 'rescheduled' },
+          })).unwrap();
+        } catch (updateError) {
+          console.log('Failed to mark previous visit as rescheduled:', updateError);
+        }
+      }
 
       // Also update local Redux state for UI
       const dateObj = new Date(selectedDate);
@@ -393,58 +472,25 @@ export default function BookSiteVisit() {
           <View className="mb-7">
             <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Time Slot</Text>
 
-            <View className="flex-row items-center mb-3.5">
-              <Feather name="sun" size={12} color="#9CA3AF" />
-              <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">MORNING</Text>
-            </View>
-            <View className="flex-row justify-between gap-3 mb-5">
-              {TIME_SLOTS.morning.map(slot => (
-                <Pressable
-                  key={slot}
-                  onPress={() => handleSlotPress(slot)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
-                >
-                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
-                    {slot}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View className="flex-row items-center mb-3.5">
-              <Feather name="sun" size={12} color="#9CA3AF" />
-              <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">AFTERNOON</Text>
-            </View>
-            <View className="flex-row justify-between gap-3 mb-2">
-              {TIME_SLOTS.afternoon.map(slot => (
-                <Pressable
-                  key={slot}
-                  onPress={() => handleSlotPress(slot)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
-                >
-                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
-                    {slot}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View className="flex-row items-center mb-3.5">
-              <Feather name="sun" size={12} color="#9CA3AF" />
-              <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">EVENING</Text>
-            </View>
-            <View className="flex-row justify-between gap-3 mb-2">
-              {TIME_SLOTS.evening.map(slot => (
-                <Pressable
-                  key={slot}
-                  onPress={() => handleSlotPress(slot)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(slot) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
-                >
-                  <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(slot) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
-                    {slot}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {slotsLoading ? (
+              <View className="py-8 items-center justify-center">
+                <ActivityIndicator size="small" color="#4A43EC" />
+                <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available slots...</Text>
+              </View>
+            ) : availableSlots.length > 0 ? (
+              <>
+                {slotGroups.morning.length > 0 && renderSlotSection("MORNING", "sunrise", slotGroups.morning)}
+                {slotGroups.afternoon.length > 0 && renderSlotSection("AFTERNOON", "sun", slotGroups.afternoon)}
+                {slotGroups.evening.length > 0 && renderSlotSection("EVENING", "sunset", slotGroups.evening)}
+              </>
+            ) : (
+              <View className="border border-dashed border-gray-200 rounded-2xl p-5 items-center bg-gray-50">
+                <Text className="text-[13px] font-manrope-bold text-[#111827]">No slots available</Text>
+                <Text className="text-[11px] font-manrope text-[#6B7280] text-center mt-1">
+                  Try a different date or nearby branch.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Number of Visitors */}

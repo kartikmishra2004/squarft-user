@@ -4,32 +4,60 @@ import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@g
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchBuilderDetailsThunk, clearBuilder } from "../../store/slices/builderSlice";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { allProjects } from "../../data/projects";
 import DetailFooter from "./DetailFooter";
 
-const POSSESSION_FILTERS = ["In 3 years", "Ready To Move", "Under Construction"];
+const POSSESSION_FILTERS = ["All", "In 3 yrs", "Ready To Move", "Under Construction"];
+
+const getPossessionKey = (value) => {
+    const normalized = String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+
+    if (normalized.includes("ready")) return "ready_to_move";
+    if (normalized.includes("in_3") || normalized.includes("3_year")) return "in_3_years";
+    if (normalized.includes("under") || normalized.includes("construction") || normalized.includes("upcoming")) {
+        return "under_construction";
+    }
+
+    return normalized;
+};
+
+const formatPossessionLabel = (value) => {
+    const key = getPossessionKey(value);
+    if (key === "ready_to_move") return "Ready to Move";
+    if (key === "in_3_years") return "In 3 yrs";
+    if (key === "under_construction") return "Under Construction";
+    return value || "Project";
+};
 
 const FILTER_MAP = {
-    "In 3 years": (p) => p.possessionStatus === "Under Construction",
-    "Ready To Move": (p) => p.possessionStatus === "Ready to Move",
-    "Under Construction": (p) => p.possessionStatus === "Under Construction",
+    "All": () => true,
+    "In 3 yrs": (p) => getPossessionKey(p.possessionStatus) === "in_3_years",
+    "Ready To Move": (p) => getPossessionKey(p.possessionStatus) === "ready_to_move",
+    "Under Construction": (p) => getPossessionKey(p.possessionStatus) === "under_construction",
 };
 
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
-    const [activeFilter, setActiveFilter] = useState("In 3 years");
+    const [activeFilter, setActiveFilter] = useState("All");
     const sheetRef = useRef(null);
     const snapPoints = ['55%'];
     
     const { currentBuilder, builderProjects: apiProjects, loading } = useSelector((state) => state.builder);
-    const { isLoggedIn, token } = useSelector((state) => state.auth);
+    const { list: projectList } = useSelector((state) => state.project);
 
     // Fetch builder details when modal opens
     useEffect(() => {
         if (visible && project?.developerId) {
             console.log('🏗️ Fetching builder details for ID:', project.developerId);
             dispatch(fetchBuilderDetailsThunk(project.developerId));
+            if (!projectList?.length) {
+                dispatch(fetchProjectListThunk());
+            }
         } else if (visible && !project?.developerId) {
             console.log('⚠️ No developerId available for project:', project?.name);
             console.log('⚠️ Project data:', { 
@@ -38,7 +66,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                 developerId: project?.developerId 
             });
         }
-    }, [visible, project?.developerId]);
+    }, [visible, project?.developerId, projectList?.length, dispatch]);
 
     // Clear builder data when modal closes
     useEffect(() => {
@@ -57,6 +85,10 @@ export default function BuilderModal({ visible, onClose, project }) {
     ), [onClose]);
 
     const builderName = currentBuilder?.name || project?.builder || "";
+    const organizationProjects = (projectList || []).filter((p) => {
+        const organizationId = p.organisation_id || p.organization_id || p.organisationId || p.organizationId;
+        return organizationId && project?.developerId && String(organizationId) === String(project.developerId);
+    });
     
     // Use API projects if available, otherwise fallback to local data
     let builderProjects = [];
@@ -65,8 +97,25 @@ export default function BuilderModal({ visible, onClose, project }) {
         builderProjects = apiProjects.map(p => ({
             id: p.id,
             name: p.name,
-            // Add other fields as needed from your local projects structure
-            // For now, we'll just show basic info
+            slug: p.slug,
+            location: p.location || [p.area, p.city].filter(Boolean).join(", "),
+            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
+            possessionStatus: p.possession_status || p.possessionStatus || p.possession,
+            price_from: p.price_from,
+            price_to: p.price_to,
+            rera: Boolean(p.rera_approved),
+        }));
+    } else if (organizationProjects.length > 0) {
+        builderProjects = organizationProjects.map(p => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            location: p.location || [p.area, p.city].filter(Boolean).join(", "),
+            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
+            possessionStatus: p.possession_status || p.possessionStatus || p.possession,
+            price_from: p.price_from,
+            price_to: p.price_to,
+            rera: Boolean(p.rera_approved),
         }));
     } else {
         // Fallback to local data
@@ -144,21 +193,32 @@ export default function BuilderModal({ visible, onClose, project }) {
                             <Text className="text-[12px] text-gray-300 mt-1">No {activeFilter} projects by this builder</Text>
                         </View>
                     ) : (
-                        filteredProjects.map((p) => (
+                        filteredProjects.map((p) => {
+                            const priceText = p.variants?.[0]?.priceRange
+                                ?? p.avgPricePerSqft
+                                ?? (p.price_from ? `\u20B9${(Number(p.price_from) / 100000).toFixed(0)}L` : "\u2014");
+                            const metaText = p.subTypes?.length
+                                ? `${p.subTypes.join(", ")} BHK ${p.propertyType || ""}`.trim()
+                                : formatPossessionLabel(p.possessionStatus);
+                            return (
                             <View
                                 key={p.id}
                                 className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
                                 style={{ shadowColor: "#6B7280", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
                             >
                                 <View className="w-[116px] h-[116px] rounded-xl bg-gray-100 mr-5 overflow-hidden">
-                                    <Image source={p.imageMain} className="w-full h-full" resizeMode="cover" />
+                                    {p.imageMain ? (
+                                        <Image source={p.imageMain} className="w-full h-full" resizeMode="cover" />
+                                    ) : (
+                                        <View className="w-full h-full bg-gray-100" />
+                                    )}
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-[16px] font-bold text-gray-900 mb-0.5">
-                                        {p.variants?.[0]?.priceRange ?? p.avgPricePerSqft ?? '—'}
+                                        {priceText}
                                     </Text>
                                     <Text className="text-[14px] font-bold text-gray-800 mb-0.5">{p.name}</Text>
-                                    <Text className="text-[12px] text-gray-400">{p.subTypes?.join(", ")} BHK {p.propertyType}</Text>
+                                    <Text className="text-[12px] text-gray-400">{metaText}</Text>
                                     <Text className="text-[11px] text-gray-400 mb-3">{p.location}</Text>
                                     {p.rera && (
                                         <View className="self-start bg-green-100 rounded-md px-2 py-0.5">
@@ -167,7 +227,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                                     )}
                                 </View>
                             </View>
-                        ))
+                        );})
                     )}
                 </View>
             </BottomSheetScrollView>

@@ -2,30 +2,61 @@ import React, { useMemo, useCallback, useState } from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { Link, useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import { addSiteVisit, cancelUpcomingVisit } from "../../store/slices/propertiesSlice";
+import { updateSiteVisitThunk } from "../../store/slices/visitSlice";
 import ConfirmationModal from "../ConfirmationModal";
 
-const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+
+const formatVisitTime = (visitData) => {
+  if (visitData?.isoDate) {
+    return new Date(visitData.isoDate).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+  if (visitData?.dateFull?.includes("·")) return visitData.dateFull.split("·")[1].trim();
+  if (visitData?.dateFull?.includes("|")) return visitData.dateFull.split("|")[1].trim();
+  return "10:00 AM";
+};
+
+const formatVisitDateKey = (visitData) =>
+  visitData?.isoDate ? new Date(visitData.isoDate).toISOString().split("T")[0] : undefined;
+
+const RescheduleBottomSheet = React.forwardRef(({ visitData, onReschedule }, ref) => {
   const snapPoints = useMemo(() => ["75%"], []);
 
   const dispatch = useDispatch();
-  const router = useRouter();
 
   const closeModal = useCallback(() => {
     ref?.current?.dismiss();
   }, [ref]);
 
   const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const handleCancelVisit = useCallback(() => {
     setIsCancelModalVisible(true);
   }, []);
 
-  const confirmCancel = useCallback(() => {
+  const confirmCancel = useCallback(async () => {
     if (visitData?.id) {
+      setIsCancelling(true);
+      if (visitData.isApiVisit && isUuid(visitData.id)) {
+        try {
+          await dispatch(updateSiteVisitThunk({
+            visitId: visitData.id,
+            updateData: { status: "cancelled" },
+          })).unwrap();
+        } catch (error) {
+          console.log("Failed to cancel visit:", error);
+        }
+      }
       dispatch(cancelUpcomingVisit(visitData.id));
+      setIsCancelling(false);
       setIsCancelModalVisible(false);
       closeModal();
     }
@@ -35,24 +66,23 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     if (visitData) {
       dispatch(addSiteVisit({
         ...visitData,
-        id: visitData.projectId || visitData.id.replace(/_reschedule_.*/, "")
+        id: visitData.projectId || visitData.id.replace(/_reschedule_.*/, ""),
+        propertyIds: visitData.propertyIds || [],
       }));
       closeModal();
       
-      const parsedTime = visitData?.dateFull?.includes('·') ? visitData.dateFull.split('·')[1].trim() : visitData?.dateFull?.includes('|') ? visitData.dateFull.split('|')[1].trim() : "10:00 AM";
+      const parsedTime = formatVisitTime(visitData);
 
-      router.push({
-        pathname: "/(screens)/book-site-visit",
-        params: {
-          selectedIds: visitData.projectId || visitData.id.replace(/_reschedule_.*/, ""),
-          initialDate: visitData.isoDate,
-          initialTime: parsedTime,
-          initialVisitors: visitData.visitors?.toString() || "1",
-          initialNotes: visitData.notes || ""
-        }
+      onReschedule?.({
+        selectedIds: visitData.projectId || visitData.id.replace(/_reschedule_.*/, ""),
+        initialDate: formatVisitDateKey(visitData),
+        initialTime: parsedTime,
+        initialVisitors: visitData.visitors?.toString() || "1",
+        initialNotes: visitData.notes || "",
+        rescheduleVisitId: visitData.isApiVisit && isUuid(visitData.id) ? visitData.id : undefined,
       });
     }
-  }, [visitData, dispatch, router, closeModal]);
+  }, [visitData, dispatch, onReschedule, closeModal]);
 
   const renderBackdrop = useCallback(
     (props) => (
@@ -67,7 +97,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     : { uri: fallbackImage };
 
   const parsedDate = visitData?.isoDate ? new Date(visitData.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "";
-  const parsedTime = visitData?.dateFull?.includes('·') ? visitData.dateFull.split('·')[1].trim() : visitData?.dateFull?.includes('|') ? visitData.dateFull.split('|')[1].trim() : "10:00 AM";
+  const parsedTime = formatVisitTime(visitData);
   const displayDate = parsedDate ? `${parsedDate} • ${parsedTime}` : visitData?.dateFull || "Oct 24, 2023 • 10:00 AM";
 
   return (
@@ -197,7 +227,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
         title="Cancel Site Visit?"
         message="Are you sure you want to cancel this site visit? This action cannot be undone."
         cancelText="No, Keep it"
-        confirmText="Yes, Cancel"
+        confirmText={isCancelling ? "Cancelling..." : "Yes, Cancel"}
         icon="alert-triangle"
         iconColor="#EF4444"
         iconBgColor="#FFF1F2"
@@ -207,5 +237,7 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData }, ref) => {
     </BottomSheetModal>
   );
 });
+
+RescheduleBottomSheet.displayName = "RescheduleBottomSheet";
 
 export default RescheduleBottomSheet;

@@ -70,11 +70,11 @@ export const projectApi = {
 
     // Get similar properties
     getSimilarProperties: (slug, token) =>
-        request(`/api/v1/projects/${slug}/similar`, token),
+        request(`/api/v1/overview/${slug}/similar`, token),
 
     // Get featured projects
-    getFeaturedProjects: (params = {}) => {
+    getFeaturedProjects: (params = {}, token) => {
         const query = new URLSearchParams(params).toString();
-        return request(`/api/v1/projects/featured${query ? `?${query}` : ''}`);
+        return request(`/api/v1/projects/featured${query ? `?${query}` : ''}`, token);
     },
 };

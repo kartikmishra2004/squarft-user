@@ -6,6 +6,7 @@ export const fetchProjectListThunk = createAsyncThunk(
     async (_, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
+            if (!token) return [];
             return await projectApi.listProjects(token);
         } catch (e) {
             return rejectWithValue(e.message);
@@ -87,10 +88,12 @@ export const fetchSimilarPropertiesThunk = createAsyncThunk(
 
 export const fetchFeaturedProjectsThunk = createAsyncThunk(
     'project/fetchFeatured',
-    async (params = {}, { rejectWithValue }) => {
+    async (params = {}, { getState, rejectWithValue }) => {
         try {
+            const { token } = getState().auth;
+            if (!token) return [];
             console.log('🔥 [fetchFeaturedProjectsThunk] Calling API with params:', params);
-            const response = await projectApi.getFeaturedProjects(params);
+            const response = await projectApi.getFeaturedProjects(params, token);
             console.log('🔥 [fetchFeaturedProjectsThunk] API Response:', {
                 isArray: Array.isArray(response),
                 hasData: !!response?.data,
@@ -160,6 +163,7 @@ const projectSlice = createSlice({
         featured: [],
         featuredLoading: false,
         loading: false,
+        currentDetailSlug: null,
         error: null,
     },
     reducers: {
@@ -170,6 +174,7 @@ const projectSlice = createSlice({
             state.landmarks = [];
             state.amenities = [];
             state.similarProperties = [];
+            state.currentDetailSlug = null;
             state.error = null;
         },
     },
@@ -191,30 +196,68 @@ const projectSlice = createSlice({
                 state.error = action.payload;
                 console.log('❌ fetchProjectList failed:', action.payload);
             })
-            .addCase(fetchProjectDetailsThunk.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(fetchProjectDetailsThunk.pending, (state, action) => {
+                state.loading = true;
+                state.error = null;
+                state.currentDetailSlug = action.meta.arg;
+                state.details = null;
+                state.floorPlans = null;
+                state.resale = [];
+                state.landmarks = [];
+                state.amenities = [];
+                state.similarProperties = [];
+            })
             .addCase(fetchProjectDetailsThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.loading = false;
                 state.details = action.payload.data;
             })
             .addCase(fetchProjectDetailsThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.loading = false;
                 state.error = action.payload;
                 console.log('❌ fetchProjectDetails failed:', action.payload);
             })
             .addCase(fetchFloorPlansThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.floorPlans = action.payload.data;
             })
+            .addCase(fetchFloorPlansThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
+                state.floorPlans = { summary: {}, floor_plans: [] };
+                console.log('âŒ fetchFloorPlans failed:', action.payload);
+            })
             .addCase(fetchResaleThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.resale = action.payload.data || [];
             })
+            .addCase(fetchResaleThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
+                state.resale = [];
+            })
             .addCase(fetchLandmarksThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.landmarks = action.payload.data || [];
             })
+            .addCase(fetchLandmarksThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
+                state.landmarks = [];
+            })
             .addCase(fetchAmenitiesThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.amenities = action.payload.data || [];
             })
+            .addCase(fetchAmenitiesThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
+                state.amenities = [];
+            })
             .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
                 state.similarProperties = action.payload.data || [];
+            })
+            .addCase(fetchSimilarPropertiesThunk.rejected, (state, action) => {
+                if (state.currentDetailSlug !== action.meta.arg) return;
+                state.similarProperties = [];
             })
             .addCase(fetchFeaturedProjectsThunk.pending, (state) => { 
                 console.log('⏳ [fetchFeaturedProjectsThunk] Pending...');

@@ -1,16 +1,21 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { useFocusEffect, useNavigation } from "expo-router";
 
 import SavedTabContent from "../../components/myActivity/SavedTabContent";
 import SeenTabContent from "../../components/myActivity/SeenTabContent";
 import ContactedTabContent from "../../components/myActivity/ContactedTabContent";
 import RecentTabContent from "../../components/myActivity/RecentTabContent";
+import { fetchContactedPropertiesThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 
 export default function Favourite() {
+  const dispatch = useDispatch();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState("SAVED");
   const { properties, savedProperties, contactedProperties } = useSelector((state) => state.properties);
+  const { isLoggedIn, token } = useSelector((state) => state.auth);
   const savedCount = savedProperties.length;
   const seenCount = properties.filter((p) => p.isSeen).length;
   const contactedCount = contactedProperties.length;
@@ -22,6 +27,24 @@ export default function Favourite() {
     { id: "CONTACTED", title: "CONTACTED", icon: "phone-call", badge: contactedCount.toString().padStart(2, '0'), count: contactedCount },
     { id: "RECENT", title: "RECENT", icon: "clock", badge: recentCount.toString().padStart(2, '0'), count: recentCount },
   ];
+
+  const refreshActivity = useCallback(() => {
+    if (!isLoggedIn || !token) return;
+    dispatch(fetchSavedPropertiesThunk());
+    dispatch(fetchContactedPropertiesThunk());
+  }, [dispatch, isLoggedIn, token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshActivity();
+      return () => undefined;
+    }, [refreshActivity])
+  );
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener?.('tabPress', refreshActivity);
+    return () => unsubscribe?.();
+  }, [navigation, refreshActivity]);
 
   return (
     <View className="flex-1 bg-white">

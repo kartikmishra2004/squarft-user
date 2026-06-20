@@ -1,5 +1,5 @@
-import "react-native-gesture-handler";
-import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Stack, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Provider } from "react-redux";
@@ -7,16 +7,20 @@ import { useFonts } from "expo-font";
 import { Platform, useColorScheme } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import "../global.css";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { FontAwesome, Ionicons, MaterialIcons, MaterialCommunityIcons, AntDesign, Feather, Octicons, FontAwesome6 } from "@expo/vector-icons";
+import { registerGlobals } from "@livekit/react-native";
 
 import { Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
 import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
 import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
 import { store } from "../store/store";
-import { useRootNavigationState } from "expo-router";
+
+if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
+    registerGlobals();
+    globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__ = true;
+}
 
 SplashScreen.preventAutoHideAsync();
 

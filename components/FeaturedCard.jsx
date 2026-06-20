@@ -44,7 +44,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
 
     return (
         <TouchableOpacity
-            onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
+            onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id, slug: item.slug || 'none' } })}
             activeOpacity={0.85}
             className="w-[278px] bg-white rounded-2xl overflow-hidden mr-3.5"
             style={cardShadow}
@@ -56,7 +56,10 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
                 </View>
                 {onToggleFav && (
                     <TouchableOpacity
-                        onPress={() => onToggleFav(item.id)}
+                        onPress={(event) => {
+                            event.stopPropagation?.();
+                            onToggleFav(item.id);
+                        }}
                         style={{ position: "absolute", top: 10, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.9)", alignItems: "center", justifyContent: "center" }}
                     >
                         <Ionicons
