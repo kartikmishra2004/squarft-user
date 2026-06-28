@@ -6,7 +6,6 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchMyDeals } from "../../../store/slices/dealsSlice";
-import { nextPaymentDue } from "../../../data/my-deals";
 
 const Shimmer = ({ style, className }) => {
     const anim = useRef(new Animated.Value(0)).current;
@@ -50,6 +49,7 @@ const DealCardSkeleton = () => (
 
 
 const FILTERS = ["All Deals", "Active", "Pending"];
+const getDealRouteId = (deal) => deal.apiDealId || deal.deal_id || deal.dealId || deal.id;
 
 const ProgressBar = memo(function ProgressBar({ percentage, animKey }) {
     const animatedValue = useRef(new Animated.Value(0)).current;
@@ -85,6 +85,7 @@ const ProgressBar = memo(function ProgressBar({ percentage, animKey }) {
 
 const formatValue = (val) => {
     const num = Number(val);
+    if (!Number.isFinite(num)) return "₹0";
     if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
     if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
     return `₹${num.toLocaleString('en-IN')}`;
@@ -93,7 +94,8 @@ const formatValue = (val) => {
 const DealCard = memo(function DealCard({ deal, animKey, onPress }) {
     const isActive = deal.status === 'active';
     const totalStages = 8;
-    const paidPct = Math.round((deal.current_stage_index / totalStages) * 100);
+    const paidPct = Math.min(100, Math.max(0, Math.round(((deal.current_stage_index || 0) / totalStages) * 100)));
+    const statusLabel = deal.status ? deal.status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : 'Pending';
     return (
         <Pressable
             onPress={onPress}
@@ -108,7 +110,7 @@ const DealCard = memo(function DealCard({ deal, animKey, onPress }) {
                 </View>
                 <View className={`px-2 py-[2px] rounded-full ${isActive ? 'bg-[#EAF8EE]' : 'bg-[#FFF8E6]'}`}>
                     <Text className={`text-[10px] font-manrope-bold ${isActive ? 'text-[#22A559]' : 'text-[#F59E0B]'}`}>
-                        {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
+                        {statusLabel}
                     </Text>
                 </View>
             </View>
@@ -146,7 +148,7 @@ export default function MyDeals() {
     useFocusEffect(useCallback(() => {
         dispatch(fetchMyDeals());
         setAnimKey((k) => k + 1);
-    }, []));
+    }, [dispatch]));
 
     const filteredDeals = useMemo(() => deals.filter(deal => {
         if (activeFilter === "Active") return deal.status === 'active';
@@ -156,10 +158,34 @@ export default function MyDeals() {
 
     const totalValueFormatted = useMemo(() => {
         const num = Number(stats.totalValue);
+        if (!Number.isFinite(num)) return "₹0";
         if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
         if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
         return `₹${num.toLocaleString('en-IN')}`;
     }, [stats.totalValue]);
+
+    const nextPayment = useMemo(() => {
+        const candidates = deals
+            .map((deal) => ({
+                amount: deal.next_payment_amount ?? deal.next_due_amount,
+                date: deal.next_payment_due_date ?? deal.next_due_date,
+            }))
+            .filter((item) => item.amount && item.date)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (!candidates.length) return null;
+
+        const dueDate = new Date(candidates[0].date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+
+        return {
+            amount: formatValue(candidates[0].amount),
+            date: dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            daysRemaining: Math.ceil((dueDate - today) / 86400000),
+        };
+    }, [deals]);
 
     return (
         <View className="flex-1 bg-[#FAFAFA]">
@@ -198,7 +224,7 @@ export default function MyDeals() {
                 {/* Content Container */}
                 <View className="pt-5 flex-1">
                     {/* Next Payment Banner */}
-                    <View className="px-5 mb-4">
+                    {nextPayment ? <View className="px-5 mb-4">
                         <View className="rounded-[16px]" style={{ elevation: 4, shadowColor: '#5B50F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10 }}>
                             <View className="rounded-[16px] overflow-hidden relative">
                                 <LinearGradient
@@ -210,9 +236,9 @@ export default function MyDeals() {
                                 <View className="px-[16px] py-[12px] flex-row justify-between items-center relative z-10">
                                     <View className="justify-center">
                                         <Text className="text-[12px] font-manrope-medium text-white/80 leading-[16px]">Next Payment Due</Text>
-                                        <Text className="text-[23px] font-manrope-bold text-white tracking-tight leading-[32px] mt-0.5 mb-1">{nextPaymentDue.amount}</Text>
+                                        <Text className="text-[23px] font-manrope-bold text-white tracking-tight leading-[32px] mt-0.5 mb-1">{nextPayment.amount}</Text>
                                         <Text className="text-[12px] font-manrope-medium text-white/80 leading-[16px]">
-                                            📆 Due in {nextPaymentDue.daysRemaining} days · {nextPaymentDue.date}
+                                            Due in {nextPayment.daysRemaining} days · {nextPayment.date}
                                         </Text>
                                     </View>
                                     <Pressable className="bg-white/20 px-[16px] py-[10px] rounded-[10px]" activeOpacity={0.8}>
@@ -221,7 +247,7 @@ export default function MyDeals() {
                                 </View>
                             </View>
                         </View>
-                    </View>
+                    </View> : null}
 
                     {/* Filters */}
                     <View className="flex-row px-5 mb-4 gap-3">
@@ -265,7 +291,7 @@ export default function MyDeals() {
                                     key={deal.id}
                                     deal={deal}
                                     animKey={animKey}
-                                    onPress={() => router.push(`/myDeals/${deal.id}`)}
+                                    onPress={() => router.push(`/myDeals/${getDealRouteId(deal)}`)}
                                 />
                             ))
                         ) : (

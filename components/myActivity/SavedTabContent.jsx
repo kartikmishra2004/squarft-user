@@ -153,7 +153,7 @@ const SavedTabContent = () => {
             Enhance your search{"\n"}experience with just 3 quick{"\n"}answers.
           </Text>
           <Pressable className="self-start border border-[#4A43EC] rounded-xl px-4 py-[8px] bg-white">
-            <Text className="text-[#4A43EC] font-manrope-extrabold text-[12px]">Let's begin</Text>
+            <Text className="text-[#4A43EC] font-manrope-extrabold text-[12px]">Let&apos;s begin</Text>
           </Pressable>
         </View>
       </View>

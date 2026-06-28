@@ -181,6 +181,7 @@ const authSlice = createSlice({
             .addCase(fetchProfileThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 state.profile = action.payload;
+                state.user = action.payload?.user || state.user;
             })
             .addCase(fetchProfileThunk.rejected, (state, action) => {
                 state.loading = false;

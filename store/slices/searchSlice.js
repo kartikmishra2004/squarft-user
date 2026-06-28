@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { searchApi } from '../../services/searchApi';
 
+const getSearchHistoryId = (itemOrId) => {
+    if (!itemOrId) return null;
+    if (typeof itemOrId === 'string') return itemOrId;
+    return itemOrId.id || itemOrId.search_id || itemOrId.history_id || null;
+};
+
 // Get trending searches
 export const getTrendingSearchesThunk = createAsyncThunk(
     'search/getTrending',
@@ -54,14 +60,19 @@ export const saveSearchHistoryThunk = createAsyncThunk(
 // Delete search history
 export const deleteSearchHistoryThunk = createAsyncThunk(
     'search/deleteHistory',
-    async (id, { getState, rejectWithValue }) => {
+    async (itemOrId, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
             if (!token) {
                 
                 throw new Error('Not authenticated');
             }
-            
+
+            const id = getSearchHistoryId(itemOrId);
+            if (!id) {
+                throw new Error('Search history id is missing');
+            }
+
             await searchApi.deleteSearchHistory(token, id);
             return id; // Return the id to remove from state
         } catch (e) {
@@ -160,7 +171,7 @@ const searchSlice = createSlice({
             .addCase(deleteSearchHistoryThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 // Remove the deleted item from history
-                state.searchHistory = state.searchHistory.filter(item => item.id !== action.payload);
+                state.searchHistory = state.searchHistory.filter(item => getSearchHistoryId(item) !== action.payload);
             })
             .addCase(deleteSearchHistoryThunk.rejected, (state, action) => {
                 state.loading = false;

@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Animated } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { useState, useEffect, useRef , useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,6 +15,7 @@ const TABS = ["Timeline", "Payments", "Documents", "Overview"];
 
 const formatValue = (val) => {
     const num = Number(val);
+    if (!Number.isFinite(num)) return "₹0";
     if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
     if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
     return `₹${num.toLocaleString("en-IN")}`;
@@ -77,7 +78,7 @@ export default function DealDetails() {
     useEffect(() => {
         dispatch(fetchDealById(id));
         return () => dispatch(clearCurrentDeal());
-    }, [id]);
+    }, [dispatch, id]);
 
     if (loading || !deal) {
         return error
@@ -91,15 +92,16 @@ export default function DealDetails() {
 
     const totalStages = deal.timeline?.length || 8;
     const paidPct = Math.round(((deal.current_stage_index ?? 0) / totalStages) * 100);
+    const uploadDealId = deal.apiDealId || deal.deal_id || deal.dealId || deal.id || id;
 
-    const renderActiveTabBox = useMemo(() => {
+    const activeTabContent = (() => {
         switch (activeTab) {
-            case "Timeline": return <TabTimeline />;
+            case "Timeline": return <TabTimeline timeline={deal.timeline ?? []} currentStageIndex={deal.current_stage_index ?? 0} />;
             case "Payments": return <TabPayments payments={deal.payments ?? []} />;
-            case "Documents": return <TabDocuments documents={deal.documents ?? []} dealId={deal.id} />;
+            case "Documents": return <TabDocuments documents={deal.documents ?? []} dealId={uploadDealId} />;
             default: return <TabOverview deal={deal} />;
         }
-    }, [activeTab, deal]);
+    })();
 
     return (
         <View className="flex-1 bg-white">
@@ -173,7 +175,7 @@ export default function DealDetails() {
                     </View>
 
                     <View className="px-5 pt-6 pb-[100px]">
-                        {renderActiveTabBox}
+                        {activeTabContent}
                     </View>
                 </View>
             </ScrollView>

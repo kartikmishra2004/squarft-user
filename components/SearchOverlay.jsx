@@ -1,19 +1,18 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    FlatList, KeyboardAvoidingView, Platform,
+    FlatList, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image, Keyboard,
 } from "react-native";
 import Animated, {
     useSharedValue, useAnimatedStyle,
-    withTiming, Easing, FadeIn, FadeOut, Layout,
+    withTiming, Easing, FadeIn, Layout,
 } from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
 import { getTrendingSearchesThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../store/slices/searchSlice";
-import { fetchProjectListThunk } from "../store/slices/projectSlice";
-import { Image } from "react-native";
+import { fetchNearbyProjectsThunk, fetchProjectListThunk } from "../store/slices/projectSlice";
 
 
 
@@ -57,6 +56,41 @@ const iconMap = {
 };
 
 const TIMING = { duration: 250, easing: Easing.out(Easing.ease) };
+const LOCATION_TIMEOUT_MS = 12000;
+
+const withTimeout = (promise, timeoutMessage) =>
+    Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(timeoutMessage)), LOCATION_TIMEOUT_MS);
+        }),
+    ]);
+
+const loadExpoLocation = () => {
+    try {
+        return { module: require('expo-location'), error: null };
+    } catch (error) {
+        return { module: null, error };
+    }
+};
+
+const formatLocationName = (place) => {
+    if (!place) return '';
+
+    const parts = [
+        place.name,
+        place.district,
+        place.subregion,
+        place.city,
+        place.region,
+    ]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean);
+
+    return [...new Set(parts)].slice(0, 3).join(', ');
+};
+
+const getSearchHistoryId = (item) => item?.id || item?.search_id || item?.history_id || null;
 
 
 function HistoryIcon({ type }) {
@@ -97,9 +131,11 @@ function SearchHistoryItem({ item, index, total, onSelect, onDelete }) {
                     <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{item.title}</Text>
                     <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{item.subtitle}</Text>
                 </View>
-                <TouchableOpacity onPress={() => onDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close" size={16} color="#9CA3AF" />
-                </TouchableOpacity>
+                {item.id ? (
+                    <TouchableOpacity onPress={() => onDelete(item.source || item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Ionicons name="close" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                ) : null}
             </TouchableOpacity>
             {index < total - 1 && <Divider left={70} />}
         </Animated.View>
@@ -148,7 +184,9 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
 
     // Format search history for display
     const formattedHistory = searchHistory.map((item, index) => ({
-        id: item.id || `history-${index}`,
+        id: getSearchHistoryId(item),
+        key: getSearchHistoryId(item) || `${item.query_text || 'history'}-${item.searched_at || index}`,
+        source: item,
         icon: 'history',
         title: item.query_text || 'Unknown search',
         subtitle: `${new Date(item.searched_at).toLocaleDateString()} • ${item.result_count || 0} results`,
@@ -164,7 +202,7 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
                     <SectionLabel text="SEARCH HISTORY" action="Clear All" onActionPress={onClearAll} />
                     <View style={{ backgroundColor: '#fff' }}>
                         {formattedHistory.map((item, i) => (
-                            <SearchHistoryItem key={item.id} item={item} index={i} total={formattedHistory.length} onSelect={onSelect} onDelete={onDeleteHistory} />
+                            <SearchHistoryItem key={item.key} item={item} index={i} total={formattedHistory.length} onSelect={onSelect} onDelete={onDeleteHistory} />
                         ))}
                     </View>
                 </>
@@ -243,6 +281,8 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     const debounceRef = useRef(null);
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [locationLoading, setLocationLoading] = useState(false);
+    const [locationStatus, setLocationStatus] = useState('');
     
     // Get data from Redux
     const { trendingSearches, searchHistory } = useSelector(state => state.search);
@@ -323,15 +363,110 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         router.push('/(screens)/property-listing');
     }, [isLoggedIn, token, dispatch, projectList, onChangeText]);
 
-    const handleDeleteHistory = useCallback((id) => {
-        
-        dispatch(deleteSearchHistoryThunk(id));
+    const handleDeleteHistory = useCallback((itemOrId) => {
+        const id = typeof itemOrId === 'string' ? itemOrId : getSearchHistoryId(itemOrId);
+        if (!id) return;
+        dispatch(deleteSearchHistoryThunk(itemOrId));
     }, [dispatch]);
 
     const handleClearAll = useCallback(() => {
         
         dispatch(clearAllSearchHistoryThunk());
     }, [dispatch]);
+
+    const handleUseCurrentLocation = useCallback(async () => {
+        if (locationLoading) return;
+
+        try {
+            Keyboard.dismiss();
+            setLocationLoading(true);
+            setLocationStatus('Requesting location permission...');
+            const { module: Location, error: locationLoadError } = loadExpoLocation();
+
+            if (!Location) {
+                setLocationStatus('');
+                Alert.alert(
+                    'Location module not available',
+                    locationLoadError?.message || 'Please rebuild and reinstall the app after installing expo-location, then try again.'
+                );
+                return;
+            }
+
+            const { status } = await Location.requestForegroundPermissionsAsync();
+
+            if (status !== 'granted') {
+                setLocationStatus('');
+                Alert.alert('Location permission needed', 'Please allow location access to find nearby projects.');
+                return;
+            }
+
+            setLocationStatus('Finding your location...');
+            const servicesEnabled = await Location.hasServicesEnabledAsync();
+            if (!servicesEnabled) {
+                setLocationStatus('');
+                Alert.alert('Turn on location services', 'Please enable GPS/location services and try again.');
+                return;
+            }
+
+            let position = await Location.getLastKnownPositionAsync({
+                maxAge: 60000,
+                requiredAccuracy: 5000,
+            });
+
+            if (!position) {
+                position = await withTimeout(
+                    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+                    'Location request timed out. Please try again from an open area or check GPS settings.'
+                );
+            }
+
+            const coords = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
+
+            setLocationStatus('Detecting area...');
+            let locationName = 'Current location';
+            try {
+                const places = await withTimeout(
+                    Location.reverseGeocodeAsync(coords),
+                    'Location name lookup timed out.'
+                );
+                locationName = formatLocationName(places?.[0]) || locationName;
+            } catch (error) {
+                console.log('Reverse geocode failed:', error.message);
+            }
+
+            setLocationStatus('Loading nearby projects...');
+            const nearbyResponse = await dispatch(fetchNearbyProjectsThunk(coords)).unwrap();
+            const resultCount = nearbyResponse?.data?.count ?? 0;
+            dispatch(setSearchQuery(locationName));
+            onChangeText(locationName);
+
+            if (isLoggedIn && token) {
+                dispatch(saveSearchHistoryThunk({
+                    query_text: locationName,
+                    filters: { latitude: coords.latitude, longitude: coords.longitude },
+                    result_count: resultCount,
+                }));
+            }
+
+            router.push({
+                pathname: '/(screens)/property-listing',
+                params: {
+                    nearby: '1',
+                    latitude: String(coords.latitude),
+                    longitude: String(coords.longitude),
+                    locationName,
+                },
+            });
+        } catch (error) {
+            setLocationStatus('');
+            Alert.alert('Could not use current location', error.message || 'Please try again.');
+        } finally {
+            setLocationLoading(false);
+        }
+    }, [dispatch, isLoggedIn, locationLoading, onChangeText, token]);
 
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#F9FAFB' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -372,19 +507,32 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 {/* Location options */}
                 <View style={{ marginTop: 14, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', borderWidth:1, borderColor: '#dfdcdfff' }}>
                     <TouchableOpacity
+                        onPress={handleUseCurrentLocation}
+                        disabled={locationLoading}
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
                     >
-                        <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#E8336D" />
-                        <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D' }}>Use my Current Location</Text>
+                        {locationLoading ? (
+                            <ActivityIndicator size="small" color="#E8336D" />
+                        ) : (
+                            <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#E8336D" />
+                        )}
+                        <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D' }}>
+                            {locationLoading ? 'Finding nearby projects...' : 'Use my Current Location'}
+                        </Text>
                     </TouchableOpacity>
+                    {locationStatus ? (
+                        <Text style={{ paddingHorizontal: 18, paddingBottom: 12, marginTop: -4, fontSize: 12, color: '#9CA3AF' }}>
+                            {locationStatus}
+                        </Text>
+                    ) : null}
                     <View style={{    height: 1 ,marginHorizontal: 18, borderWidth:0.5, borderColor: '#ebe6ebff' }} />
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, gap: 14 }}
                     >
                         <MaterialCommunityIcons name="plus" size={22} color="#E8336D" />
                         <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8336D', flex: 1 }}>Add New Address</Text>
                         <Ionicons name="chevron-forward" size={18} color="#E8336D" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
             </Animated.View>
 

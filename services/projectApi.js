@@ -77,4 +77,8 @@ export const projectApi = {
         const query = new URLSearchParams(params).toString();
         return request(`/api/v1/projects/featured${query ? `?${query}` : ''}`, token);
     },
+
+    // Get projects close to the user's current coordinates
+    getNearbyProjects: ({ latitude, longitude }, token) =>
+        request(`/api/v1/projects/nearby?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`, token),
 };

@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
-import { fetchProjectListThunk } from "../../store/slices/projectSlice";
-import { useLocalSearchParams } from "expo-router";
+import { fetchNearbyProjectsThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 
 // Filter constants
 const BUDGET_MIN = 2000000;
@@ -163,6 +162,10 @@ function applyFilters(projects, filter) {
 }
 
 function ProjectCard({ item }) {
+    const title = item.name || item.title || item.project_name || 'Project';
+    const location = item.location || [item.area, item.city].filter(Boolean).join(', ');
+    const image = item.cover_image_url || item.cover_image || item.image_url || item.image;
+
     return (
         <View
             className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 mx-4"
@@ -173,8 +176,8 @@ function ProjectCard({ item }) {
             >
                 <View className="flex-row h-36 w-full">
                     <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                        {item.cover_image_url
-                            ? <Image source={{ uri: item.cover_image_url }} className="w-full h-full" resizeMode="cover" />
+                        {image
+                            ? <Image source={{ uri: image }} className="w-full h-full" resizeMode="cover" />
                             : <View className="w-full h-full bg-gray-200 items-center justify-center">
                                 <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
                               </View>
@@ -187,12 +190,14 @@ function ProjectCard({ item }) {
 
                 <View className="px-3 pt-3 pb-2">
                     <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                        {item.area}, {item.city}
+                        {location || item.pincode}
                     </Text>
                     <View className="flex-row items-center mb-1">
-                        <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{item.name}</Text>
+                        <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{title}</Text>
                     </View>
-                    <Text className="text-[11px] text-[#9CA3AF] font-manrope">{item.pincode}</Text>
+                    <Text className="text-[11px] text-[#9CA3AF] font-manrope">
+                        {item.distance_km ? `${item.distance_km} km away` : item.pincode}
+                    </Text>
                 </View>
 
                 <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
@@ -214,9 +219,11 @@ export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
-    const { list: apiProjects, loading: projectsLoading } = useSelector((state) => state.project);
-    const { category } = useLocalSearchParams();
-    const [localQuery, setLocalQuery] = useState(filter.searchQuery || '');
+    const { list: apiProjects, nearby, loading: projectsLoading, nearbyLoading } = useSelector((state) => state.project);
+    const { category, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
+    const isNearbyMode = nearbyParam === '1';
+    const nearbyLocationName = Array.isArray(locationName) ? locationName[0] : locationName;
+    const [localQuery, setLocalQuery] = useState(isNearbyMode ? (nearbyLocationName || filter.searchQuery || '') : (filter.searchQuery || ''));
     const [sortKey, setSortKey] = useState('relevance');
     const [sortOpen, setSortOpen] = useState(false);
     const [bhkOpen, setBhkOpen] = useState(false);
@@ -227,10 +234,19 @@ export default function PropertyListing() {
         dispatch(fetchProjectListThunk());
     }, [dispatch]);
 
+    useEffect(() => {
+        if (!isNearbyMode || !latitude || !longitude) return;
+
+        dispatch(fetchNearbyProjectsThunk({
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+        }));
+    }, [dispatch, isNearbyMode, latitude, longitude]);
+
     // Sync search input with Redux searchQuery when navigated from SearchOverlay
     useEffect(() => {
-        setLocalQuery(filter.searchQuery || '');
-    }, [filter.searchQuery]);
+        setLocalQuery(isNearbyMode ? (nearbyLocationName || filter.searchQuery || '') : (filter.searchQuery || ''));
+    }, [filter.searchQuery, isNearbyMode, nearbyLocationName]);
 
     const SORT_OPTIONS = [
         { key: 'relevance', label: 'Relevance' },
@@ -244,7 +260,9 @@ export default function PropertyListing() {
         dispatch(setSearchQuery(text));
     };
 
-    const filtered = applyFilters(apiProjects, filter);
+    const projects = isNearbyMode ? nearby : apiProjects;
+    const effectiveFilter = isNearbyMode ? { ...filter, searchQuery: '' } : filter;
+    const filtered = applyFilters(projects, effectiveFilter);
 
     const sorted = [...filtered].sort((a, b) => {
         if (sortKey === 'newest') return (b.created_at || '').localeCompare(a.created_at || '');
@@ -276,7 +294,9 @@ export default function PropertyListing() {
                     <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}>
                         <Ionicons name="chevron-back" size={20} color="#374151" />
                     </TouchableOpacity>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>Project Page</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>
+                        {isNearbyMode ? 'Nearby Projects' : 'Project Page'}
+                    </Text>
                     <TouchableOpacity>
                         <Ionicons name="notifications-outline" size={22} color="#374151" />
                     </TouchableOpacity>
@@ -398,9 +418,11 @@ export default function PropertyListing() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
                 ListEmptyComponent={
-                    projectsLoading ? (
+                    (isNearbyMode ? nearbyLoading : projectsLoading) ? (
                         <View style={{ alignItems: 'center', marginTop: 60 }}>
-                            <Text style={{ fontSize: 15, color: '#9CA3AF' }}>Loading projects...</Text>
+                            <Text style={{ fontSize: 15, color: '#9CA3AF' }}>
+                                {isNearbyMode ? 'Finding nearby projects...' : 'Loading projects...'}
+                            </Text>
                         </View>
                     ) : (
                         <View style={{ alignItems: 'center', marginTop: 60 }}>

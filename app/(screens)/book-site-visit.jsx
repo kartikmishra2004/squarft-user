@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { View, Text, Pressable, ScrollView, Image, TextInput, Platform, KeyboardAvoidingView, Alert, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -9,6 +9,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { currentUser } from "../../data/user";
+import PropertyDetailModal from "../../components/projectDetail/PropertyDetailModal";
+import { propertyApi } from "../../services/propertyApi";
+import { projectApi } from "../../services/projectApi";
+
+const FALLBACK_PROPERTY_IMAGE = { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" };
 
 const formatSlotTime = (value) =>
   new Date(value).toLocaleTimeString('en-US', {
@@ -18,6 +23,29 @@ const formatSlotTime = (value) =>
   }).replace(/^0/, '');
 
 const getSlotHour = (slot) => new Date(slot.slot_start).getHours();
+
+const toLocalDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateKey = (dateKey) => {
+  const [year, month, day] = String(dateKey || '').split('-').map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(year, month - 1, day);
+};
+
+const normalizeFutureDateKey = (dateKey, todayKey) =>
+  dateKey && String(dateKey) >= todayKey ? String(dateKey) : todayKey;
+
+const getMonthKey = (dateKey) => String(dateKey || '').slice(0, 7);
+
+const isFutureSlot = (slot, now) => {
+  const slotTime = new Date(slot.slot_start);
+  return !Number.isNaN(slotTime.getTime()) && slotTime > now;
+};
 
 const groupAvailableSlots = (slots) => {
   const groups = { morning: [], afternoon: [], evening: [] };
@@ -43,6 +71,157 @@ const getPropertyIdForVisit = (item) => {
   return candidates.find(isUuid);
 };
 
+const getImageSource = (image) => {
+  if (typeof image === "string" && image) return { uri: image };
+  return image || FALLBACK_PROPERTY_IMAGE;
+};
+
+const getVisitVariantLabel = (visit) => {
+  if (visit?.variant) return visit.variant;
+  if (Array.isArray(visit?.selectedUnits) && visit.selectedUnits[0]) return visit.selectedUnits[0];
+  return visit?.unitType || visit?.type || visit?.title || visit?.name || "Selected Unit";
+};
+
+const getSelectedVisitVariant = (visit) => {
+  if (visit?.variantDetails) return visit.variantDetails;
+
+  const propertyId = getPropertyIdForVisit(visit);
+  const selectedLabel = getVisitVariantLabel(visit);
+  const options = [
+    ...(Array.isArray(visit?.floorPlans) ? visit.floorPlans : []),
+    ...(Array.isArray(visit?.variants) ? visit.variants : []),
+  ];
+
+  return options.find((option) => {
+    const optionLabel = option?.type || option?.title;
+    return (propertyId && option?.id === propertyId) || (selectedLabel && optionLabel === selectedLabel);
+  });
+};
+
+const getApiList = (response, key) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (key && Array.isArray(response?.data?.[key])) return response.data[key];
+  if (key && Array.isArray(response?.[key])) return response[key];
+  return [];
+};
+
+const getApiData = (response) => response?.data || response || null;
+
+const normalizeApiFloorPlan = (plan = {}) => {
+  const title = plan.title || (plan.bedrooms ? `${plan.bedrooms} BHK` : "Selected Unit");
+  const areaSqft = plan.area_sqft ?? plan.total_area_sqft ?? plan.areaSqft ?? null;
+
+  return {
+    ...plan,
+    title,
+    type: plan.type || title,
+    area_sqft: areaSqft,
+    total_area_sqft: plan.total_area_sqft ?? areaSqft,
+    area: plan.area || (areaSqft ? `${areaSqft} sqft` : null),
+    price: plan.price ?? plan.base_price ?? plan.price_from ?? null,
+    image: plan.image || plan.floor_plan_url || plan.cover_image || null,
+    amenities: Array.isArray(plan.amenities) ? plan.amenities : [],
+  };
+};
+
+const normalizeApiAmenities = (amenities = []) =>
+  amenities
+    .map((amenity) => (typeof amenity === "string" ? amenity : amenity?.name))
+    .filter(Boolean);
+
+const findById = (items, id) =>
+  items.find((item) => id && String(item?.id) === String(id));
+
+const resolveProjectSlug = (visit, property, projects) => {
+  const directSlug = visit?.slug || visit?.projectSlug || visit?.project?.slug;
+  if (directSlug && directSlug !== "none") return directSlug;
+
+  const projectId = property?.project_id || visit?.project_id || visit?.projectId;
+  const matchedProject = projects.find((project) =>
+    (projectId && String(project?.id) === String(projectId)) ||
+    (projectId && String(project?.project_id) === String(projectId)) ||
+    (visit?.title && project?.name && String(project.name).toLowerCase() === String(visit.title).toLowerCase())
+  );
+
+  return matchedProject?.slug || null;
+};
+
+const LOCALITY_CITY_FALLBACKS = {
+  nipania: "Indore",
+  "scheme no 140": "Indore",
+  "bypass road": "Indore",
+  "ab road": "Indore",
+  "scheme 54": "Indore",
+  palasia: "Indore",
+};
+
+const getCityForVisit = (visit) => {
+  const explicitCity = visit?.city || visit?.projectCity || visit?.builderCity;
+  if (explicitCity) return explicitCity;
+
+  const locationParts = String(visit?.location || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (locationParts.length > 1) return locationParts[locationParts.length - 1];
+
+  const locality = locationParts[0]?.toLowerCase();
+  return LOCALITY_CITY_FALLBACKS[locality] || null;
+};
+
+const buildPropertyDetailPayload = (visit) => {
+  const propertyId = getPropertyIdForVisit(visit);
+  const selectedVariant = getSelectedVisitVariant(visit);
+  const imageSource = getImageSource(visit?.image || visit?.imageMain);
+  const title = visit?.title || visit?.name || "Property";
+  const variantLabel = selectedVariant?.type || selectedVariant?.title || getVisitVariantLabel(visit);
+  const priceValue = selectedVariant?.priceRange || selectedVariant?.price || selectedVariant?.base_price || selectedVariant?.price_from || visit?.price || visit?.priceINR || visit?.priceRange || visit?.avgPricePerSqft;
+  const areaValue = selectedVariant?.area || selectedVariant?.area_sqft || selectedVariant?.total_area_sqft || visit?.area || visit?.areaSqft || visit?.area_sqft;
+
+  const variant = {
+    ...selectedVariant,
+    id: propertyId || visit?.property_id || visit?.id,
+    title: variantLabel,
+    type: variantLabel,
+    price: selectedVariant?.price ?? selectedVariant?.base_price ?? selectedVariant?.price_from ?? priceValue,
+    priceRange: selectedVariant?.priceRange || (typeof priceValue === "string" ? priceValue : undefined),
+    area: selectedVariant?.area || (areaValue ? String(areaValue) : undefined),
+    area_sqft: selectedVariant?.area_sqft ?? selectedVariant?.total_area_sqft ?? visit?.area_sqft,
+    total_area_sqft: selectedVariant?.total_area_sqft,
+    possession_status: selectedVariant?.possession_status || visit?.possessionStatus || visit?.possession,
+    possession: selectedVariant?.possession || visit?.possession,
+    tower_no: selectedVariant?.tower_no || selectedVariant?.tower || visit?.tower_no || visit?.tower,
+    inventory: selectedVariant?.inventory ?? visit?.inventory,
+    amenities: selectedVariant?.amenities || visit?.amenities,
+    image: getImageSource(selectedVariant?.image || selectedVariant?.floor_plan_url || visit?.image || visit?.imageMain),
+  };
+
+  return {
+    project: {
+      ...visit,
+      id: visit?.projectId || visit?.project_id || propertyId || visit?.id,
+      name: title,
+      title,
+      location: visit?.location || "",
+      imageMain: imageSource,
+      imageThumb: getImageSource(visit?.imageThumb || visit?.image || visit?.imageMain),
+      builder: visit?.builder || visit?.developer_name || "SquarFt",
+      totalImages: visit?.totalImages || 1,
+      possessionStatus: visit?.possessionStatus || visit?.possession_status || visit?.possession,
+      possession: visit?.possession,
+      tower_no: visit?.tower_no || visit?.tower,
+      inventory: visit?.inventory,
+      units: visit?.units,
+      amenities: visit?.amenities || [],
+      variants: [variant],
+      floorPlans: [variant],
+    },
+    variant,
+  };
+};
+
 export default function BookSiteVisit() {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -55,20 +234,39 @@ export default function BookSiteVisit() {
 
   const { selectedIds, initialDate, initialTime, initialVisitors, initialNotes, rescheduleVisitId } = useLocalSearchParams();
 
-  const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
-  const [calendarMonth, setCalendarMonth] = useState(initialDate || new Date().toISOString().split('T')[0]);
+  const todayKey = toLocalDateKey();
+  const initialSelectedDate = normalizeFutureDateKey(initialDate, todayKey);
+  const [now, setNow] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
+  const [calendarMonth, setCalendarMonth] = useState(initialSelectedDate);
   const scrollViewRef = useRef(null);
   const [selectedTime, setSelectedTime] = useState(initialTime ? [initialTime] : []);
   const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
   const [notes, setNotes] = useState(initialNotes || "");
   const [selectedBranch, setSelectedBranch] = useState(null);
+  const [detailModalData, setDetailModalData] = useState(null);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
   const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => v.id);
 
   // Get first property to determine city for branch lookup
   const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(v.id));
-  const propertyCity = firstProperty?.location?.split(',').pop()?.trim() || firstProperty?.city || 'Mumbai';
+  const propertyCity = getCityForVisit(firstProperty);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const currentTodayKey = toLocalDateKey(now);
+    if (selectedDate < currentTodayKey) {
+      setSelectedDate(currentTodayKey);
+      setCalendarMonth(currentTodayKey);
+      setSelectedTime([]);
+    }
+  }, [now, selectedDate]);
 
   // Fetch branches when component mounts
   useEffect(() => {
@@ -77,6 +275,8 @@ export default function BookSiteVisit() {
     if (isLoggedIn && token && propertyCity) {
       console.log('🏢 Fetching branches for city:', propertyCity);
       dispatch(fetchBranchListThunk(propertyCity));
+    } else {
+      dispatch(clearAvailableSlots());
     }
   }, [dispatch, propertyCity, isLoggedIn, token]);
 
@@ -112,13 +312,18 @@ export default function BookSiteVisit() {
     }
   }, [dispatch, selectedDate, selectedBranch, firstProperty, isLoggedIn, token]);
 
+  const futureAvailableSlots = useMemo(
+    () => availableSlots.filter(slot => isFutureSlot(slot, now)),
+    [availableSlots, now]
+  );
+
   useEffect(() => {
     if (!selectedTime.length) return;
-    const availableLabels = new Set(availableSlots.map(slot => formatSlotTime(slot.slot_start)));
-    if (availableLabels.size > 0 && !availableLabels.has(selectedTime[0])) {
+    const availableLabels = new Set(futureAvailableSlots.map(slot => formatSlotTime(slot.slot_start)));
+    if (availableSlots.length > 0 && !availableLabels.has(selectedTime[0])) {
       setSelectedTime([]);
     }
-  }, [availableSlots, selectedTime]);
+  }, [availableSlots.length, futureAvailableSlots, selectedTime]);
 
   // Clear slots when component unmounts
   useEffect(() => {
@@ -127,9 +332,11 @@ export default function BookSiteVisit() {
     };
   }, [dispatch]);
 
-  const slotGroups = availableSlots.length > 0
-    ? groupAvailableSlots(availableSlots)
+  const slotGroups = futureAvailableSlots.length > 0
+    ? groupAvailableSlots(futureAvailableSlots)
     : { morning: [], afternoon: [], evening: [] };
+
+  const isPreviousMonthDisabled = getMonthKey(calendarMonth) <= getMonthKey(toLocalDateKey(now));
 
   const handleSlotPress = (slot) => {
     setSelectedTime([typeof slot === 'string' ? slot : formatSlotTime(slot.slot_start)]);
@@ -137,6 +344,124 @@ export default function BookSiteVisit() {
 
   const isSlotSelected = (slot) =>
     Array.isArray(selectedTime) ? selectedTime.includes(slot) : selectedTime === slot;
+
+  const hydratePropertyDetailPayload = async (visit) => {
+    const fallbackPayload = buildPropertyDetailPayload(visit);
+    const propertyId = getPropertyIdForVisit(visit);
+    if (!propertyId) return fallbackPayload;
+
+    try {
+      const [propertyResponse, projectListResponse] = await Promise.all([
+        propertyApi.getPropertyList(token, { limit: 500 }),
+        projectApi.listProjects(token),
+      ]);
+
+      const properties = getApiList(propertyResponse);
+      const projects = getApiList(projectListResponse);
+      const property = findById(properties, propertyId);
+      const projectId = property?.project_id || visit?.project_id || visit?.projectId;
+      const projectListItem = projects.find((project) =>
+        (projectId && String(project?.id) === String(projectId)) ||
+        (visit?.slug && project?.slug === visit.slug)
+      );
+      const slug = resolveProjectSlug(visit, property, projects);
+
+      let projectDetails = null;
+      let floorPlans = [];
+      let projectAmenities = [];
+
+      if (slug) {
+        const [detailsResponse, floorPlansResponse, amenitiesResponse] = await Promise.all([
+          projectApi.getProjectDetails(slug, token),
+          projectApi.getProjectFloorPlans(slug, token),
+          projectApi.getProjectAmenities(slug, token),
+        ]);
+
+        projectDetails = getApiData(detailsResponse);
+        floorPlans = getApiList(floorPlansResponse, "floor_plans");
+        projectAmenities = normalizeApiAmenities(getApiList(amenitiesResponse));
+      }
+
+      const matchedPlan = findById(floorPlans, propertyId);
+      const normalizedPlan = matchedPlan ? normalizeApiFloorPlan(matchedPlan) : null;
+      const propertyImage = property?.cover_image || property?.cover_image_url || property?.image;
+      const selectedVariant = {
+        ...fallbackPayload.variant,
+        ...normalizeApiFloorPlan({
+          id: propertyId,
+          title: property?.title || fallbackPayload.variant.title,
+          bedrooms: property?.bedrooms,
+          total_area_sqft: property?.total_area_sqft,
+          area_sqft: property?.total_area_sqft,
+          price: property?.base_price ?? property?.min_price ?? property?.max_price,
+          base_price: property?.base_price,
+          tower_no: property?.tower_no,
+          image: propertyImage,
+        }),
+        ...(normalizedPlan || {}),
+      };
+
+      const variantAmenities = normalizeApiAmenities(selectedVariant.amenities || []);
+      selectedVariant.amenities = variantAmenities.length > 0 ? variantAmenities : projectAmenities;
+      selectedVariant.possession_status =
+        selectedVariant.possession_status ||
+        selectedVariant.possession ||
+        property?.possession_status ||
+        projectDetails?.possession ||
+        projectDetails?.possession_status ||
+        fallbackPayload.variant.possession_status;
+      selectedVariant.inventory =
+        selectedVariant.inventory ??
+        property?.inventory ??
+        projectDetails?.stats?.units ??
+        fallbackPayload.variant.inventory;
+
+      const projectImage = projectDetails?.cover_image || projectListItem?.cover_image_url || propertyImage;
+      const projectArea = projectDetails?.area || property?.area || visit?.area || fallbackPayload.project.area;
+      const projectCity = projectDetails?.city || property?.city || visit?.city || fallbackPayload.project.city;
+
+      return {
+        project: {
+          ...fallbackPayload.project,
+          ...projectListItem,
+          id: projectDetails?.id || projectListItem?.id || projectId || fallbackPayload.project.id,
+          slug: slug || fallbackPayload.project.slug,
+          name: projectDetails?.name || projectListItem?.name || fallbackPayload.project.name,
+          title: projectDetails?.name || projectListItem?.name || fallbackPayload.project.title,
+          city: projectCity,
+          area: projectArea,
+          location: projectDetails?.location || fallbackPayload.project.location || [projectArea, projectCity].filter(Boolean).join(", "),
+          imageMain: getImageSource(projectImage || fallbackPayload.project.imageMain),
+          imageThumb: getImageSource(propertyImage || projectImage || fallbackPayload.project.imageThumb),
+          builder: projectDetails?.developer?.name || fallbackPayload.project.builder,
+          totalImages: fallbackPayload.project.totalImages || 1,
+          possessionStatus: projectDetails?.possession || property?.possession_status || fallbackPayload.project.possessionStatus,
+          possession: projectDetails?.possession || property?.possession_status || fallbackPayload.project.possession,
+          tower_no: selectedVariant.tower_no || fallbackPayload.project.tower_no,
+          inventory: selectedVariant.inventory ?? fallbackPayload.project.inventory,
+          units: projectDetails?.stats?.units ?? fallbackPayload.project.units,
+          price_from: projectDetails?.price_from ?? projectDetails?.starting_from ?? property?.min_price ?? selectedVariant.price,
+          price_to: projectDetails?.price_to ?? property?.max_price,
+          amenities: selectedVariant.amenities,
+          variants: [selectedVariant],
+          floorPlans: [selectedVariant],
+        },
+        variant: selectedVariant,
+      };
+    } catch (error) {
+      console.log("Property detail hydration failed:", error?.message || error);
+      return fallbackPayload;
+    }
+  };
+
+  const handleViewDetails = async (visit) => {
+    const fallbackPayload = buildPropertyDetailPayload(visit);
+    setDetailModalData(fallbackPayload);
+    setIsDetailModalVisible(true);
+
+    const enrichedPayload = await hydratePropertyDetailPayload(visit);
+    setDetailModalData(enrichedPayload);
+  };
 
   const renderSlotSection = (label, icon, slots) => (
     <>
@@ -151,9 +476,13 @@ export default function BookSiteVisit() {
             <Pressable
               key={slot.slot_start}
               onPress={() => handleSlotPress(slot)}
-              className={`min-w-[92px] flex-1 items-center justify-center py-2.5 rounded-xl border ${isSlotSelected(labelText) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+              className={`items-center justify-center rounded-xl border ${isSlotSelected(labelText) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+              style={{ width: '30.5%', height: 44 }}
             >
-              <Text className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(labelText) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}>
+              <Text
+                numberOfLines={1}
+                className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(labelText) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}
+              >
                 {labelText}
               </Text>
             </Pressable>
@@ -177,8 +506,26 @@ export default function BookSiteVisit() {
     const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
     if (itemsToBook.length === 0) return;
 
+    const bookingTargets = itemsToBook.map(item => ({
+      item,
+      propertyId: getPropertyIdForVisit(item),
+    }));
+    const missingProperty = bookingTargets.find(target => !target.propertyId);
+    if (missingProperty) {
+      Alert.alert(
+        'Property Not Available',
+        `${missingProperty.item.title || missingProperty.item.name || 'This property'} cannot be booked because its unit ID is missing. Please reopen the project and add a specific unit to your site visit.`
+      );
+      return;
+    }
+
     const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
-    const selectedApiSlot = availableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal);
+    const selectedApiSlot = futureAvailableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal);
+    if (!selectedApiSlot) {
+      Alert.alert('Slot Unavailable', 'This time slot has already passed. Please choose another available slot.');
+      setSelectedTime([]);
+      return;
+    }
     
     // Convert selected date and time to ISO format for API
     const [hours, minutes] = selectedTimeVal.replace(/[AP]M/, '').trim().split(':').map(Number);
@@ -189,31 +536,32 @@ export default function BookSiteVisit() {
     slotDateTime.setHours(hour24, minutes || 0, 0, 0);
 
     try {
-      const firstItem = itemsToBook[0];
-      
-      // Get property ID from stored data, fallback to project ID
-      const propertyId = getPropertyIdForVisit(firstItem);
-      
-      if (!propertyId) {
-        Alert.alert('Error', 'Unable to determine property ID. Please try adding the project to cart again.');
-        return;
-      }
+      const slotStart = selectedApiSlot.slot_start || slotDateTime.toISOString();
       
       console.log('📤 Creating site visit:', {
-        property_id: propertyId,
-        slot_start: selectedApiSlot?.slot_start || slotDateTime.toISOString(),
+        property_count: bookingTargets.length,
+        slot_start: slotStart,
         user_note: notes || null,
         branch_id: selectedBranch?.id
       });
 
-      const result = await dispatch(createSiteVisitThunk({
-        property_id: propertyId, // Use stored property ID
-        slot_start: selectedApiSlot?.slot_start || slotDateTime.toISOString(),
-        user_note: notes || null,
-        branch_id: selectedBranch?.id
-      })).unwrap();
+      const createdVisits = [];
+      for (const target of bookingTargets) {
+        const result = await dispatch(createSiteVisitThunk({
+          property_id: target.propertyId,
+          slot_start: slotStart,
+          user_note: notes || null,
+          branch_id: selectedBranch?.id
+        })).unwrap();
 
-      console.log('✅ Site visit created:', result);
+        createdVisits.push({
+          item: target.item,
+          propertyId: target.propertyId,
+          result,
+        });
+      }
+
+      console.log('✅ Site visits created:', createdVisits.length);
 
       if (rescheduleVisitId) {
         try {
@@ -230,18 +578,21 @@ export default function BookSiteVisit() {
       const dateObj = new Date(selectedDate);
       const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      const newUpcoming = itemsToBook.map(item => ({
-        id: result.data?.id || Math.random().toString(),
+      const newUpcoming = createdVisits.map(({ item, propertyId, result }, index) => ({
+        id: result.data?.id || `${propertyId}_${Date.now()}_${index}`,
         projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
+        propertyIds: item.propertyIds?.length ? item.propertyIds : [propertyId],
         title: item.title || item.name,
         location: item.location,
         image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
         status: "UPCOMING",
         dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
-        isoDate: selectedDate,
+        slot_start: result.data?.slot_start || slotStart,
+        slot_end: result.data?.slot_end,
+        isoDate: result.data?.slot_start || slotStart,
         visitors: visitors,
         notes: notes,
-        bookingId: `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
+        bookingId: result.data?.id || `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
         visitorName: currentUser.name,
         duration: "1.5 Hours",
       }));
@@ -329,11 +680,8 @@ export default function BookSiteVisit() {
 
           {/* Selected Properties */}
           {bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id)).map((visit) => {
-            const fallbackId = visit.id.replace(/\d{13}$/, "");
             const imageObj = visit.image || visit.imageMain;
-            const imageSource = imageObj
-              ? (typeof imageObj === "string" ? { uri: imageObj } : imageObj)
-              : { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" };
+            const imageSource = getImageSource(imageObj);
 
             return (
               <View key={visit.id} className="border border-gray-200 rounded-2xl p-4 flex-row mb-2 mt-2 bg-white">
@@ -352,10 +700,7 @@ export default function BookSiteVisit() {
                     </Text>
                   </View>
                   <Pressable
-                    onPress={() => router.push({
-                      pathname: "/(screens)/project-detail",
-                      params: { id: visit.projectId || fallbackId, from: "visit" }
-                    })}
+                    onPress={() => handleViewDetails(visit)}
                     className="flex-row items-center mt-0.5"
                   >
                     <Text className="text-[#4A43EC] text-[11px] font-manrope-bold">
@@ -374,24 +719,26 @@ export default function BookSiteVisit() {
               <Text className="text-[14px] font-manrope-bold text-[#111827]">Select Date</Text>
               <View className="flex-row items-center">
                 <Text className="text-[12px] font-manrope text-[#4B5563] mr-4">
-                  {new Date(calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  {parseDateKey(calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
                 </Text>
                 <View className="flex-row gap-2">
                   <Pressable
                     onPress={() => {
-                      const d = new Date(calendarMonth);
+                      if (isPreviousMonthDisabled) return;
+                      const d = parseDateKey(calendarMonth);
                       d.setMonth(d.getMonth() - 1);
-                      setCalendarMonth(d.toISOString().split('T')[0]);
+                      setCalendarMonth(toLocalDateKey(d));
                     }}
+                    disabled={isPreviousMonthDisabled}
                     className="w-[24px] h-[24px] border border-gray-200 rounded-full bg-white items-center justify-center"
                   >
-                    <Feather name="chevron-left" size={12} color="#9CA3AF" />
+                    <Feather name="chevron-left" size={12} color={isPreviousMonthDisabled ? "#D1D5DB" : "#9CA3AF"} />
                   </Pressable>
                   <Pressable
                     onPress={() => {
-                      const d = new Date(calendarMonth);
+                      const d = parseDateKey(calendarMonth);
                       d.setMonth(d.getMonth() + 1);
-                      setCalendarMonth(d.toISOString().split('T')[0]);
+                      setCalendarMonth(toLocalDateKey(d));
                     }}
                     className="w-[24px] h-[24px] border border-gray-200 rounded-full bg-white items-center justify-center"
                   >
@@ -405,9 +752,15 @@ export default function BookSiteVisit() {
               <Calendar
                 key={calendarMonth}
                 current={calendarMonth}
+                minDate={toLocalDateKey(now)}
                 hideArrows={true}
                 renderHeader={() => <View style={{ height: 0 }} />}
-                onDayPress={(day) => setSelectedDate(day.dateString)}
+                onDayPress={(day) => {
+                  const currentTodayKey = toLocalDateKey(now);
+                  if (day.dateString < currentTodayKey) return;
+                  setSelectedDate(day.dateString);
+                  setSelectedTime([]);
+                }}
                 onMonthChange={(month) => setCalendarMonth(month.dateString)}
                 markingType={'custom'}
                 markedDates={{
@@ -477,7 +830,7 @@ export default function BookSiteVisit() {
                 <ActivityIndicator size="small" color="#4A43EC" />
                 <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available slots...</Text>
               </View>
-            ) : availableSlots.length > 0 ? (
+            ) : futureAvailableSlots.length > 0 ? (
               <>
                 {slotGroups.morning.length > 0 && renderSlotSection("MORNING", "sunrise", slotGroups.morning)}
                 {slotGroups.afternoon.length > 0 && renderSlotSection("AFTERNOON", "sun", slotGroups.afternoon)}
@@ -485,9 +838,13 @@ export default function BookSiteVisit() {
               </>
             ) : (
               <View className="border border-dashed border-gray-200 rounded-2xl p-5 items-center bg-gray-50">
-                <Text className="text-[13px] font-manrope-bold text-[#111827]">No slots available</Text>
+                <Text className="text-[13px] font-manrope-bold text-[#111827]">
+                  {propertyCity ? "No slots available" : "City details missing"}
+                </Text>
                 <Text className="text-[11px] font-manrope text-[#6B7280] text-center mt-1">
-                  Try a different date or nearby branch.
+                  {propertyCity
+                    ? "Try a different date or nearby branch."
+                    : "Please reopen the property details and add the unit again."}
                 </Text>
               </View>
             )}
@@ -556,6 +913,14 @@ export default function BookSiteVisit() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PropertyDetailModal
+        visible={isDetailModalVisible}
+        onClose={() => setIsDetailModalVisible(false)}
+        project={detailModalData?.project}
+        variant={detailModalData?.variant}
+        readOnly
+      />
     </View>
   );
 }

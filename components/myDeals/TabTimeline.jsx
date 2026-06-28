@@ -1,59 +1,136 @@
 import { View, Text, Image, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { memo, useRef, useEffect } from 'react';
+import { memo, useRef, useEffect, useMemo, useState } from 'react';
 import { timelineData } from "../../data/my-deals";
 import TimelineItem from './TimelineItem';
 
-const TabTimeline = memo(function TabTimeline() {
+const DOT_CENTER_OFFSET = 11;
+
+const normalizeTimelineStatus = (status, index, currentStageIndex) => {
+    const stageIndex = Number(currentStageIndex);
+    if (Number.isFinite(stageIndex) && stageIndex > 0) {
+        if (index + 1 < stageIndex) return 'completed';
+        if (index + 1 === stageIndex) return 'current';
+        return 'pending';
+    }
+
+    const normalized = String(status || '').toLowerCase();
+    if (['completed', 'done', 'paid'].includes(normalized)) return 'completed';
+    if (['current', 'active', 'in_progress', 'in-progress'].includes(normalized)) return 'current';
+    if (['pending', 'upcoming', 'required', 'waiting'].includes(normalized)) return 'pending';
+    return 'pending';
+};
+
+const formatTimelineTime = (item) => {
+    const value = item.completed_at || item.created_at || item.updated_at;
+    if (!value) return item.time || '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return item.time || '';
+    return date.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+const getTimelineTitle = (item) =>
+    item.stage_name || item.title || item.milestone || 'Deal update';
+
+const getTimelineDescription = (item) =>
+    item.details || item.description || item.note || '';
+
+const TabTimeline = memo(function TabTimeline({ timeline = [], currentStageIndex = 0 }) {
     const lineAnim = useRef(new Animated.Value(0)).current;
+    const [itemLayouts, setItemLayouts] = useState({});
+    const items = timeline.length > 0 ? timeline : timelineData;
+    const statuses = useMemo(
+        () => items.map((item, index) => normalizeTimelineStatus(item.status, index, currentStageIndex)),
+        [items, currentStageIndex]
+    );
+    const completedCount = statuses.filter((status) => status === 'completed').length;
+    const lastCompletedIndex = statuses.lastIndexOf('completed');
+    const currentStatusIndex = statuses.indexOf('current');
+    const currentStage = currentStatusIndex >= 0
+        ? currentStatusIndex + 1
+        : Math.min(items.length, completedCount + 1);
+    const dotCenters = items.map((_, index) => {
+        const itemLayout = itemLayouts[index];
+        return itemLayout ? itemLayout.y + DOT_CENTER_OFFSET : null;
+    });
+    const firstDotCenter = dotCenters[0] ?? 14;
+    const lastDotCenter = dotCenters[items.length - 1] ?? 14;
+    const fillEndDotCenter = lastCompletedIndex >= 0
+        ? dotCenters[lastCompletedIndex] ?? firstDotCenter
+        : firstDotCenter;
+    const trackHeight = Math.max(0, lastDotCenter - firstDotCenter);
+    const fillHeight = Math.max(0, fillEndDotCenter - firstDotCenter);
 
     useEffect(() => {
+        lineAnim.setValue(0);
         Animated.timing(lineAnim, {
             toValue: 1,
-            duration: timelineData.length * 120 + 400,
+            duration: items.length * 120 + 400,
             useNativeDriver: false,
         }).start();
-    }, []);
+    }, [items.length, fillHeight, lineAnim]);
 
     return (
         <View>
             <View className="flex-row justify-between items-center mb-5">
                 <Text className="text-[14px] font-manrope-bold text-[#111827]">Timeline Progress</Text>
                 <View className="bg-[#EEEDFF] px-2.5 py-1 rounded-full">
-                    <Text className="text-[10px] font-manrope-bold text-[#4F48ED]">Stage 5 of 8</Text>
+                    <Text className="text-[10px] font-manrope-bold text-[#4F48ED]">Stage {currentStage} of {items.length || 1}</Text>
                 </View>
             </View>
 
             <View className="relative">
                 {/* Static grey track */}
-                <View className="absolute left-[9px] top-[14px] bottom-[40px] w-[2px] bg-[#E5E7EB]" />
+                <View
+                    className="absolute left-[9px] w-[2px] bg-[#E5E7EB]"
+                    style={{
+                        top: firstDotCenter,
+                        height: trackHeight,
+                    }}
+                />
 
                 {/* Animated purple fill */}
                 <Animated.View
                     style={{
                         position: 'absolute',
                         left: 9,
-                        top: 14,
+                        top: firstDotCenter,
                         width: 2,
                         backgroundColor: '#6231FF',
                         height: lineAnim.interpolate({
                             inputRange: [0, 1],
-                            outputRange: ['0%', '55%'],
+                            outputRange: [0, fillHeight],
                         }),
                         borderRadius: 2,
                         zIndex: 1,
                     }}
                 />
 
-                {timelineData.map((item, index) => (
+                {items.map((item, index) => {
+                    const status = statuses[index];
+                    const description = getTimelineDescription(item);
+                    return (
                     <TimelineItem
-                        key={item.id}
+                        key={item.id ?? `${getTimelineTitle(item)}-${index}`}
                         index={index}
-                        status={item.status}
-                        title={item.title}
-                        time={item.time}
-                        badge={item.badge}
-                        iconName={item.iconName}
+                        onItemLayout={(itemIndex, layout) => {
+                            setItemLayouts((prev) => {
+                                const existing = prev[itemIndex];
+                                if (existing?.y === layout.y && existing?.height === layout.height) return prev;
+                                return { ...prev, [itemIndex]: layout };
+                            });
+                        }}
+                        status={status}
+                        title={getTimelineTitle(item)}
+                        time={formatTimelineTime(item)}
+                        badge={item.badge || (status === 'current' ? 'IN PROGRESS' : null)}
+                        iconName={item.iconName || 'ellipse-outline'}
                     >
                         {item.images && (
                             <View className="flex-row gap-2 mt-2 mb-1">
@@ -73,10 +150,10 @@ const TabTimeline = memo(function TabTimeline() {
                                 <Text className="text-[10px] font-inter-semibold text-[#1F2937]">{item.actionText}</Text>
                             </View>
                         )}
-                        {item.description && (
+                        {description && (
                             <View>
                                 <Text className="text-[11px] font-inter-medium text-[#6B7280] mt-1 pr-4 leading-[16px] flex-1 mb-1">
-                                    {item.description}
+                                    {description}
                                 </Text>
                                 {item.askingPrice && item.currentOffer && (
                                     <View className="mt-2 bg-[#FCFAFF] border border-[#EBE5FF] rounded-lg p-2.5">
@@ -93,7 +170,8 @@ const TabTimeline = memo(function TabTimeline() {
                             </View>
                         )}
                     </TimelineItem>
-                ))}
+                    );
+                })}
             </View>
         </View>
     );

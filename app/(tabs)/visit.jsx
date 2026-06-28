@@ -1,15 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, Pressable, ScrollView, Image, ActivityIndicator, StyleSheet, Alert, Linking } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
 import RescheduleBottomSheet from "../../components/visit/RescheduleBottomSheet";
-import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
-import { removeSiteVisit } from "../../store/slices/propertiesSlice";
+import { addSiteVisit, removeSiteVisit } from "../../store/slices/propertiesSlice";
 import { fetchVisitListThunk } from "../../store/slices/visitSlice";
+import { propertyApi } from "../../services/propertyApi";
 import { ALL_VISITS } from "../../data/visits";
-import { allProjects } from "../../data/projects";
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
 
@@ -84,6 +84,85 @@ const uniqueById = (items) => {
   });
 };
 
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+
+const getVisitPropertyId = (visit) => {
+  const candidates = [
+    visit?.propertyIds?.[0],
+    visit?.property_id,
+    visit?.propertyId,
+  ];
+  return candidates.find(isUuid);
+};
+
+const GOOGLE_MAPS_DIRECTIONS_URL = "https://www.google.com/maps/dir/";
+const LOCATION_TIMEOUT_MS = 12000;
+
+const withTimeout = (promise, timeoutMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), LOCATION_TIMEOUT_MS);
+    }),
+  ]);
+
+const getApiList = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
+const parseCoordinate = (value) => {
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : null;
+};
+
+const getCoordinates = (item) => {
+  const latitude = parseCoordinate(item?.latitude ?? item?.lat ?? item?.property_latitude ?? item?.propertyLatitude);
+  const longitude = parseCoordinate(item?.longitude ?? item?.lng ?? item?.property_longitude ?? item?.propertyLongitude);
+
+  if (latitude === null || longitude === null) return null;
+  return { latitude, longitude };
+};
+
+const getDestinationLabel = (visit, property) => {
+  const parts = [
+    property?.title || visit?.title,
+    property?.address || property?.property_address || visit?.property_address,
+    property?.area || visit?.area || visit?.location,
+    property?.city || visit?.city,
+    property?.pincode || visit?.pincode,
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+
+  return [...new Set(parts)].join(", ");
+};
+
+const buildGoogleMapsDirectionsUrl = ({ origin, destination }) => {
+  const destinationValue = destination.coordinates
+    ? `${destination.coordinates.latitude},${destination.coordinates.longitude}`
+    : destination.label;
+
+  const params = {
+    api: "1",
+    origin: `${origin.latitude},${origin.longitude}`,
+    destination: destinationValue,
+    travelmode: "driving",
+    dir_action: "navigate",
+  };
+
+  const query = Object.entries(params)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+
+  return `${GOOGLE_MAPS_DIRECTIONS_URL}?${query}`;
+};
+
+const UPCOMING_VISIT_STATUSES = "pending,pending_confirmation,confirmed";
+const ALL_VISIT_STATUSES = "pending,pending_confirmation,confirmed,completed,cancelled,rescheduled";
+
 export default function Visit() {
   const router = useRouter();
   const { tab } = useLocalSearchParams();
@@ -93,6 +172,7 @@ export default function Visit() {
   const { visits: apiVisits, loading: visitsLoading } = useSelector((state) => state.visit);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+  const [directionsVisitId, setDirectionsVisitId] = useState(null);
 
   useEffect(() => {
     if (tab === "Book visit") {
@@ -106,20 +186,19 @@ export default function Visit() {
   useEffect(() => {
     if (isLoggedIn && token && (activeTab === "Upcoming" || activeTab === "Past")) {
       const status = activeTab === "Upcoming"
-        ? "pending,pending_confirmation,confirmed"
-        : "completed,cancelled,rescheduled";
+        ? UPCOMING_VISIT_STATUSES
+        : ALL_VISIT_STATUSES;
       console.log('🔍 Fetching visits with status:', status);
       dispatch(fetchVisitListThunk(status));
     }
   }, [activeTab, dispatch, isLoggedIn, token]);
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const currentVisitTime = Date.now();
 
   const reduxProjectIds = reduxUpcomingVisits.map(v => v.projectId);
 
   const validMockVisits = ALL_VISITS.filter(v => {
-    const isMockUpcoming = new Date(v.isoDate) >= now;
+    const isMockUpcoming = getVisitTimestamp(v) >= currentVisitTime;
     // Suppress ONLY the upcoming mock versions of properties that have live Redux upcoming schedules
     if (isMockUpcoming && reduxProjectIds.includes(v.projectId || v.id)) {
       return false;
@@ -135,6 +214,10 @@ export default function Visit() {
     isApiVisit: true,
     title: v.property_title || 'Property',
     location: v.property_address || '',
+    latitude: v.property_latitude ?? v.latitude,
+    longitude: v.property_longitude ?? v.longitude,
+    city: v.property_city ?? v.city,
+    pincode: v.property_pincode ?? v.pincode,
     image: v.property_image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
     status: normalizeStatus(v.status),
     dateFull: new Date(v.slot_start).toLocaleString('en-US', { 
@@ -163,12 +246,12 @@ export default function Visit() {
 
   // Filter and sort for upcoming
   const upcomingVisits = allCombinedVisits
-    .filter((v) => getVisitTimestamp(v) >= now.getTime())
+    .filter((v) => getVisitTimestamp(v) >= currentVisitTime)
     .sort((a, b) => getVisitTimestamp(a) - getVisitTimestamp(b));
 
   // Filter and sort for past
   const pastVisits = allCombinedVisits
-    .filter((v) => getVisitTimestamp(v) < now.getTime())
+    .filter((v) => getVisitTimestamp(v) < currentVisitTime)
     .sort((a, b) => getVisitTimestamp(b) - getVisitTimestamp(a));
 
   const bottomSheetModalRef = useRef(null);
@@ -186,15 +269,109 @@ export default function Visit() {
 
   const [selectedVisit, setSelectedVisit] = useState(null);
 
-  const [selectedProjectForRebook, setSelectedProjectForRebook] = useState(null);
-  const [isRebookModalVisible, setIsRebookModalVisible] = useState(false);
-
   const [selectedForBooking, setSelectedForBooking] = useState([]);
+
+  const resolveVisitDestination = useCallback(async (visit) => {
+    const propertyId = getVisitPropertyId(visit);
+    let property = null;
+
+    if (propertyId) {
+      try {
+        const response = await propertyApi.getPropertyList(token, { limit: 500 });
+        property = getApiList(response).find((item) => String(item?.id) === String(propertyId)) || null;
+      } catch (error) {
+        console.log("Directions property lookup failed:", error?.message || error);
+      }
+    }
+
+    const coordinates = getCoordinates(property) || getCoordinates(visit);
+    const label = getDestinationLabel(visit, property);
+
+    if (!coordinates && !label) {
+      throw new Error("This property does not have a destination location.");
+    }
+
+    return { coordinates, label };
+  }, [token]);
+
+  const handleOpenDirections = useCallback(async (visit) => {
+    if (directionsVisitId) return;
+
+    setDirectionsVisitId(visit.id);
+    try {
+      const destination = await resolveVisitDestination(visit);
+
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert(
+          "Location Permission Needed",
+          "Please allow location access so Google Maps can show directions from your live location."
+        );
+        return;
+      }
+
+      const currentPosition = await withTimeout(
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          mayShowUserSettingsDialog: true,
+        }),
+        "We could not detect your current location. Please try again."
+      );
+
+      const origin = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+      const mapsUrl = buildGoogleMapsDirectionsUrl({ origin, destination });
+
+      await Linking.openURL(mapsUrl);
+    } catch (error) {
+      Alert.alert(
+        "Directions Unavailable",
+        error?.message || "Unable to open Google Maps directions for this visit."
+      );
+    } finally {
+      setDirectionsVisitId(null);
+    }
+  }, [directionsVisitId, resolveVisitDestination]);
 
   useEffect(() => {
     // Keep selectedForBooking in sync if properties are removed
     setSelectedForBooking(prev => prev.filter(id => bookedSiteVisits.some(v => v.id === id)));
   }, [bookedSiteVisits]);
+
+  const handleRebookVisit = useCallback((visit) => {
+    const propertyId = getVisitPropertyId(visit);
+
+    if (!propertyId) {
+      Alert.alert(
+        "Property Not Available",
+        "This visit can't be re-booked because the property unit ID is missing. Please reopen the property details and add a unit to your site visit."
+      );
+      return;
+    }
+
+    const bookingItemId = propertyId;
+    dispatch(addSiteVisit({
+      id: bookingItemId,
+      projectId: bookingItemId,
+      property_id: propertyId,
+      propertyIds: [propertyId],
+      title: visit.title,
+      name: visit.title,
+      location: visit.location,
+      image: visit.image,
+      imageMain: visit.image,
+      price: visit.price || visit.priceINR,
+      visitors: visit.visitors || 1,
+      notes: visit.notes || "",
+    }));
+
+    router.push({
+      pathname: "/(screens)/book-site-visit",
+      params: { selectedIds: bookingItemId },
+    });
+  }, [dispatch, router]);
 
   const tabs = ["Book visit", "Upcoming", "Past"];
 
@@ -388,10 +565,18 @@ export default function Visit() {
                     </View>
 
                     <View className="flex-row gap-2">
-                      <Pressable className="flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center shadow-md shadow-indigo-200">
-                        <Feather name="map" size={13} color="white" />
+                      <Pressable
+                        className={`flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center shadow-md shadow-indigo-200 ${directionsVisitId === visit.id ? "opacity-80" : ""}`}
+                        disabled={directionsVisitId === visit.id}
+                        onPress={() => handleOpenDirections(visit)}
+                      >
+                        {directionsVisitId === visit.id ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Feather name="map" size={13} color="white" />
+                        )}
                         <Text className="text-white font-manrope-bold text-[12px] ml-2">
-                          Directions
+                          {directionsVisitId === visit.id ? "Opening..." : "Directions"}
                         </Text>
                       </Pressable>
                       <Pressable
@@ -431,6 +616,17 @@ export default function Visit() {
             ) : pastVisits.length > 0 ? (
               pastVisits.map((visit) => {
                 const isCompleted = visit.status === "COMPLETED";
+                const isConfirmed = visit.status === "CONFIRMED";
+                const statusBadgeClass = isConfirmed
+                  ? "bg-[#73cbae]"
+                  : isCompleted
+                    ? "bg-[#E5F7F1]"
+                    : "bg-[#FEE2E2]";
+                const statusTextClass = isConfirmed
+                  ? "text-white"
+                  : isCompleted
+                    ? "text-[#00B67A]"
+                    : "text-[#EF4444]";
                 return (
                   <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
                     <View className="p-3.5">
@@ -441,8 +637,8 @@ export default function Visit() {
                           resizeMode="cover"
                         />
                         <View className="flex-1 justify-center">
-                          <View className={`self-start px-2 py-0.5 rounded-md mb-1.5 ${isCompleted ? 'bg-[#E5F7F1]' : 'bg-[#FEE2E2]'}`}>
-                            <Text className={`text-[9px] font-manrope-bold tracking-wider uppercase ${isCompleted ? 'text-[#00B67A]' : 'text-[#EF4444]'}`}>
+                          <View className={`self-start px-2 py-0.5 rounded-md mb-1.5 ${statusBadgeClass}`}>
+                            <Text className={`text-[9px] font-manrope-bold tracking-wider uppercase ${statusTextClass}`}>
                               {visit.status}
                             </Text>
                           </View>
@@ -507,13 +703,7 @@ export default function Visit() {
                         </View>
                       ) : (
                         <Pressable
-                          onPress={() => {
-                            const fullProject = allProjects.find((p) => p.id === (visit.projectId || visit.id.replace(/\d{13}$/, "")));
-                            if (fullProject) {
-                              setSelectedProjectForRebook(fullProject);
-                              setIsRebookModalVisible(true);
-                            }
-                          }}
+                          onPress={() => handleRebookVisit(visit)}
                           className="w-full bg-[#F4F2FF] rounded-lg py-2.5 flex-row items-center justify-center"
                         >
                           <Feather name="refresh-cw" size={13} color="#4A43EC" />
@@ -585,15 +775,9 @@ export default function Visit() {
         ref={bottomSheetModalRef}
         visitData={selectedVisit}
         onReschedule={handleRescheduleVisit}
+        onViewMap={handleOpenDirections}
+        isOpeningMap={Boolean(selectedVisit && directionsVisitId === selectedVisit.id)}
       />
-
-      {selectedProjectForRebook && (
-        <BookVisitModal
-          visible={isRebookModalVisible}
-          onClose={() => setIsRebookModalVisible(false)}
-          project={selectedProjectForRebook}
-        />
-      )}
     </View>
   );
 }

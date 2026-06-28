@@ -6,14 +6,13 @@ import {
   ImageBackground,
   TouchableOpacity,
   Dimensions,
-  ActivityIndicator,
+  Animated,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
-import { Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite, savePropertyThunk, unsavePropertyThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
-import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk, clearProject } from "../../store/slices/projectSlice";
+import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -37,7 +36,7 @@ function SkeletonBox({ width: w, height: h, borderRadius = 8, style }) {
     Animated.loop(
       Animated.timing(shimmer, { toValue: 1, duration: 1100, useNativeDriver: true })
     ).start();
-  }, []);
+  }, [shimmer]);
 
   const translateX = shimmer.interpolate({
     inputRange: [0, 1],
@@ -238,9 +237,8 @@ export default function ProjectDetail() {
         await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: projectSaveId })).unwrap();
       } else {
         console.log('💾 Saving project via API:', projectSaveId);
-        await dispatch(savePropertyThunk({ itemType: 'project', itemId: projectSaveId })).unwrap();
+        await dispatch(savePropertyThunk({ itemType: 'project', itemId: projectSaveId, itemData: savedProjectData })).unwrap();
       }
-      dispatch(toggleFavourite(id));
       dispatch(fetchSavedPropertiesThunk());
       console.log('✅ Save/Unsave operations completed');
       } catch (error) {
@@ -299,6 +297,8 @@ export default function ProjectDetail() {
     ...base,
     ...(activeApiProject ? {
       name: activeApiProject.name || base.name,
+      city: activeApiProject.city || base.city,
+      area: activeApiProject.area || base.area,
       location: activeApiProject.location || base.location,
       description: activeApiProject.description || base.description,
       reraId: activeApiProject.rera_id || base.reraId,
@@ -323,6 +323,8 @@ export default function ProjectDetail() {
       variants: base.variants,
     } : {
       name: base.name,
+      city: base.city,
+      area: base.area,
       location: base.location || (base.area && base.city ? `${base.area}, ${base.city}` : ''),
       possession: base.possession_date || base.possession,
       units: base.units,
@@ -349,6 +351,23 @@ export default function ProjectDetail() {
         : rawStartingPrice)
     : project.variants?.[0]?.priceRange?.split("–")[0]?.trim() ?? project.avgPricePerSqft;
 
+  const savedProjectData = {
+    id: projectSaveId,
+    name: project.name,
+    title: project.name,
+    slug: resolvedProjectSlug,
+    area: project.area || base.area || project.location,
+    city: project.city || base.city,
+    location: project.location,
+    pincode: project.pincode || base.pincode,
+    cover_image_url: activeApiProject?.cover_image || base.cover_image_url || base.cover_image,
+    image: activeApiProject?.cover_image || base.cover_image_url || base.cover_image,
+    price_from: project.price_from ?? rawStartingPrice,
+    price_to: project.price_to,
+    min_price: project.price_from ?? rawStartingPrice,
+    rera_id: project.reraId || activeApiProject?.rera_id || base.rera_id,
+  };
+
   return (
     <View className="flex-1 bg-[#F8F5FF]">
       <ScrollView
@@ -374,10 +393,10 @@ export default function ProjectDetail() {
             className={`absolute right-4 w-[38px] h-[38px] rounded-full items-center justify-center ${isSaved ? "bg-black/85" : "bg-white/85"}`}
             style={{ top: insets.top + 10 }}
           >
-            <MaterialCommunityIcons
-              name={isSaved ? "bookmark-plus" : "bookmark-plus-outline"}
-              size={20}
-              color={isSaved ? "#FFFFFF" : "#111827"}
+            <Ionicons
+              name={isSaved ? "heart" : "heart-outline"}
+              size={21}
+              color={isSaved ? "#EF4444" : "#111827"}
             />
           </TouchableOpacity>
         </View>

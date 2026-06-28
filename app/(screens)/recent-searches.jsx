@@ -6,6 +6,8 @@ import { router } from "expo-router";
 import { getSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../../store/slices/searchSlice";
 import { SearchHistoryItemSkeleton } from "../../components/SkeletonLoader";
 
+const getSearchHistoryId = (item) => item?.id || item?.search_id || item?.history_id || null;
+
 export default function RecentSearches() {
     const dispatch = useDispatch();
     const { searchHistory, loading } = useSelector((state) => state.search);
@@ -17,16 +19,22 @@ export default function RecentSearches() {
         }
     }, [isLoggedIn, token, dispatch]);
 
-    const handleDeleteItem = (id, queryText) => {
+    const handleDeleteItem = (item) => {
+        const id = getSearchHistoryId(item);
+        if (!id) {
+            Alert.alert('Cannot Delete Search', 'This search item is missing its history id.');
+            return;
+        }
+
         Alert.alert(
             'Delete Search',
-            `Remove "${queryText}" from history?`,
+            `Remove "${item.query_text}" from history?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete',
                     style: 'destructive',
-                    onPress: () => dispatch(deleteSearchHistoryThunk(id))
+                    onPress: () => dispatch(deleteSearchHistoryThunk(item))
                 }
             ]
         );
@@ -117,7 +125,7 @@ export default function RecentSearches() {
                     <View className="px-4 pt-2">
                         {searchHistory.map((item, index) => (
                             <View 
-                                key={item.id || index} 
+                                key={getSearchHistoryId(item) || index} 
                                 className="flex-row items-center py-4 border-b border-gray-100"
                             >
                                 <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-3">
@@ -135,7 +143,7 @@ export default function RecentSearches() {
                                     </Text>
                                 </View>
                                 <Pressable 
-                                    onPress={() => handleDeleteItem(item.id, item.query_text)}
+                                    onPress={() => handleDeleteItem(item)}
                                     className="w-8 h-8 items-center justify-center"
                                 >
                                     <Feather name="x" size={20} color="#9CA3AF" />

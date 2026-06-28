@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const TimelineItem = ({ status, title, time, badge, iconName, children, index = 0 }) => {
+const TimelineItem = ({ status, title, time, badge, iconName, children, index = 0, onItemLayout }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.6)).current;
     const slideAnim = useRef(new Animated.Value(12)).current;
@@ -34,6 +34,7 @@ const TimelineItem = ({ status, title, time, badge, iconName, children, index = 
 
     return (
         <Animated.View
+            onLayout={(event) => onItemLayout?.(index, event.nativeEvent.layout)}
             style={{
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],

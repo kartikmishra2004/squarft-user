@@ -60,7 +60,8 @@ export default function BookVisitModal({ visible, onClose, project }) {
         if (selected.length === 0) return;
         
         // Extract property IDs from selected floor plans
-        const propertyIds = (project?.floorPlans || [])
+        const visitOptions = project?.floorPlans?.length ? project.floorPlans : (project?.variants || []);
+        const propertyIds = visitOptions
             .filter(fp => selected.includes(fp.type || fp.title))
             .map(fp => fp.id)
             .filter(Boolean); // Remove any undefined/null values

@@ -3,7 +3,6 @@ import { BASE_URL } from './config';
 async function request(path, options = {}) {
     try {
         const url = `${BASE_URL}${path}`;
-        const hasAuth = !!options.headers?.Authorization;
         
 
         const { headers: optHeaders, ...restOptions } = options;
@@ -23,10 +22,12 @@ async function request(path, options = {}) {
         
         let data;
         try {
-            data = JSON.parse(text);
+            data = text ? JSON.parse(text) : {};
         } catch (e) {
-            console.log('❌ Failed to parse JSON. Full response:', text);
-            throw new Error(`Invalid JSON response: ${e.message}`);
+            const message = res.ok
+                ? `Invalid JSON response: ${e.message}`
+                : `Server returned ${res.status} ${res.statusText || 'error'} instead of JSON`;
+            throw new Error(message);
         }
         
         if (!res.ok) throw new Error(data.message || 'Request failed');
@@ -65,16 +66,19 @@ export const searchApi = {
             body: JSON.stringify({ query_text, filters, result_count }),
         }),
 
-    // Delete search history item (auth required)
-    deleteSearchHistory: (token, id) =>
-        request(`/api/v1/search/history/single/${id}`, {
+    // Delete one search history item (auth required)
+    deleteSearchHistory: (token, id) => {
+        if (!id) throw new Error('Search history id is missing');
+
+        return request(`/api/v1/search/history/single/${encodeURIComponent(id)}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
             },
-        }),
+        });
+    },
 
-    // Clear all search history (auth required) - using dummy id since backend expects :id param
+    // Clear all search history (auth required)
     clearAllSearchHistory: (token) =>
         request('/api/v1/search/history/all', {
             method: 'DELETE',

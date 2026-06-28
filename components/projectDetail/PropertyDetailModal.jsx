@@ -13,6 +13,9 @@ import { useDispatch, useSelector } from "react-redux";
 import {
     addSiteVisit,
     toggleFavourite,
+    savePropertyThunk,
+    unsavePropertyThunk,
+    fetchSavedPropertiesThunk,
 } from "../../store/slices/propertiesSlice";
 import ZoomableImage from "./ZoomableImage";
 
@@ -81,11 +84,13 @@ export default function PropertyDetailModal({
     onClose,
     project,
     variant,
+    readOnly = false,
 }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const bookedVisits = useSelector((s) => s.properties.bookedSiteVisits);
     const savedProjects = useSelector((s) => s.properties.favouriteProjects);
+    const { isLoggedIn, token } = useSelector((s) => s.auth);
     
     const [floorPlanVisible, setFloorPlanVisible] = useState(false);
     const [zoomVisible, setZoomVisible] = useState(false);
@@ -124,6 +129,41 @@ export default function PropertyDetailModal({
     const amenitiesList = (variant.amenities?.length ? variant.amenities : (project.amenities || []))
         .map((a) => (typeof a === 'string' ? a : a?.name))
         .filter(Boolean);
+
+    const handleToggleSave = async () => {
+        if (!project.id) return;
+
+        if (!isLoggedIn || !token) {
+            dispatch(toggleFavourite(project.id));
+            return;
+        }
+
+        const itemData = {
+            id: project.id,
+            name: project.name,
+            title: project.name,
+            slug: project.slug,
+            area: project.area,
+            city: project.city,
+            location: project.location,
+            cover_image_url: typeof project.imageMain === 'string' ? project.imageMain : project.imageMain?.uri,
+            image: typeof project.imageMain === 'string' ? project.imageMain : project.imageMain?.uri,
+            price_from: project.price_from ?? variant.price ?? variant.base_price,
+            min_price: project.price_from ?? variant.price ?? variant.base_price,
+            rera_id: project.reraId || project.rera_id,
+        };
+
+        try {
+            if (isSaved) {
+                await dispatch(unsavePropertyThunk({ itemType: 'project', itemId: project.id })).unwrap();
+            } else {
+                await dispatch(savePropertyThunk({ itemType: 'project', itemId: project.id, itemData })).unwrap();
+            }
+            dispatch(fetchSavedPropertiesThunk());
+        } catch (error) {
+            console.log('Property detail save failed:', error);
+        }
+    };
 
     return (
         <>
@@ -210,24 +250,25 @@ export default function PropertyDetailModal({
                             </Text>
                         </View>
 
-                        {/* Favorite Button Trigger */}
-                        <TouchableOpacity
-                            onPress={() => dispatch(toggleFavourite(project.id))}
-                            style={{
-                                position: "absolute",
-                                top: 10,
-                                right: 10,
-                                backgroundColor: "rgba(0,0,0,0.6)",
-                                borderRadius: 20,
-                                padding: 6,
-                            }}
-                        >
-                            <Ionicons
-                                name={isSaved ? "heart" : "heart-outline"}
-                                size={24}
-                                color={isSaved ? "#EF4444" : "#fff"}
-                            />
-                        </TouchableOpacity>
+                        {!readOnly && (
+                            <TouchableOpacity
+                                onPress={handleToggleSave}
+                                style={{
+                                    position: "absolute",
+                                    top: 10,
+                                    right: 10,
+                                    backgroundColor: "rgba(0,0,0,0.6)",
+                                    borderRadius: 20,
+                                    padding: 6,
+                                }}
+                            >
+                                <Ionicons
+                                    name={isSaved ? "heart" : "heart-outline"}
+                                    size={24}
+                                    color={isSaved ? "#EF4444" : "#fff"}
+                                />
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {/* Possession Info Row */}
@@ -342,6 +383,7 @@ export default function PropertyDetailModal({
                     </View>
                 </BottomSheetScrollView>
 
+                {!readOnly && (
                 <View className="px-5 pt-3 border-t border-gray-100" style={{ paddingBottom: insets.bottom || 2, backgroundColor: '#fff' }}>
                     <TouchableOpacity
                         onPress={() => {
@@ -350,11 +392,27 @@ export default function PropertyDetailModal({
                                     addSiteVisit({
                                         id: variantId,
                                         projectId: project.id,
+                                        property_id: variant.id,
+                                        propertyIds: variant.id ? [variant.id] : [],
                                         name: project.name,
+                                        title: project.title || project.name,
+                                        city: project.city,
+                                        area: project.area,
                                         location: project.location,
                                         image: project.imageMain,
+                                        imageMain: project.imageMain,
+                                        imageThumb: project.imageThumb,
                                         variant: variantType,
+                                        variantDetails: variant,
+                                        variants: [variant],
+                                        floorPlans: [variant],
                                         price: variant.priceRange || variant.price,
+                                        possessionStatus: project.possessionStatus || project.possession,
+                                        possession: project.possession,
+                                        tower_no: project.tower_no,
+                                        inventory: project.inventory,
+                                        amenities: project.amenities || variant.amenities || [],
+                                        units: project.units,
                                     }),
                                 );
                             }
@@ -373,6 +431,7 @@ export default function PropertyDetailModal({
                         </Text>
                     </TouchableOpacity>
                 </View>
+                )}
             </BottomSheetModal>
 
             {/* Maintained Portal Modal for full-resolution architectural maps */}

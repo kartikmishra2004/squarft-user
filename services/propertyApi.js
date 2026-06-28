@@ -38,6 +38,15 @@ async function request(path, options = {}) {
 }
 
 export const propertyApi = {
+    // Get public property/unit list
+    getPropertyList: (token, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/properties/list${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        });
+    },
+
     // Get saved properties - backend route is /api/v1/saved
     getSavedProperties: (token) =>
         request('/api/v1/saved', {

@@ -23,6 +23,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFocusEffect, useNavigation, router } from "expo-router";
 import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, fetchSavedPropertiesThunk, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
+import { fetchProfileThunk } from "../../store/slices/authSlice";
 import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
 import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
@@ -82,7 +83,7 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
       activeOpacity={0.85}
       className="bg-white rounded-2xl overflow-hidden mr-3 p-2.5"
       style={{
-        width: 166, height: 252, paddingTop: 15, paddingLeft: 10,
+        width: 166, height: 245, paddingTop: 15, paddingLeft: 10,
         shadowColor: "#d2abc0ff",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.15,
@@ -132,7 +133,7 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
             {item.location || item.area}
           </Text>
         </View>
-        <View className="mt-2 flex-row items-center">
+        {/* <View className="mt-2 flex-row items-center">
           <MaterialCommunityIcons name="bed-outline" size={13} color="#FE8A71" />
           <Text className="ml-1 mr-3 text-[11px] text-gray-600" numberOfLines={1}>
             {item.beds || "Beds N/A"}
@@ -141,7 +142,7 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
           <Text className="ml-1 flex-1 text-[11px] text-gray-600" numberOfLines={1}>
             {item.baths || "Baths N/A"}
           </Text>
-        </View>
+        </View> */}
       </View>
     </TouchableOpacity>
   );
@@ -153,10 +154,22 @@ export default function Home() {
   const navigation = useNavigation();
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
-  const { token } = useSelector((s) => s.auth);
+  const { token, profile, user } = useSelector((s) => s.auth);
   const { projectsInFocus, missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
-  const { featured: apiFeatured, featuredLoading, list: projectList, loading: projectLoading } = useSelector((s) => s.project);
+  const { featured: apiFeatured, featuredLoading, list: projectList } = useSelector((s) => s.project);
   const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
+
+  const displayUserName = useMemo(() => {
+    const profileUser = profile?.user || profile;
+    const fullName = profileUser?.full_name || profileUser?.fullName || user?.full_name || user?.fullName;
+    const firstName = profileUser?.first_name || profileUser?.firstName || user?.first_name || user?.firstName;
+    const lastName = profileUser?.last_name || profileUser?.lastName || user?.last_name || user?.lastName;
+    const fallbackName = profileUser?.name || user?.name || currentUser.name;
+    return fullName || [firstName, lastName].filter(Boolean).join(" ").trim() || fallbackName;
+  }, [profile, user]);
+
+  const profileUser = profile?.user || profile;
+  const displayAvatar = profileUser?.avatar_url || profileUser?.avatarUrl || user?.avatar_url || user?.avatarUrl || null;
 
   const featuredProjects = useMemo(() => {
     return (apiFeatured || []).map(project => ({
@@ -173,6 +186,12 @@ export default function Home() {
     dispatch(fetchRecommendedPropertiesThunk());
     dispatch(fetchSavedPropertiesThunk());
   }, [dispatch, token]);
+
+  useEffect(() => {
+    if (token && !profile) {
+      dispatch(fetchProfileThunk());
+    }
+  }, [dispatch, profile, token]);
   
   useEffect(() => {
     console.log('📊 [Home] Featured Projects State:', {
@@ -302,7 +321,7 @@ export default function Home() {
             <View className="flex-1 flex-row items-center gap-4 mr-3">
               <View className="w-[46px] h-[46px] relative">
                 <Image
-                  source={currentUser.avatar}
+                  source={displayAvatar ? { uri: displayAvatar } : currentUser.avatar}
                   className="w-[50px] h-[50px] rounded-full border-2 border-white"
                   resizeMode="cover"
                 />
@@ -310,7 +329,7 @@ export default function Home() {
               <View className="flex-1">
                 <View className="flex-row items-center gap-2">
                   <Text className="flex-1 text-[17px] font-lato-bold mt-1 text-[#3F3838]" numberOfLines={1}>
-                    {currentUser.name}
+                    {displayUserName}
                   </Text>
                   <MaterialIcons name="verified" size={20} color="#3AFF08" />
                 </View>

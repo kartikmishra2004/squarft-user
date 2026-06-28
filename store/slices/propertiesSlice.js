@@ -20,14 +20,14 @@ export const fetchSavedPropertiesThunk = createAsyncThunk(
 // Save an item to API (property or project)
 export const savePropertyThunk = createAsyncThunk(
     'properties/save',
-    async ({ itemType, itemId }, { getState, rejectWithValue }) => {
+    async ({ itemType, itemId, itemData = null }, { getState, rejectWithValue }) => {
         try {
             const { token, isLoggedIn } = getState().auth;
             if (!isLoggedIn || !token || !itemId) return null;
             
             console.log('📤 Dispatching Save API Call for:', { itemType, itemId });
             await propertyApi.saveItem(token, itemType, itemId);
-            return { itemType, itemId };
+            return { itemType, itemId, itemData };
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -107,6 +107,37 @@ const normalizeRecommendedProperties = (payload) => {
             image: property.image ?? property.cover_image ?? property.image_url ?? property.imageMain,
             location: property.location ?? [property.area, property.city].filter(Boolean).join(', '),
             isFavourite: Boolean(property.isFavourite),
+        };
+    });
+};
+
+const getMediaUrl = (media) => {
+    if (!media) return null;
+    if (typeof media === 'string') return media;
+    return media.url || media.thumbnail_url || null;
+};
+
+const normalizeContactedProperties = (payload) => {
+    const list = Array.isArray(payload) ? payload : (payload?.data || []);
+
+    return list.map((project) => {
+        const images = Array.isArray(project.images) ? project.images : [];
+        const coverImage = project.cover_image_url || getMediaUrl(images.find((image) => image?.is_cover)) || getMediaUrl(images[0]);
+        const minPrice = project.price_from ?? project.min_price;
+        const maxPrice = project.price_to ?? project.max_price;
+
+        return {
+            ...project,
+            title: project.name || project.title || 'Project',
+            type: 'Project',
+            cover_image: coverImage,
+            cover_image_url: project.cover_image_url || coverImage,
+            min_price: minPrice,
+            max_price: maxPrice,
+            booking_status: project.visit_status || project.booking_status || 'contacted',
+            contacted_at: project.contacted_at,
+            location: project.location || [project.area, project.city].filter(Boolean).join(', '),
+            images,
         };
     });
 };
@@ -204,17 +235,18 @@ const propertiesSlice = createSlice({
             })
             .addCase(savePropertyThunk.fulfilled, (state, action) => {
                 if (!action.payload) return;
-                const { itemId, itemType } = action.payload;
+                const { itemId, itemType, itemData } = action.payload;
                 if (!state.favouriteProjects.includes(itemId)) {
                     state.favouriteProjects.push(itemId);
                 }
-                const alreadyExists = state.savedProperties.some(p => p.id === itemId);
+                const alreadyExists = state.savedProperties.some(p => p.id === itemId || p.item_id === itemId || p.data?.id === itemId);
                 if (!alreadyExists) {
                     state.savedProperties.push({
                         id: itemId,
                         item_id: itemId,
+                        type: itemType,
                         item_type: itemType,
-                        data: { id: itemId, title: "Saved Item" }
+                        data: itemData || { id: itemId, title: "Saved Item" }
                     });
                 }
             })
@@ -230,7 +262,7 @@ const propertiesSlice = createSlice({
             })
             .addCase(fetchContactedPropertiesThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                state.contactedProperties = action.payload.data || [];
+                state.contactedProperties = normalizeContactedProperties(action.payload);
             })
             .addCase(fetchContactedPropertiesThunk.rejected, (state, action) => {
                 state.loading = false;

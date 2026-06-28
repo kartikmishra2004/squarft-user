@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable, Image, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useDispatch } from "react-redux";
@@ -26,7 +26,7 @@ const formatVisitTime = (visitData) => {
 const formatVisitDateKey = (visitData) =>
   visitData?.isoDate ? new Date(visitData.isoDate).toISOString().split("T")[0] : undefined;
 
-const RescheduleBottomSheet = React.forwardRef(({ visitData, onReschedule }, ref) => {
+const RescheduleBottomSheet = React.forwardRef(({ visitData, onReschedule, onViewMap, isOpeningMap = false }, ref) => {
   const snapPoints = useMemo(() => ["75%"], []);
 
   const dispatch = useDispatch();
@@ -154,10 +154,18 @@ const RescheduleBottomSheet = React.forwardRef(({ visitData, onReschedule }, ref
                           {visitData?.location || "452 Luxury Way, Penthouse Suite"}
                         </Text>
                       </View>
-                      <Pressable className="bg-[#5A50ED] rounded-[8px] py-2.5 flex-row items-center justify-center">
-                        <Feather name="map" size={12} color="white" />
+                      <Pressable
+                        className={`bg-[#5A50ED] rounded-[8px] py-2.5 flex-row items-center justify-center ${isOpeningMap ? "opacity-80" : ""}`}
+                        disabled={isOpeningMap}
+                        onPress={() => visitData && onViewMap?.(visitData)}
+                      >
+                        {isOpeningMap ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Feather name="map" size={12} color="white" />
+                        )}
                         <Text className="text-white text-[12px] font-manrope-extrabold ml-1.5">
-                          View on Map
+                          {isOpeningMap ? "Opening..." : "View on Map"}
                         </Text>
                       </Pressable>
                     </View>

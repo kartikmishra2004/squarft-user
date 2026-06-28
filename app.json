@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "squarFT User",
-    "slug": "squarft-user",
+    "slug": "squarft",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icons/app-icon.png",
@@ -9,15 +9,29 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bitcode": false
     },
     "android": {
+      "googleServicesFile": "./app/google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.kartik2611mishra.squarftuser"
+      "package": "com.squarft.user",
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "androidNavigationBar": {
       "backgroundColor": "#ffffff",
@@ -30,6 +44,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -59,6 +74,12 @@
           "microphonePermission": "Allow SquarFT to use your microphone for AI voice calls."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow SquarFT to use your location to show nearby projects."
+        }
+      ],
       "expo-font"
     ],
     "splash": {
@@ -73,6 +94,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ae72c995-37df-4d20-9f65-d5664ebd6dec"
+      }
+    },
+    "owner": "untidybloom"
   }
 }

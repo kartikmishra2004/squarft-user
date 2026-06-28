@@ -1,9 +1,7 @@
-import { View, Text, Pressable, Animated, Modal, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Animated, Modal, Image, TouchableOpacity, ActivityIndicator, Alert, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useRef, useEffect, useState } from 'react';
-import { Easing } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useDispatch, useSelector } from 'react-redux';
 import { uploadDocument, clearUploadError } from '../../store/slices/dealsSlice';
@@ -18,7 +16,7 @@ function ProgressBar({ percentage }) {
             easing: Easing.out(Easing.cubic),
             useNativeDriver: false,
         }).start();
-    }, [percentage]);
+    }, [animatedValue, percentage]);
     const width = animatedValue.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
     return (
         <View className="h-[6px] bg-[#E5E7EB] rounded-full overflow-hidden w-full">
@@ -34,8 +32,10 @@ function ProgressBar({ percentage }) {
     );
 }
 
+const normalizeDocStatus = (status) => String(status || '').toLowerCase();
+
 const getDocStyles = (status) => {
-    switch (status) {
+    switch (normalizeDocStatus(status)) {
         case "verified": return { badgeBg: "bg-[#E6F6ED]", badgeText: "text-[#22A559]", borderClass: "border-[#F3F4F6]" };
         case "pending":  return { badgeBg: "bg-[#FFF8E6]",  badgeText: "text-[#F59E0B]", borderClass: "border-[#F3F4F6]" };
         case "required": return { badgeBg: "bg-[#FEF2F2]",  badgeText: "text-[#EF4444]", borderClass: "border-[#F3F4F6]" };
@@ -43,13 +43,46 @@ const getDocStyles = (status) => {
     }
 };
 
-const statusLabel = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+const statusLabel = (s) => {
+    const status = normalizeDocStatus(s);
+    return status ? status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : '—';
+};
+
+const getMimeType = (file = {}) => {
+    const explicitType = file.mimeType || file.type;
+    if (explicitType && explicitType.includes('/')) return explicitType;
+
+    const fileName = String(file.name || file.fileName || '').toLowerCase();
+    if (fileName.endsWith('.pdf')) return 'application/pdf';
+    if (fileName.endsWith('.png')) return 'image/png';
+    if (fileName.endsWith('.webp')) return 'image/webp';
+    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) return 'image/jpeg';
+    return 'application/pdf';
+};
+
+const getUploadDocumentType = (doc = {}) => {
+    const rawType = String(doc.type || doc.category || '').trim().toLowerCase();
+    if (!rawType || rawType.includes('kyc') || rawType.includes('identity')) return 'kyc';
+
+    const token = rawType.replace(/[^a-z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    return token.slice(0, 50) || 'document';
+};
 
 const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
     const [uploaded, setUploaded] = useState({});
     const [viewer, setViewer] = useState(null);
+    const [uploadingDocId, setUploadingDocId] = useState(null);
     const dispatch = useDispatch();
-    const { uploading, uploadError } = useSelector((s) => s.deals);
+    const { uploading } = useSelector((s) => s.deals);
+
+    useEffect(() => {
+        if (globalThis.__DEV__ === false) return;
+        console.log('[DealDocumentUpload] Documents tab props', {
+            dealId,
+            documentsCount: documents.length,
+            documentIds: documents.map((doc) => doc.id).slice(0, 10),
+        });
+    }, [dealId, documents]);
 
     // Fixed KYC docs always shown
     const STATIC_KYC = [
@@ -57,7 +90,10 @@ const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
         { id: 'kyc_address', title: 'Address Proof', icon: 'home-outline', status: 'required', category: 'IDENTITY & KYC' },
     ];
 
-    const isKycCategory = (d) => d.category === 'kyc' || d.category === 'IDENTITY & KYC';
+    const isKycCategory = (d) => {
+        const category = String(d.category || d.type || '').toLowerCase();
+        return category === 'kyc' || category === 'identity & kyc';
+    };
 
     // Replace static entry with API version if name matches
     const mergedKyc = STATIC_KYC.map(staticDoc => {
@@ -81,7 +117,7 @@ const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
     const otherDocs = documents.filter(d => !isKycCategory(d));
 
     const grouped = otherDocs.reduce((acc, doc) => {
-        const key = doc.category ?? 'DOCUMENTS';
+        const key = doc.category ?? doc.type ?? 'DOCUMENTS';
         if (!acc[key]) acc[key] = [];
         acc[key].push(doc);
         return acc;
@@ -89,35 +125,61 @@ const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
     grouped['IDENTITY & KYC'] = kycSection;
 
     const allDocs = [...otherDocs, ...kycSection];
-    const verifiedCount = allDocs.filter(d => d.status === 'verified').length;
+    const verifiedCount = allDocs.filter(d => normalizeDocStatus(d.status) === 'verified').length;
     const completionPct = allDocs.length ? Math.round((verifiedCount / allDocs.length) * 100) : 0;
 
     const handleUpload = async (doc) => {
         dispatch(clearUploadError());
-        let fileName = null;
+        let pickedFile = null;
 
         try {
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
-                allowsEditing: false,
-                quality: 1,
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+                copyToCacheDirectory: true,
             });
             if (!result.canceled && result.assets?.[0]) {
                 const asset = result.assets[0];
-                fileName = asset.fileName ?? doc.title ?? 'document';
-                setUploaded((prev) => ({ ...prev, [doc.id]: { uri: asset.uri, name: fileName, type: asset.type ?? 'image' } }));
+                pickedFile = {
+                    uri: asset.uri,
+                    name: asset.name ?? asset.fileName ?? doc.title ?? doc.name ?? 'document',
+                    type: getMimeType(asset),
+                };
             }
-        } catch {
-            const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
-            if (!result.canceled && result.assets?.[0]) {
-                const asset = result.assets[0];
-                fileName = asset.name;
-                setUploaded((prev) => ({ ...prev, [doc.id]: { uri: asset.uri, name: fileName, type: asset.mimeType ?? 'application/pdf' } }));
-            }
+        } catch (error) {
+            Alert.alert('Upload Failed', error?.message || 'Unable to open file picker. Please try again.');
+            return;
         }
 
-        if (fileName && dealId) {
-            dispatch(uploadDocument({ dealId, name: doc.title ?? doc.name ?? fileName }));
+        if (!pickedFile || !dealId) return;
+
+        try {
+            if (globalThis.__DEV__ !== false) {
+                console.log('[DealDocumentUpload] UI dispatch', {
+                    dealId,
+                    documentId: doc.id,
+                    documentName: doc.title ?? doc.name,
+                    uploadType: getUploadDocumentType(doc),
+                    fileName: pickedFile.name,
+                    fileType: pickedFile.type,
+                    documentsCount: documents.length,
+                });
+            }
+            setUploadingDocId(doc.id);
+            const savedDoc = await dispatch(uploadDocument({
+                dealId,
+                name: doc.title ?? doc.name ?? pickedFile.name,
+                type: getUploadDocumentType(doc),
+                file: pickedFile,
+            })).unwrap();
+            setUploaded((prev) => ({
+                ...prev,
+                [doc.id]: pickedFile,
+                [savedDoc?.data?.document?.id || savedDoc?.data?.id]: pickedFile,
+            }));
+        } catch (error) {
+            Alert.alert('Upload Failed', error || 'Unable to upload this document. Please try again.');
+        } finally {
+            setUploadingDocId(null);
         }
     };
 
@@ -143,10 +205,12 @@ const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
                         const styles = getDocStyles(doc.status);
                         const file = uploaded[doc.id];
                         // viewable: locally picked file OR already uploaded URL from server
-                        const viewUri = file?.uri ?? doc.file_url ?? null;
-                        const viewType = file?.type ?? (doc.file_url?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : 'pdf');
+                        const serverUri = doc.file_url || doc.url || null;
+                        const viewUri = file?.uri ?? serverUri;
+                        const viewType = file?.type ?? doc.type ?? (serverUri?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : 'pdf');
                         const viewName = file?.name ?? doc.name ?? doc.title ?? 'Document';
-                        const isUploadable = doc.status === 'required' || doc.status === 'pending';
+                        const docStatus = normalizeDocStatus(doc.status);
+                        const isUploadable = docStatus === 'required' || docStatus === 'pending';
                         return (
                             <View
                                 key={`doc-item-${doc.id}`}
@@ -182,7 +246,7 @@ const TabDocuments = memo(function TabDocuments({ documents = [], dealId }) {
                                             disabled={uploading}
                                             className="w-[28px] h-[28px] bg-[#F1F3FF] rounded-[8px] items-center justify-center"
                                         >
-                                            {uploading && !uploaded[doc.id] ? (
+                                            {(uploading && uploadingDocId === doc.id) ? (
                                                 <ActivityIndicator size={12} color="#4F48ED" />
                                             ) : (
                                                 <Ionicons name="cloud-upload-outline" size={15} color={file ? '#22A559' : '#8DA4D4'} />

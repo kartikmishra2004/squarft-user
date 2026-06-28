@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Provider } from "react-redux";
 import { useFonts } from "expo-font";
-import { Platform, useColorScheme } from "react-native";
+import { Platform } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import "../global.css";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -16,6 +16,7 @@ import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold 
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
 import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
 import { store } from "../store/store";
+import PushNotificationRegistrar from "../components/PushNotificationRegistrar";
 
 if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
     registerGlobals();
@@ -26,7 +27,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
     const rootNavigationState = useRootNavigationState();
-    const colorScheme = useColorScheme();
 
     const [fontsLoaded] = useFonts({
         ...FontAwesome.font,
@@ -57,9 +57,8 @@ export default function RootLayout() {
     useEffect(() => {
         if (Platform.OS !== "android") return;
 
-        NavigationBar.setBackgroundColorAsync("#ffffff").catch(() => { });
         NavigationBar.setButtonStyleAsync("dark").catch(() => { });
-    }, [colorScheme]);
+    }, []);
 
     useEffect(() => {
         if (fontsLoaded && rootNavigationState?.key) {
@@ -77,6 +76,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Provider store={store}>
                 <BottomSheetModalProvider>
+                    <PushNotificationRegistrar />
                     <Stack screenOptions={{ gestureEnabled: false }}>
                         <Stack.Screen name="index" options={{ headerShown: false }} />
                         <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />

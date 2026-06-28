@@ -108,6 +108,21 @@ export const fetchFeaturedProjectsThunk = createAsyncThunk(
     }
 );
 
+export const fetchNearbyProjectsThunk = createAsyncThunk(
+    'project/fetchNearby',
+    async (coords, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (coords?.latitude === undefined || coords?.longitude === undefined) {
+                throw new Error('Current location coordinates are required');
+            }
+            return await projectApi.getNearbyProjects(coords, token);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const normalizeFeaturedProjects = (payload) => {
     const list = Array.isArray(payload) ? payload : (payload?.data || []);
     
@@ -161,7 +176,10 @@ const projectSlice = createSlice({
         amenities: [],
         similarProperties: [],
         featured: [],
+        nearby: [],
+        nearbyMeta: null,
         featuredLoading: false,
+        nearbyLoading: false,
         loading: false,
         currentDetailSlug: null,
         error: null,
@@ -279,6 +297,26 @@ const projectSlice = createSlice({
             .addCase(fetchFeaturedProjectsThunk.rejected, (state, action) => { 
                 console.log('❌ [fetchFeaturedProjectsThunk] Rejected:', action.error);
                 state.featuredLoading = false; 
+            })
+            .addCase(fetchNearbyProjectsThunk.pending, (state) => {
+                state.nearbyLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchNearbyProjectsThunk.fulfilled, (state, action) => {
+                state.nearbyLoading = false;
+                const payload = action.payload?.data;
+                state.nearby = payload?.projects || [];
+                state.nearbyMeta = {
+                    count: payload?.count ?? state.nearby.length,
+                    coordinates: action.meta.arg,
+                };
+            })
+            .addCase(fetchNearbyProjectsThunk.rejected, (state, action) => {
+                state.nearbyLoading = false;
+                state.error = action.payload;
+                state.nearby = [];
+                state.nearbyMeta = null;
+                console.log('âŒ fetchNearbyProjects failed:', action.payload);
             });
     },
 });

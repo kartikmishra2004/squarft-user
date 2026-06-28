@@ -21,6 +21,7 @@ const getPaymentStyles = (status) => {
 
 const formatAmount = (val) => {
     const num = Number(val);
+    if (!Number.isFinite(num)) return '₹0';
     if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
     if (num >= 100000) return `₹${(num / 100000).toFixed(0)} L`;
     return `₹${num.toLocaleString('en-IN')}`;
@@ -32,12 +33,13 @@ const formatDate = (dateStr) => {
 };
 
 const statusLabel = (status) => {
-    const map = { paid: 'Paid', completed: 'Paid', due_soon: 'Due Soon', upcoming: 'Upcoming', overdue: 'Overdue' };
-    return map[status] ?? status;
+    const map = { paid: 'Paid', completed: 'Paid', due_soon: 'Due Soon', upcoming: 'Upcoming', overdue: 'Overdue', pending_verification: 'Pending Verification' };
+    return map[status] ?? String(status || 'Upcoming').replace(/_/g, ' ');
 };
 
 const TabPayments = memo(function TabPayments({ payments = [] }) {
     const [paymentFilter, setPaymentFilter] = useState("All");
+    const hasGeneratedPayments = payments.some((payment) => payment.is_generated);
 
     const filteredPayments = paymentFilter === "All"
         ? payments
@@ -66,6 +68,14 @@ const TabPayments = memo(function TabPayments({ payments = [] }) {
                     );
                 })}
             </View>
+
+            {hasGeneratedPayments && (
+                <View className="bg-[#FFF8E6] border border-[#FDE68A] rounded-[10px] px-3 py-2 mb-3">
+                    <Text className="text-[11px] font-manrope-medium text-[#92400E]">
+                        Estimated payment schedule shown until official milestones are added.
+                    </Text>
+                </View>
+            )}
 
             <View>
                 {filteredPayments.length === 0 ? (
