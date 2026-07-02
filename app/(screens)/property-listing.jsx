@@ -373,9 +373,9 @@ export default function PropertyListing() {
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
                         <AntDesign name="spotify" size={18} color="#7F88E5" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={handleOpenMap}>
+                    {/* <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={handleOpenMap}>
                         <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>

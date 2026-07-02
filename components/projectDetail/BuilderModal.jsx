@@ -56,6 +56,8 @@ const formatCompactPrice = (value) => {
 };
 
 const getPriceText = (project) => {
+    if (project.priceDisplay) return project.priceDisplay;
+    if (project.price?.display) return project.price.display;
     if (project.variants?.[0]?.priceRange) return project.variants[0].priceRange;
     if (project.avgPricePerSqft) return project.avgPricePerSqft;
 
@@ -122,8 +124,40 @@ const getBhkText = (project) => {
     return formatPossessionLabel(project.possessionStatus);
 };
 
-const getAddressText = (project) =>
-    project.location || [project.area, project.city, project.pincode].filter(Boolean).join(", ") || "Address on request";
+const cleanAddressPart = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object") return "";
+
+    const text = String(value).replace(/\s+/g, " ").trim();
+    return text && !["null", "undefined", "none"].includes(text.toLowerCase()) ? text : "";
+};
+
+const getAddressText = (project = {}) => {
+    const location = project.location;
+
+    if (typeof location === "string") {
+        const text = cleanAddressPart(location);
+        if (text) return text;
+    }
+
+    if (location && typeof location === "object") {
+        const locationText = [
+            location.area,
+            location.city,
+            location.pincode,
+        ].map(cleanAddressPart).filter(Boolean).join(", ");
+
+        if (locationText) return locationText;
+    }
+
+    const addressText = [
+        project.area,
+        project.city,
+        project.pincode,
+    ].map(cleanAddressPart).filter(Boolean).join(", ");
+
+    return addressText || "Address on request";
+};
 
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
@@ -184,17 +218,18 @@ export default function BuilderModal({ visible, onClose, project }) {
             name: p.name,
             slug: p.slug,
             location: getAddressText(p),
-            area: p.area,
-            city: p.city,
-            pincode: p.pincode,
-            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
+            area: p.area || p.location?.area,
+            city: p.city || p.location?.city,
+            pincode: p.pincode || p.location?.pincode,
+            imageMain: (p.cover_image_url || p.thumbnail_url) ? { uri: p.cover_image_url || p.thumbnail_url } : project?.imageMain,
             possessionStatus: p.possession_status || p.possessionStatus || p.possession,
-            price_from: p.price_from,
-            price_to: p.price_to,
+            price_from: p.price_from ?? p.price?.min_amount,
+            price_to: p.price_to ?? p.price?.max_amount,
+            priceDisplay: p.price?.display,
             configs: p.configs,
             property_type: p.property_type,
             property_subtype: p.property_subtype,
-            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id),
+            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id || p.rera?.is_approved),
         }));
     } else if (organizationProjects.length > 0) {
         builderProjects = organizationProjects.map(p => ({

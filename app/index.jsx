@@ -26,12 +26,12 @@ export default function Index() {
     }
 
     return (
-        <View className="flex-1 bg-black">
+        <View className="flex-1 bg-[#4848FF]">
             <StatusBar hidden />
             <Image
                 source={require("../assets/images/splash-mobile.gif")}
                 style={StyleSheet.absoluteFill}
-                contentFit="cover"
+                contentFit="contain"
             />
         </View>
     );

@@ -413,7 +413,12 @@ export default function ProjectDetail() {
       developerId: projectOrganisationId || base.developerId,
       imageMain: toImageSource(coverImage, base.imageMain),
       imageThumb: toImageSource(activeApiProject.thumbnail_url || activeApiProject.image_thumb, toImageSource(coverImage, base.imageThumb || base.imageMain)),
-      brochure: activeApiProject.brochure || base.brochure || null,
+      brochure: activeApiProject.brochure || (activeApiProject.brochure_url
+        ? {
+          url: activeApiProject.brochure_url,
+          label: activeApiProject.brochure_label,
+        }
+        : null) || base.brochure || null,
       units: unitsValue,
       launchedIn: launchedValue ? formatProjectDate(launchedValue) : base.launchedIn,
       rating: apiRating ?? base.rating,
