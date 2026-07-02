@@ -1,13 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   TouchableOpacity,
   Image,
   FlatList,
   Platform,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -146,6 +146,69 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
         </View> */}
       </View>
     </TouchableOpacity>
+  );
+}
+
+const PLACEHOLDERS = [
+  'Search by "Location"',
+  'Search by "Budget"',
+  'Search by "property type"',
+  'Search by "City"',
+];
+
+function AnimatedPlaceholder() {
+  const [index, setIndex] = useState(0);
+  const translateY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: -20,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setIndex((prevIndex) => (prevIndex + 1) % PLACEHOLDERS.length);
+        translateY.setValue(20);
+        
+        Animated.parallel([
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [translateY, opacity]);
+
+  return (
+    <View style={{ height: 24, overflow: "hidden", justifyContent: "center" }}>
+      <Animated.Text
+        style={{
+          transform: [{ translateY }],
+          opacity,
+          fontSize: 14,
+          color: "#9CA3AF",
+        }}
+      >
+        {PLACEHOLDERS[index]}
+      </Animated.Text>
+    </View>
   );
 }
 
@@ -397,19 +460,17 @@ export default function Home() {
 
           {/* Search */}
           <View className="flex-row px-5 gap-3 mb-5 ">
-            <View className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-xl px-4 h-[44px] gap-[8px]" style={{ shadowColor: "#edabd8ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => dispatch(setSearchActive(true))}
+              className="flex-1 flex-row items-center bg-[#FCFCFC] rounded-xl px-4 h-[44px] gap-[8px]"
+              style={{ shadowColor: "#edabd8ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 4 }}
+            >
               <FontAwesome name="search" size={20} color="#4A43EC" />
-
-              <TextInput
-                placeholder="Search..."
-                placeholderTextColor="#9CA3AF"
-                underlineColorAndroid="transparent"
-                className="flex-1 text-[14px] text-gray-700"
-                caretHidden
-                showSoftInputOnFocus={false}
-                onFocus={() => dispatch(setSearchActive(true))}
-              />
-            </View>
+              <View className="flex-1 justify-center">
+                <AnimatedPlaceholder />
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-xl px-5 h-[44px] gap-2">
               <AntDesign name="spotify" size={18} color="#7F88E5" />
               <Text className="text-white text-sm font-semibold">Filters</Text>
