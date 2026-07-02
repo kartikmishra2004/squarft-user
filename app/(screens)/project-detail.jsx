@@ -11,8 +11,9 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavourite, savePropertyThunk, unsavePropertyThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, savePropertyThunk, unsavePropertyThunk, fetchSavedPropertiesThunk, fetchRecommendedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
+import { fetchBuilderDetailsThunk } from "../../store/slices/builderSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -142,15 +143,19 @@ function formatProjectDate(value) {
 function normalizeConfigLabel(value) {
   if (!value) return null;
 
-  if (Array.isArray(value)) {
-    const cleaned = value.map((item) => String(item).trim()).filter(Boolean);
-    return cleaned.length > 0 ? `${cleaned.join(', ')} BHK` : null;
-  }
+  const values = Array.isArray(value) ? value : String(value).split(',');
+  const bhkValues = values
+    .flatMap((item) => {
+      const text = String(item ?? '').toLowerCase();
+      const bhkMatches = text.match(/\d+\+?(?=\s*bhk\b)/g) || [];
+      if (bhkMatches.length > 0) return bhkMatches;
 
-  const cleaned = String(value)
-    .split(',')
-    .map((item) => item.trim().replace(/\s*BHK$/i, ''))
-    .filter((item) => item && item.toLowerCase() !== 'undefined' && item.toLowerCase() !== 'null');
+      const plainNumber = text.trim().match(/^\d+\+?$/);
+      return plainNumber ? [plainNumber[0]] : [];
+    })
+    .filter((item) => item && !['undefined', 'null'].includes(item));
+
+  const cleaned = [...new Set(bhkValues)].sort((a, b) => parseFloat(a) - parseFloat(b));
 
   return cleaned.length > 0 ? `${cleaned.join(', ')} BHK` : null;
 }
@@ -171,6 +176,39 @@ function normalizeFloorPlan(plan) {
   };
 }
 
+function toImageSource(value, fallback = null) {
+  if (typeof value === 'string' && value.trim()) return { uri: value };
+  if (value) return value;
+  return fallback;
+}
+
+function cleanText(value) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (!text || ['none', 'null', 'undefined'].includes(text.toLowerCase())) return '';
+  return text;
+}
+
+function cleanBuilderName(value) {
+  const text = cleanText(value);
+  if (!text || ['organisation', 'organization', 'builder', 'developer'].includes(text.toLowerCase())) return '';
+  return text;
+}
+
+function buildProjectLocation(primary = {}, fallback = {}) {
+  const parts = [
+    cleanText(primary.area),
+    cleanText(primary.city),
+    cleanText(primary.pincode),
+  ].filter(Boolean);
+
+  if (parts.length > 0) return parts.join(', ');
+
+  return cleanText(primary.location)
+    || cleanText(primary.address)
+    || cleanText(fallback.location)
+    || [cleanText(fallback.area), cleanText(fallback.city), cleanText(fallback.pincode)].filter(Boolean).join(', ');
+}
+
 export default function ProjectDetail() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -181,8 +219,10 @@ export default function ProjectDetail() {
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
+  const recommendedProperties = useSelector((s) => s.properties.recommended);
   const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading, currentDetailSlug } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
+  const { currentBuilder } = useSelector((s) => s.builder);
   const { isLoggedIn, token } = useSelector((s) => s.auth);
 
   // Debug: Log auth state
@@ -196,9 +236,16 @@ export default function ProjectDetail() {
 
   // Use slug from params or from API project list (local allProjects has no slug)
   const resolvedProjectSlug = slug || listProject?.slug || null;
-  const activeApiProject = apiProject && (!id || String(apiProject.id) === String(id)) && currentDetailSlug === resolvedProjectSlug
+  const detailLookupKey = id || resolvedProjectSlug;
+  const activeApiProject = apiProject && (!id || String(apiProject.id) === String(id)) && currentDetailSlug === detailLookupKey
     ? apiProject
     : null;
+  const projectOrganisationId = activeApiProject?.developer?.id
+    || activeApiProject?.organisation_id
+    || activeApiProject?.organization_id
+    || listProject?.organisation_id
+    || listProject?.organization_id
+    || null;
 
   // Save the project itself, not the floor-plan properties
   const projectSaveId = id || resolvedProjectSlug || listProject?.id;
@@ -250,20 +297,31 @@ export default function ProjectDetail() {
   };
 
   useEffect(() => {
+    if (detailLookupKey) {
+      console.log('Fetching project details for:', detailLookupKey);
+      dispatch(fetchProjectDetailsThunk(detailLookupKey));
+    }
+
     if (resolvedProjectSlug && resolvedProjectSlug !== 'none') {
       console.log('🔍 Fetching project details for slug:', resolvedProjectSlug);
-      dispatch(fetchProjectDetailsThunk(resolvedProjectSlug));
       dispatch(fetchFloorPlansThunk(resolvedProjectSlug));
       dispatch(fetchResaleThunk(resolvedProjectSlug));
       dispatch(fetchLandmarksThunk(resolvedProjectSlug));
       dispatch(fetchAmenitiesThunk(resolvedProjectSlug));
       dispatch(fetchSimilarPropertiesThunk(resolvedProjectSlug));
+      dispatch(fetchRecommendedPropertiesThunk());
     } else {
       console.log('⚠️ No slug available — id:', id, 'slug:', slug, 'resolvedProjectSlug:', resolvedProjectSlug);
     }
     // Don't clear project on cleanup - it causes re-loading when navigating between projects
     // Only clear when component actually unmounts (user leaves project detail screen)
-  }, [dispatch, resolvedProjectSlug, id, slug]);
+  }, [dispatch, detailLookupKey, resolvedProjectSlug, id, slug]);
+
+  useEffect(() => {
+    if (projectOrganisationId) {
+      dispatch(fetchBuilderDetailsThunk(projectOrganisationId));
+    }
+  }, [dispatch, projectOrganisationId]);
 
   if (!listProject && !activeApiProject) {
     return <ProjectDetailSkeleton insets={insets} />;
@@ -276,7 +334,49 @@ export default function ProjectDetail() {
 
   // Merge API data with list/local fallback
   const base = listProject || {};
-  const apiRating = activeApiProject?.rating ?? activeApiProject?.score ?? activeApiProject?.project_rating ?? base.rating;
+  const apiVariants = Array.isArray(activeApiProject?.variants)
+    ? activeApiProject.variants.map(normalizeFloorPlan)
+    : [];
+  const normalizedVariants = Array.isArray(floorPlans?.floor_plans) && floorPlans.floor_plans.length > 0
+    ? floorPlans.floor_plans.map(normalizeFloorPlan)
+    : (apiVariants.length > 0 ? apiVariants : (base.variants || []));
+  const variantConfig = normalizedVariants
+    .map((variant) => variant.bedrooms || variant.type || variant.title)
+    .filter(Boolean);
+  const coverImage = activeApiProject?.cover_image
+    || activeApiProject?.cover_image_url
+    || activeApiProject?.image
+    || activeApiProject?.image_url
+    || base.cover_image_url
+    || base.cover_image
+    || base.image
+    || base.image_url;
+  const currentBuilderMatchesProject = currentBuilder?.id
+    && projectOrganisationId
+    && String(currentBuilder.id) === String(projectOrganisationId);
+  const organisationName = currentBuilderMatchesProject ? currentBuilder.name : null;
+  const organisationLogo = currentBuilderMatchesProject ? currentBuilder.logo_url : null;
+  const builderName = cleanBuilderName(activeApiProject?.developer?.name)
+    || cleanBuilderName(organisationName)
+    || cleanBuilderName(activeApiProject?.organisation_name)
+    || cleanBuilderName(activeApiProject?.org_name)
+    || cleanBuilderName(activeApiProject?.owner_name)
+    || cleanBuilderName(activeApiProject?.builder_name)
+    || cleanBuilderName(base.organisation_name)
+    || cleanBuilderName(base.org_name)
+    || cleanBuilderName(base.builder)
+    || cleanBuilderName(base.owner_name)
+    || "Developer details unavailable";
+  const launchedValue = activeApiProject?.stats?.launched
+    || activeApiProject?.project_launch_date
+    || activeApiProject?.created_at
+    || base.launchedIn
+    || base.created_at;
+  const unitsValue = activeApiProject?.stats?.units
+    ?? activeApiProject?.total_properties
+    ?? activeApiProject?.units
+    ?? (normalizedVariants.length > 0 ? normalizedVariants.length : base.units);
+  const apiRating = activeApiProject?.rating ?? activeApiProject?.score ?? activeApiProject?.project_rating ?? base.rating ?? 8.8;
   const rawConfig = floorPlans?.summary?.configs ?? floorPlans?.configs ?? activeApiProject?.summary?.configs ?? activeApiProject?.configs ?? activeApiProject?.config;
   const rawStartingPrice = floorPlans?.summary?.starting_from
     ?? floorPlans?.summary?.startingFrom
@@ -288,31 +388,36 @@ export default function ProjectDetail() {
     ?? activeApiProject?.price_from
     ?? base.price_from
     ?? base.min_price
+    ?? normalizedVariants.find((variant) => variant.price || variant.base_price || variant.price_from)?.price
+    ?? normalizedVariants.find((variant) => variant.price || variant.base_price || variant.price_from)?.base_price
+    ?? normalizedVariants.find((variant) => variant.price || variant.base_price || variant.price_from)?.price_from
     ?? null;
-  const normalizedVariants = Array.isArray(floorPlans?.floor_plans) && floorPlans.floor_plans.length > 0
-    ? floorPlans.floor_plans.map(normalizeFloorPlan)
-    : (base.variants || []);
+  const projectLocation = buildProjectLocation(activeApiProject || {}, base);
 
   const project = {
     ...base,
     ...(activeApiProject ? {
       name: activeApiProject.name || base.name,
-      city: activeApiProject.city || base.city,
-      area: activeApiProject.area || base.area,
-      location: activeApiProject.location || base.location,
+      city: cleanText(activeApiProject.city) || cleanText(base.city),
+      area: cleanText(activeApiProject.area) || cleanText(base.area),
+      pincode: cleanText(activeApiProject.pincode) || cleanText(base.pincode),
+      latitude: activeApiProject.latitude ?? base.latitude,
+      longitude: activeApiProject.longitude ?? base.longitude,
+      location: projectLocation,
       description: activeApiProject.description || base.description,
-      reraId: activeApiProject.rera_id || base.reraId,
-      possession: activeApiProject.possession || base.possession,
-      possessionStatus: activeApiProject.possession || activeApiProject.possession_status || base.possessionStatus || base.possession,
-      builder: activeApiProject.developer?.name || base.builder,
-      builderLogo: activeApiProject.developer?.logo ? { uri: activeApiProject.developer.logo } : base.builderLogo,
-      developerId: activeApiProject.developer?.id || base.developerId,
-      imageMain: activeApiProject.cover_image ? { uri: activeApiProject.cover_image } : base.imageMain,
+      reraId: activeApiProject.rera_id || activeApiProject.rera_number || base.reraId,
+      possession: activeApiProject.possession || activeApiProject.possession_date || activeApiProject.possession_status || base.possession,
+      possessionStatus: activeApiProject.possession || activeApiProject.possession_status || activeApiProject.possession_date || base.possessionStatus || base.possession,
+      builder: builderName,
+      builderLogo: toImageSource(activeApiProject.developer?.logo || activeApiProject.org_logo_url || activeApiProject.organisation_logo_url || organisationLogo, base.builderLogo),
+      developerId: projectOrganisationId || base.developerId,
+      imageMain: toImageSource(coverImage, base.imageMain),
+      imageThumb: toImageSource(activeApiProject.thumbnail_url || activeApiProject.image_thumb, toImageSource(coverImage, base.imageThumb || base.imageMain)),
       brochure: activeApiProject.brochure || base.brochure || null,
-      units: (activeApiProject.stats?.units && activeApiProject.stats.units !== "N/A") ? activeApiProject.stats.units : base.units,
-      launchedIn: (activeApiProject.stats?.launched && activeApiProject.stats.launched !== "N/A") ? formatProjectDate(activeApiProject.stats.launched) : base.launchedIn,
+      units: unitsValue,
+      launchedIn: launchedValue ? formatProjectDate(launchedValue) : base.launchedIn,
       rating: apiRating ?? base.rating,
-      subTypes: base.subTypes,
+      subTypes: base.subTypes || variantConfig,
       propertyType: base.propertyType || activeApiProject.property_type,
       avgPricePerSqft: base.avgPricePerSqft,
       price_from: activeApiProject.price_from ?? base.price_from,
@@ -323,9 +428,16 @@ export default function ProjectDetail() {
       variants: base.variants,
     } : {
       name: base.name,
-      city: base.city,
-      area: base.area,
-      location: base.location || (base.area && base.city ? `${base.area}, ${base.city}` : ''),
+      city: cleanText(base.city),
+      area: cleanText(base.area),
+      pincode: cleanText(base.pincode),
+      latitude: base.latitude,
+      longitude: base.longitude,
+      location: buildProjectLocation(base),
+      builder: builderName,
+      builderLogo: toImageSource(base.organisation_logo_url || base.org_logo_url || base.builderLogo, base.imageMain),
+      developerId: projectOrganisationId || base.developerId,
+      imageMain: toImageSource(coverImage, base.imageMain),
       possession: base.possession_date || base.possession,
       units: base.units,
       launchedIn: base.launchedIn,
@@ -334,6 +446,7 @@ export default function ProjectDetail() {
     variants: normalizedVariants,
     floorPlans: normalizedVariants,
     resaleProperties: resale,
+    recommendedProperties,
     landmarks: landmarks,
     amenities: amenities,
     similarProperties: similarProperties?.length > 0
@@ -342,8 +455,8 @@ export default function ProjectDetail() {
   };
 
   const bhkConfig = normalizeConfigLabel(rawConfig)
+    || normalizeConfigLabel(variantConfig)
     || normalizeConfigLabel(project.subTypes)
-    || project.propertyType
     || null;
   const startingPrice = rawStartingPrice !== null && rawStartingPrice !== undefined
     ? (typeof rawStartingPrice === 'number'
@@ -546,8 +659,8 @@ export default function ProjectDetail() {
                 {formatCompactPrice(rawStartingPrice) || startingPrice}*
               </Text>
             ) : (
-              <Text className="text-[14px] font-manrope-medium text-[#94A3B8]">
-                Price on request
+              <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">
+               {"Price\non request"}
               </Text>
             )}
           </View>

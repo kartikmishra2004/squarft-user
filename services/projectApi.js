@@ -1,6 +1,6 @@
 import { BASE_URL } from './config';
 
-async function request(path, token = null) {
+async function request(path, token = null, options = {}) {
     try {
         const url = `${BASE_URL}${path}`;
         
@@ -8,7 +8,11 @@ async function request(path, token = null) {
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, {
+            method: options.method || 'GET',
+            headers,
+            body: options.body ? JSON.stringify(options.body) : undefined,
+        });
         
         
         
@@ -33,6 +37,10 @@ async function request(path, token = null) {
     }
 }
 
+function isUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
 export const projectApi = {
     // Get all projects (for search suggestions)
     listProjects: async (token) => {
@@ -41,9 +49,12 @@ export const projectApi = {
         return res;
     },
 
-    // Get project details by slug
-    getProjectDetails: async (slug,token) => {
-        const res = await request(`/api/v1/overview/${slug}`, token);
+    // Get project details. Prefer the UUID endpoint because /overview/:slug currently has a backend SQL issue.
+    getProjectDetails: async (projectRef,token) => {
+        const path = isUuid(projectRef)
+            ? `/api/v1/projects/${encodeURIComponent(projectRef)}`
+            : `/api/v1/overview/${encodeURIComponent(projectRef)}`;
+        const res = await request(path, token);
         
         return res;
     },

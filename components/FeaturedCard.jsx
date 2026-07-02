@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { buildProjectAddress, buildProjectPrice } from "../services/projectDisplay";
 
 const luxuryApartments = require("../assets/images/Luxury Apartments.png");
 
@@ -19,7 +20,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
         ? { uri: remoteUri }
         : (item.image ?? item.imageMain ?? luxuryApartments);
     const title = item.title ?? item.name;
-    const location = item.location ?? [item.area, item.city].filter(Boolean).join(', ');
+    const location = item.display_location || buildProjectAddress(item) || item.location || [item.area, item.city].filter(Boolean).join(', ');
 
     // Format raw number to Indian readable format
     const fmt = (n) => {
@@ -41,6 +42,8 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
     } else {
         price = item.priceINR ?? item.variants?.[0]?.priceRange ?? item.avgPricePerSqft;
     }
+
+    price = item.display_price || buildProjectPrice(item) || price || "Price on request";
 
     return (
         <TouchableOpacity
@@ -72,7 +75,7 @@ export default function FeaturedCard({ item, onToggleFav, showBookVisit = false 
             </View>
             <View className="px-4 py-4">
                 <Text className="text-[15px] font-inter-bold text-[#1F2937] mb-0.5">{title}</Text>
-                <Text className="text-[12px] font-inter-regular text-[#6B7280] mb-2">{location}</Text>
+                <Text className="text-[12px] font-inter-regular text-[#6B7280] mb-2" numberOfLines={1}>{location}</Text>
                 <View className="flex-row items-center justify-between">
                     <View>
                         

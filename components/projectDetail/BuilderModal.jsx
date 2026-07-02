@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -40,12 +41,96 @@ const FILTER_MAP = {
     "Under Construction": (p) => getPossessionKey(p.possessionStatus) === "under_construction",
 };
 
+const formatCompactPrice = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    if (amount >= 10000000) {
+        const crores = amount / 10000000;
+        return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
+    }
+    if (amount >= 100000) {
+        const lakhs = amount / 100000;
+        return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+    }
+    return `\u20B9${amount.toLocaleString("en-IN")}`;
+};
+
+const getPriceText = (project) => {
+    if (project.variants?.[0]?.priceRange) return project.variants[0].priceRange;
+    if (project.avgPricePerSqft) return project.avgPricePerSqft;
+
+    const from = formatCompactPrice(project.price_from ?? project.min_price ?? project.base_price);
+    const to = formatCompactPrice(project.price_to ?? project.max_price);
+    if (from && to && String(project.price_from) !== String(project.price_to)) return `${from} - ${to}`;
+    return from || to || "Price on request";
+};
+
+const toTitleCase = (value) =>
+    String(value || "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getPropertyTypeText = (project) => {
+    const rawType = project.propertyType
+        || project.property_type
+        || project.type
+        || [project.property_subtype, project.configs]
+            .flat()
+            .find((value) => /(apartment|flat|plot|villa|house)/i.test(String(value || "")));
+
+    if (!rawType) return "";
+
+    const normalized = String(rawType).trim();
+    const compact = normalized.toLowerCase();
+    if (compact.includes("apartment") || compact.includes("flat")) return "Apartment";
+    if (compact.includes("plot")) return "Plot";
+    if (compact.includes("villa")) return "Villa";
+    if (compact.includes("house")) return "House";
+
+    const lastPart = normalized.split("/").filter(Boolean).pop();
+    return toTitleCase(lastPart || normalized);
+};
+
+const extractBhkValues = (...values) => {
+    const matches = [];
+
+    values.flat().filter(Boolean).forEach((value) => {
+        const text = String(value);
+        const valueMatches = text.match(/\d+\+?(?=\s*BHK\b)|\d+\+?/gi) || [];
+        valueMatches.forEach((match) => {
+            const cleaned = match.trim();
+            if (cleaned && !matches.includes(cleaned)) matches.push(cleaned);
+        });
+    });
+
+    return matches;
+};
+
+const getBhkText = (project) => {
+    const propertyTypeText = getPropertyTypeText(project);
+    const bhkValues = extractBhkValues(project.configs, project.bhk, project.bedrooms, project.subTypes, project.property_subtype);
+
+    if (bhkValues.length) {
+        return `${bhkValues.join(", ")} BHK${propertyTypeText ? ` ${propertyTypeText}` : ""}`;
+    }
+
+    if (project.property_subtype) return project.property_subtype;
+    if (propertyTypeText) return propertyTypeText;
+    return formatPossessionLabel(project.possessionStatus);
+};
+
+const getAddressText = (project) =>
+    project.location || [project.area, project.city, project.pincode].filter(Boolean).join(", ") || "Address on request";
+
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const [activeFilter, setActiveFilter] = useState("All");
     const sheetRef = useRef(null);
-    const snapPoints = ['55%'];
+    const snapPoints = ['92%'];
     
     const { currentBuilder, builderProjects: apiProjects, loading } = useSelector((state) => state.builder);
     const { list: projectList } = useSelector((state) => state.project);
@@ -66,14 +151,14 @@ export default function BuilderModal({ visible, onClose, project }) {
                 developerId: project?.developerId 
             });
         }
-    }, [visible, project?.developerId, projectList?.length, dispatch]);
+    }, [visible, project?.developerId, project?.id, project?.builder, project?.name, projectList?.length, dispatch]);
 
     // Clear builder data when modal closes
     useEffect(() => {
         if (!visible) {
             dispatch(clearBuilder());
         }
-    }, [visible]);
+    }, [visible, dispatch]);
 
     useEffect(() => {
         if (visible && project) sheetRef.current?.present();
@@ -98,24 +183,36 @@ export default function BuilderModal({ visible, onClose, project }) {
             id: p.id,
             name: p.name,
             slug: p.slug,
-            location: p.location || [p.area, p.city].filter(Boolean).join(", "),
+            location: getAddressText(p),
+            area: p.area,
+            city: p.city,
+            pincode: p.pincode,
             imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
             possessionStatus: p.possession_status || p.possessionStatus || p.possession,
             price_from: p.price_from,
             price_to: p.price_to,
-            rera: Boolean(p.rera_approved),
+            configs: p.configs,
+            property_type: p.property_type,
+            property_subtype: p.property_subtype,
+            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id),
         }));
     } else if (organizationProjects.length > 0) {
         builderProjects = organizationProjects.map(p => ({
             id: p.id,
             name: p.name,
             slug: p.slug,
-            location: p.location || [p.area, p.city].filter(Boolean).join(", "),
+            location: getAddressText(p),
+            area: p.area,
+            city: p.city,
+            pincode: p.pincode,
             imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
             possessionStatus: p.possession_status || p.possessionStatus || p.possession,
             price_from: p.price_from,
             price_to: p.price_to,
-            rera: Boolean(p.rera_approved),
+            configs: p.configs,
+            property_type: p.property_type,
+            property_subtype: p.property_subtype,
+            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id),
         }));
     } else {
         // Fallback to local data
@@ -134,11 +231,12 @@ export default function BuilderModal({ visible, onClose, project }) {
     return (
         <BottomSheetModal
             ref={sheetRef}
-            index={1}
+            index={0}
             snapPoints={snapPoints}
             enablePanDownToClose
             onDismiss={onClose}
             backdropComponent={renderBackdrop}
+            enableDynamicSizing={false}
             handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, marginTop: 10 }}
             backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
         >
@@ -194,19 +292,16 @@ export default function BuilderModal({ visible, onClose, project }) {
                         </View>
                     ) : (
                         filteredProjects.map((p) => {
-                            const priceText = p.variants?.[0]?.priceRange
-                                ?? p.avgPricePerSqft
-                                ?? (p.price_from ? `\u20B9${(Number(p.price_from) / 100000).toFixed(0)}L` : "\u2014");
-                            const metaText = p.subTypes?.length
-                                ? `${p.subTypes.join(", ")} BHK ${p.propertyType || ""}`.trim()
-                                : formatPossessionLabel(p.possessionStatus);
+                            const priceText = getPriceText(p);
+                            const bhkText = getBhkText(p);
+                            const addressText = getAddressText(p);
                             return (
                             <View
                                 key={p.id}
-                                className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
+                                className="flex-row items-start bg-white border border-gray-100 rounded-2xl p-3 mb-3"
                                 style={{ shadowColor: "#6B7280", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
                             >
-                                <View className="w-[116px] h-[116px] rounded-xl bg-gray-100 mr-5 overflow-hidden">
+                                <View className="w-[108px] h-[118px] rounded-xl bg-gray-100 mr-4 overflow-hidden">
                                     {p.imageMain ? (
                                         <Image source={p.imageMain} className="w-full h-full" resizeMode="cover" />
                                     ) : (
@@ -214,15 +309,16 @@ export default function BuilderModal({ visible, onClose, project }) {
                                     )}
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-[16px] font-bold text-gray-900 mb-0.5">
+                                    <Text className="text-[16px] font-manrope-extrabold text-[#111827] mb-1" numberOfLines={1}>
                                         {priceText}
                                     </Text>
-                                    <Text className="text-[14px] font-bold text-gray-800 mb-0.5">{p.name}</Text>
-                                    <Text className="text-[12px] text-gray-400">{metaText}</Text>
-                                    <Text className="text-[11px] text-gray-400 mb-3">{p.location}</Text>
+                                    <Text className="text-[14px] font-manrope-bold text-gray-800 mb-1" numberOfLines={1}>{p.name}</Text>
+                                    <Text className="text-[12px] font-manrope-semibold text-gray-500 mb-1" numberOfLines={1}>{bhkText}</Text>
+                                    <Text className="text-[11px] text-gray-400 mb-3 leading-4" numberOfLines={2}>{addressText}</Text>
                                     {p.rera && (
-                                        <View className="self-start bg-green-100 rounded-md px-2 py-0.5">
-                                            <Text className="text-[10px] font-bold text-green-600">RERA</Text>
+                                        <View className="self-start flex-row items-center bg-[#E5F7F1] rounded-md px-2 py-1">
+                                            <Text className="text-[10px] font-bold text-[#00B67A] mr-1">RERA Verified</Text>
+                                            <MaterialCommunityIcons name="check-decagram" size={12} color="#00B67A" />
                                         </View>
                                     )}
                                 </View>

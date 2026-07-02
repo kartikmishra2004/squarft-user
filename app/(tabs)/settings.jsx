@@ -4,7 +4,6 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { logout, fetchProfileThunk } from "../../store/slices/authSlice";
@@ -79,7 +78,6 @@ function SettingsRow({ icon, iconBg, label, sublabel, sublabelColor, right, onPr
 }
 
 export default function Settings() {
-    const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
     
@@ -191,18 +189,20 @@ export default function Settings() {
                         icon={<Ionicons name="person-outline" size={18} color="#4A43EC" />}
                         label="Legal Name"
                         sublabel={displayName}
+                        right={<View />}
                     />
                     <SettingsRow
                         icon={<Feather name="phone" size={17} color="#4A43EC" />}
                         label="Phone Number"
                         sublabel={displayPhone}
-                        onPress={() => router.push('/(screens)/phone-number')}
+                        right={<View />}
                     />
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="card-account-details-outline" size={18} color="#4A43EC" />}
                         label="ID Verification"
                         sublabel={displayVerification}
-                        sublabelColor="#10B981"
+                        sublabelColor={String(displayVerification).toLowerCase().includes('reject') ? '#EF4444' : String(displayVerification).toLowerCase().includes('pending') ? '#F59E0B' : '#10B981'}
+                        onPress={() => router.push('/(screens)/id-verification')}
                         isLast
                     />
                 </SettingsCard>

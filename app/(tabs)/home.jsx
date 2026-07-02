@@ -32,6 +32,7 @@ import FeaturedCard from "../../components/FeaturedCard";
 import { fetchFeaturedProjectsThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { LinearGradient } from "expo-linear-gradient";
 import { HomeSectionSkeleton } from "../../components/SkeletonLoader";
+import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
 
 const CATEGORIES = [
   { id: "1", label: "Plot", image: require("../../assets/images/plot.png"), type: "Plot" },
@@ -155,7 +156,7 @@ export default function Home() {
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
   const { token, profile, user } = useSelector((s) => s.auth);
-  const { projectsInFocus, missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
+  const { missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
   const { featured: apiFeatured, featuredLoading, list: projectList } = useSelector((s) => s.project);
   const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
 
@@ -177,6 +178,20 @@ export default function Home() {
       isFavourite: favouriteProjects.includes(project.id),
     }));
   }, [apiFeatured, favouriteProjects]);
+
+  const projectsInFocus = useMemo(() => {
+    return featuredProjects.slice(0, 2).map((project) => ({
+      ...project,
+      image: project.cover_image_url || project.image_url || project.cover_image || project.image || project.imageMain,
+      title: project.name || project.title || project.project_name || "Project",
+      subtitle: project.display_location || buildProjectAddress(project),
+      price: project.display_price
+        || buildProjectPrice(project)
+        || formatProjectPriceRange(project.price_from ?? project.min_price, project.price_to ?? project.max_price)
+        || "Price on request",
+      tag: "FEATURED PROJECT",
+    }));
+  }, [featuredProjects]);
 
   const refreshHomeData = useCallback(() => {
     if (!token) return;
@@ -258,11 +273,10 @@ export default function Home() {
 
   const recommendedProjects = (projectList || []).slice(0, 6).map((project) => {
     const displayName = project.name || project.title || project.project_name || project.property_name || 'Project';
-    const locationText = [project.area, project.city].filter(Boolean).join(', ');
-    const displayPrice = formatProjectPriceRange(project.price_from ?? project.min_price, project.price_to ?? project.max_price)
-      || project.priceINR
-      || project.price
-      || project.priceRange
+    const locationText = project.display_location || buildProjectAddress(project);
+    const displayPrice = project.display_price
+      || buildProjectPrice(project)
+      || formatProjectPriceRange(project.price_from ?? project.min_price, project.price_to ?? project.max_price)
       || '';
 
     const projectId = project.id ?? project.project_id ?? project.slug;
@@ -273,11 +287,11 @@ export default function Home() {
       name: displayName,
       type: displayName,
       price: displayPrice,
-      area: project.area || project.location || locationText || '',
+      area: project.area || locationText || '',
       beds: formatUnitCount(project.bedrooms || project.bhk || project.bedroom_count, 'Bed'),
       baths: formatUnitCount(project.bathrooms || project.bathroom_count, 'Bath'),
       image: project.cover_image_url || project.image_url || project.cover_image || project.imageMain || project.image || null,
-      location: project.location || locationText || '',
+      location: locationText || '',
       isFavourite: favouriteProjects.includes(projectId),
     };
   });
@@ -461,7 +475,10 @@ export default function Home() {
             <Text className="text-[15px] font-manrope-extrabold text-gray-900">
               Recommended Projects
             </Text>
-            <TouchableOpacity className="flex-row items-center">
+            <TouchableOpacity
+              className="flex-row items-center"
+              onPress={() => router.push({ pathname: "/(screens)/property-listing", params: { recommended: "1" } })}
+            >
               <Text className="text-[12px] text-[#6C3BFF] font-manrope-bold">
                 See All
               </Text>
@@ -531,7 +548,7 @@ export default function Home() {
           />
           <View className="flex-row justify-between items-center px-5 mt-3 mb-4">
             <Text className="text-[15px] font-manrope-extrabold text-gray-900">Featured Projects</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push({ pathname: "/(screens)/property-listing", params: { featured: "1" } })}>
               <Text className="text-[12px] text-[#6C3BFF] font-manrope-bold">View All</Text>
             </TouchableOpacity>
           </View>
@@ -584,29 +601,49 @@ export default function Home() {
         {/* Project in Focus */}
         <View className="flex-row justify-between items-center px-5 mt-6 mb-5 ml-2">
           <Text className="text-[15px] font-manrope-extrabold text-gray-900">Project in focus</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push({ pathname: "/(screens)/property-listing", params: { focus: "1" } })}>
             <Text className="text-sm text-indigo-500 font-manrope-bold">View All</Text>
           </TouchableOpacity>
         </View>
-        {projectsInFocus.slice(0, 2).map((project) => (
-          <TouchableOpacity
-            key={project.id}
-            activeOpacity={0.85}
-            onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: project.id } })}
-            className="mx-6 mb-4 rounded-2xl overflow-hidden h-[190px]"
-          >
-            <Image source={project.image} className="w-[full] h-full zIndex-0" resizeMode="cover" />
-            <View className="absolute inset-0 bg-black/55" />
-            <View className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1">
-              <Text className="text-[11px] font-bold text-gray-900">{project.price}</Text>
-            </View>
-            <View className="absolute bottom-4 left-4">
-              <Text className="text-[12px] font-public-bold text-[#e0733d] tracking-widest mb-1 zIndex-1">{project.tag}</Text>
-              <Text className="text-[20px] font-public-bold text-white mb-0">{project.title}</Text>
-              <Text className="text-[14px] font-public-regular text-[#CBD5E1]">{project.subtitle}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {featuredLoading ? (
+          <View className="px-5 py-2">
+            <HomeSectionSkeleton count={2} />
+          </View>
+        ) : projectsInFocus.length > 0 ? (
+          projectsInFocus.map((project) => {
+            const projectImage = typeof project.image === "string" ? { uri: project.image } : project.image;
+
+            return (
+              <TouchableOpacity
+                key={project.id}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: project.id, slug: project.slug || "none" } })}
+                className="mx-6 mb-4 rounded-2xl overflow-hidden h-[190px]"
+              >
+                {projectImage ? (
+                  <Image source={projectImage} className="w-full h-full" resizeMode="cover" />
+                ) : (
+                  <View className="w-full h-full bg-gray-200 items-center justify-center">
+                    <MaterialCommunityIcons name="office-building-outline" size={34} color="#9CA3AF" />
+                  </View>
+                )}
+                <View className="absolute inset-0 bg-black/55" />
+                <View className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1">
+                  <Text className="text-[11px] font-bold text-gray-900">{project.price}</Text>
+                </View>
+                <View className="absolute bottom-4 left-4 right-4">
+                  <Text className="text-[12px] font-public-bold text-[#e0733d] tracking-widest mb-1">{project.tag}</Text>
+                  <Text className="text-[20px] font-public-bold text-white mb-0" numberOfLines={1}>{project.title}</Text>
+                  <Text className="text-[14px] font-public-regular text-[#CBD5E1]" numberOfLines={1}>{project.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View className="px-6 py-2">
+            <Text className="text-[13px] text-gray-500">No projects in focus available right now.</Text>
+          </View>
+        )}
 
         {/* In case you missed */}
         <View className="px-5 mt-5 mb-1 ml-2">

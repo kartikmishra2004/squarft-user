@@ -4,7 +4,6 @@ import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import { router } from "expo-router";
 import { allProjects } from "../../data/projects";
-import FeaturedCard from "../FeaturedCard";
 import { getResaleByProject } from "../../data/resaleProperties";
 import BuilderModal from "./BuilderModal";
 
@@ -45,6 +44,52 @@ function getVariantArea(variant, project) {
     return variant.area || (variant.area_sqft ? `${variant.area_sqft} sqft` : null) || (project.areaSqft ? `${project.areaSqft} sqft` : "\u2014");
 }
 
+function getPropertyTitle(item) {
+    return item.title || item.name || item.property_name || item.project_name || "Property";
+}
+
+function getPropertyLocation(item) {
+    return item.location || [item.area, item.city, item.pincode].filter(Boolean).join(", ") || "Address on request";
+}
+
+function getPropertyPriceText(item) {
+    if (item.price) return item.price;
+    if (item.priceRange) return item.priceRange;
+    if (item.variants?.[0]?.priceRange) return item.variants[0].priceRange;
+    if (item.avgPricePerSqft) return item.avgPricePerSqft;
+
+    const min = item.price_from ?? item.min_price ?? item.base_price;
+    const max = item.price_to ?? item.max_price;
+    const from = formatCompactPrice(min);
+    const to = formatCompactPrice(max);
+
+    if (from && to && String(min) !== String(max)) return `${from} \u2013 ${to}`;
+    return from || to || "Price on request";
+}
+
+function getPropertyImage(item, fallback) {
+    return getImageSource(item.cover_image || item.cover_image_url || item.image || item.image_url || item.imageMain, fallback);
+}
+
+function getPropertyConfig(item) {
+    if (item.configs) return item.configs;
+    if (item.bedrooms) return `${item.bedrooms} BHK`;
+    if (Array.isArray(item.subTypes) && item.subTypes.length) return `${item.subTypes.join(", ")} BHK`;
+    return item.property_subtype || item.property_type || "";
+}
+
+function buildPropertyVariant(item) {
+    return {
+        ...item,
+        title: getPropertyTitle(item),
+        type: item.type || item.property_type || item.property_subtype || getPropertyTitle(item),
+        price: item.price ?? item.priceRange ?? item.variants?.[0]?.priceRange ?? item.base_price ?? item.price_from ?? item.min_price,
+        base_price: item.base_price ?? item.price_from ?? item.min_price,
+        area: item.area_sqft ? `${item.area_sqft} sqft` : item.area,
+        image: item.cover_image || item.cover_image_url || item.image || item.image_url,
+    };
+}
+
 
 
 const cardShadow = {
@@ -68,6 +113,41 @@ export default function Overview({ project }) {
             setTimeout(() => setCopied(false), 2000);
         }
     };
+
+    const openProperty = (item) => {
+        setSelectedVariant(buildPropertyVariant(item));
+        setPropertyDetailVisible(true);
+    };
+
+    const renderPropertyCard = (item, options = {}) => (
+        <TouchableOpacity
+            key={item.id}
+            activeOpacity={0.85}
+            onPress={() => openProperty(item)}
+            className="bg-white rounded-2xl overflow-hidden mb-2"
+            style={{ width: options.width || 190, ...cardShadow }}
+        >
+            <Image source={getPropertyImage(item, project.imageMain)} style={{ width: "100%", height: options.imageHeight || 120 }} resizeMode="cover" />
+            <View className="p-3">
+                <Text className="text-[13px] font-inter-bold text-[#4A43EC] mb-1" numberOfLines={1}>{getPropertyPriceText(item)}</Text>
+                <Text className="text-[14px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{getPropertyTitle(item)}</Text>
+                <Text className="text-[10px] font-inter-regular text-gray-400 mb-0.5" numberOfLines={1}>{getPropertyLocation(item)}</Text>
+                {!!getPropertyConfig(item) && (
+                    <Text className="text-[10px] text-gray-400" numberOfLines={1}>{getPropertyConfig(item)}</Text>
+                )}
+            </View>
+        </TouchableOpacity>
+    );
+
+    const resaleItems = project.resaleProperties?.length > 0
+        ? project.resaleProperties
+        : getResaleByProject(project.id);
+    const recommendedItems = project.recommendedProperties?.length > 0
+        ? project.recommendedProperties.filter((item) => item.id !== project.id)
+        : allProjects.filter((p) => p.tags.includes("recommended") && p.id !== project.id).slice(0, 6);
+    const similarApiItems = project.similarProperties?.length > 0 ? project.similarProperties : [];
+    const similarFallbackItems = allProjects.filter((p) => p.id !== project.id).slice(0, 5);
+
     return (
         <View>
 
@@ -225,19 +305,7 @@ export default function Overview({ project }) {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingHorizontal: 24, gap: 14, paddingTop: 44, paddingBottom: 15, marginBottom: 12 }}
                 >
-                    {(project.resaleProperties?.length > 0
-                        ? project.resaleProperties.map(r => ({
-                            id: r.id,
-                            title: r.title,
-                            price_from: r.base_price || r.price_from,
-                            price_to: r.price_to,
-                            image: getImageSource(r.cover_image || r.cover_image_url || r.image, project.imageMain),
-                            location: `${r.area}, ${r.city}`,
-                        }))
-                        : getResaleByProject(project.id)
-                    ).map((item) => (
-                        <FeaturedCard key={item.id} item={item} showBookVisit />
-                    ))}
+                    {resaleItems.map((item) => renderPropertyCard(item, { width: 220, imageHeight: 138 }))}
                 </ScrollView>
             </ImageBackground>
 
@@ -248,24 +316,7 @@ export default function Overview({ project }) {
                     <TouchableOpacity><Text className="text-[12px] font-manrope-semibold text-[#4A43EC]">View All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
-                    {allProjects.filter((p) => p.tags.includes("recommended") && p.id !== project.id).slice(0, 6).map((item, i) => (
-                        <View key={item.id} className="bg-white rounded-2xl overflow-hidden mb-2" style={{ width: 200, ...cardShadow }}>
-                            <View>
-                                <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
-                                {i === 0 && (
-                                    <View className="absolute top-3 left-3 bg-green-500 px-2.5 py-1 rounded-full">
-                                        <Text className="text-white text-[10px] font-bold">NEW</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <View className="p-3">
-                                <Text className="text-[13px] font-inter-bold text-gray-500 mb-1">{item.variants[0]?.priceRange ?? item.avgPricePerSqft}</Text>
-                                <Text className="text-[14px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
-                                <Text className="text-[10px] font-inter-regular text-gray-400 mb-0.5">{item.location}</Text>
-                                <Text className="text-[10px] text-gray-400">{item.subTypes.join(", ")} BHK</Text>
-                            </View>
-                        </View>
-                    ))}
+                    {recommendedItems.map((item) => renderPropertyCard(item, { width: 200 }))}
                 </ScrollView>
             </View>
 
@@ -276,44 +327,33 @@ export default function Overview({ project }) {
                     <TouchableOpacity><Text className="text-[13px] font-manrope-semibold text-indigo-600">Clear All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
-                    {(project.similarProperties?.length > 0
-                        ? project.similarProperties.map(p => ({
-                            id: p.id,
-                            slug: p.slug,
-                            name: p.name || p.title,
-                            imageMain: getImageSource(p.cover_image_url || p.cover_image || p.image, project.imageMain),
-                            location: `${p.area || ''}, ${p.city || ''}`.replace(/^,\s*/, ''),
-                            price_from: p.price_from || p.base_price,
-                            price_to: p.price_to,
-                        }))
-                        : allProjects.filter((p) => p.id !== project.id).slice(0, 5)
-                    ).map((item) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            onPress={() => {
-                                if (item.slug) {
-                                    router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } });
-                                }
-                            }}
-                            disabled={!item.slug}
-                            className="bg-white rounded-2xl overflow-hidden mb-2"
-                            style={{ width: 180, ...cardShadow }}
-                        >
-                            <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
-                            <View className="p-3">
-                                <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
-                                <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">
-                                    {item.price_from
-                                        ? `${formatCompactPrice(item.price_from)}${item.price_to && item.price_to !== item.price_from ? ` \u2013 ${formatCompactPrice(item.price_to)}` : ''}`
-                                        : item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '\u2014'}
-                                </Text>
-                                <View className="flex-row items-center gap-1">
-                                    <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />
-                                    <Text className="text-[10px] font-inter-regular text-gray-400" numberOfLines={1}>{item.location}</Text>
+                    {similarApiItems.length > 0
+                        ? similarApiItems.map((item) => renderPropertyCard(item, { width: 180 }))
+                        : similarFallbackItems.map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                onPress={() => {
+                                    if (item.slug) {
+                                        router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } });
+                                    }
+                                }}
+                                disabled={!item.slug}
+                                className="bg-white rounded-2xl overflow-hidden mb-2"
+                                style={{ width: 180, ...cardShadow }}
+                            >
+                                <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
+                                <View className="p-3">
+                                    <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
+                                    <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">
+                                        {item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '\u2014'}
+                                    </Text>
+                                    <View className="flex-row items-center gap-1">
+                                        <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />
+                                        <Text className="text-[10px] font-inter-regular text-gray-400" numberOfLines={1}>{item.location}</Text>
+                                    </View>
                                 </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
+                            </TouchableOpacity>
+                        ))}
                 </ScrollView>
             </View>
         </View>

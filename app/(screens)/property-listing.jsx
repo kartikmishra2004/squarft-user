@@ -9,7 +9,8 @@ import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
-import { fetchNearbyProjectsThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
+import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
+import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
 
 // Filter constants
 const BUDGET_MIN = 2000000;
@@ -18,6 +19,11 @@ const AREA_MIN = 0;
 const AREA_MAX = 5000;
 
 const normalizeText = (value) => String(value ?? '').toLowerCase().trim();
+const cleanDisplayText = (value) => {
+    const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+    if (!text || ['none', 'null', 'undefined'].includes(text.toLowerCase())) return '';
+    return text;
+};
 
 const getSearchText = (project) => [
     project.name,
@@ -44,9 +50,17 @@ const getNumber = (...values) => {
 };
 
 const getProjectPriceRange = (project) => {
-    const min = getNumber(project.price_from, project.min_price, project.budgetMin, project.priceMin, project.base_price, project.price);
-    const max = getNumber(project.price_to, project.max_price, project.budgetMax, project.priceMax, project.price) ?? min;
+    const min = firstProjectPrice(project.price_from, project.min_price, project.budgetMin, project.priceMin, project.base_price, project.price);
+    const max = firstProjectPrice(project.price_to, project.max_price, project.budgetMax, project.priceMax, project.price) ?? min;
     return { min, max };
+};
+
+const firstProjectPrice = (...values) => {
+    for (const value of values) {
+        const amount = parseProjectPriceAmount(value);
+        if (amount) return amount;
+    }
+    return null;
 };
 
 const getProjectArea = (project) =>
@@ -163,7 +177,8 @@ function applyFilters(projects, filter) {
 
 function ProjectCard({ item }) {
     const title = item.name || item.title || item.project_name || 'Project';
-    const location = item.location || [item.area, item.city].filter(Boolean).join(', ');
+    const location = item.display_location || buildProjectAddress(item) || cleanDisplayText(item.location || item.address);
+    const price = item.display_price || buildProjectPrice(item);
     const image = item.cover_image_url || item.cover_image || item.image_url || item.image;
 
     return (
@@ -189,12 +204,15 @@ function ProjectCard({ item }) {
                 </View>
 
                 <View className="px-3 pt-3 pb-2">
-                    <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
+                    <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]" numberOfLines={1}>
                         {location || item.pincode}
                     </Text>
                     <View className="flex-row items-center mb-1">
-                        <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{title}</Text>
+                        <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>{title}</Text>
                     </View>
+                    <Text className="text-[13px] text-[#4A43EC] font-manrope-extrabold mb-1" numberOfLines={1}>
+                        {price || 'Price on request'}
+                    </Text>
                     <Text className="text-[11px] text-[#9CA3AF] font-manrope">
                         {item.distance_km ? `${item.distance_km} km away` : item.pincode}
                     </Text>
@@ -219,8 +237,11 @@ export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
-    const { list: apiProjects, nearby, loading: projectsLoading, nearbyLoading } = useSelector((state) => state.project);
-    const { category, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
+    const { list: apiProjects, featured, nearby, loading: projectsLoading, featuredLoading, nearbyLoading } = useSelector((state) => state.project);
+    const { category, focus, featured: featuredParam, recommended, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
+    const isFocusMode = focus === '1';
+    const isFeaturedMode = featuredParam === '1';
+    const isRecommendedMode = recommended === '1';
     const isNearbyMode = nearbyParam === '1';
     const nearbyLocationName = Array.isArray(locationName) ? locationName[0] : locationName;
     const [localQuery, setLocalQuery] = useState(isNearbyMode ? (nearbyLocationName || filter.searchQuery || '') : (filter.searchQuery || ''));
@@ -233,6 +254,12 @@ export default function PropertyListing() {
     useEffect(() => {
         dispatch(fetchProjectListThunk());
     }, [dispatch]);
+
+    useEffect(() => {
+        if (isFocusMode || isFeaturedMode) {
+            dispatch(fetchFeaturedProjectsThunk());
+        }
+    }, [dispatch, isFocusMode, isFeaturedMode]);
 
     useEffect(() => {
         if (!isNearbyMode || !latitude || !longitude) return;
@@ -260,8 +287,18 @@ export default function PropertyListing() {
         dispatch(setSearchQuery(text));
     };
 
-    const projects = isNearbyMode ? nearby : apiProjects;
-    const effectiveFilter = isNearbyMode ? { ...filter, searchQuery: '' } : filter;
+    const projects = (isFocusMode || isFeaturedMode) ? featured : (isNearbyMode ? nearby : apiProjects);
+    const effectiveFilter = (isFocusMode || isFeaturedMode || isRecommendedMode)
+        ? {
+            ...filter,
+            propertyTypes: [],
+            propertySubTypes: [],
+            budgetRange: [BUDGET_MIN, BUDGET_MAX],
+            areaRange: [AREA_MIN, AREA_MAX],
+            possessionStatus: [],
+            reraOnly: false,
+        }
+        : (isNearbyMode ? { ...filter, searchQuery: '' } : filter);
     const filtered = applyFilters(projects, effectiveFilter);
 
     const sorted = [...filtered].sort((a, b) => {
@@ -270,6 +307,26 @@ export default function PropertyListing() {
     });
 
     const activeSortLabel = SORT_OPTIONS.find(o => o.key === sortKey)?.label ?? 'Relevance';
+    const handleOpenMap = () => {
+        dispatch(setMapProjects(sorted));
+        const title = isFeaturedMode
+            ? 'Featured Projects'
+            : (isRecommendedMode
+                ? 'Recommended Projects'
+                : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page')));
+        router.push({
+            pathname: "/(screens)/map-view",
+            params: {
+                title,
+            },
+        });
+    };
+
+    const pageTitle = isFeaturedMode
+        ? 'Featured Projects'
+        : (isRecommendedMode
+            ? 'Recommended Projects'
+            : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page')));
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
@@ -295,7 +352,7 @@ export default function PropertyListing() {
                         <Ionicons name="chevron-back" size={20} color="#374151" />
                     </TouchableOpacity>
                     <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>
-                        {isNearbyMode ? 'Nearby Projects' : 'Project Page'}
+                        {pageTitle}
                     </Text>
                     <TouchableOpacity>
                         <Ionicons name="notifications-outline" size={22} color="#374151" />
@@ -316,7 +373,7 @@ export default function PropertyListing() {
                     <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
                         <AntDesign name="spotify" size={18} color="#7F88E5" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={() => router.push("/(screens)/map-view")}>
+                    <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={handleOpenMap}>
                         <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
                     </TouchableOpacity>
                 </View>
@@ -372,7 +429,7 @@ export default function PropertyListing() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
-                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{category ? ` ${category}s` : ' Premium Projects'}
+                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{isFeaturedMode ? ' Featured Projects' : (isRecommendedMode ? ' Recommended Projects' : (isFocusMode ? ' Projects in Focus' : (category ? ` ${category}s` : ' Premium Projects')))}
                 </Text>
                 <TouchableOpacity onPress={() => setSortOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ fontSize: 12, color: '#4A43EC', fontWeight: '600' }}>SORT BY: {activeSortLabel.toUpperCase()}</Text>
@@ -418,10 +475,10 @@ export default function PropertyListing() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
                 ListEmptyComponent={
-                    (isNearbyMode ? nearbyLoading : projectsLoading) ? (
+                    ((isFocusMode || isFeaturedMode) ? featuredLoading : (isNearbyMode ? nearbyLoading : projectsLoading)) ? (
                         <View style={{ alignItems: 'center', marginTop: 60 }}>
                             <Text style={{ fontSize: 15, color: '#9CA3AF' }}>
-                                {isNearbyMode ? 'Finding nearby projects...' : 'Loading projects...'}
+                                {isFeaturedMode ? 'Loading featured projects...' : (isFocusMode ? 'Loading projects in focus...' : (isNearbyMode ? 'Finding nearby projects...' : 'Loading projects...'))}
                             </Text>
                         </View>
                     ) : (

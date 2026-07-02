@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { projectApi } from '../../services/projectApi';
+import { normalizeProject, normalizeProjectList } from '../../services/projectDisplay';
 
 export const fetchProjectListThunk = createAsyncThunk(
     'project/fetchList',
@@ -124,7 +125,7 @@ export const fetchNearbyProjectsThunk = createAsyncThunk(
 );
 
 const normalizeFeaturedProjects = (payload) => {
-    const list = Array.isArray(payload) ? payload : (payload?.data || []);
+    const list = normalizeProjectList(payload, 'featured');
     
     console.log('🔄 [normalizeFeaturedProjects] Input:', {
         isArray: Array.isArray(payload),
@@ -177,11 +178,13 @@ const projectSlice = createSlice({
         similarProperties: [],
         featured: [],
         nearby: [],
+        mapProjects: [],
         nearbyMeta: null,
         featuredLoading: false,
         nearbyLoading: false,
         loading: false,
         currentDetailSlug: null,
+        currentRelatedSlug: null,
         error: null,
     },
     reducers: {
@@ -193,7 +196,11 @@ const projectSlice = createSlice({
             state.amenities = [];
             state.similarProperties = [];
             state.currentDetailSlug = null;
+            state.currentRelatedSlug = null;
             state.error = null;
+        },
+        setMapProjects: (state, action) => {
+            state.mapProjects = normalizeProjectList(action.payload || [], 'map');
         },
     },
     extraReducers: (builder) => {
@@ -203,7 +210,7 @@ const projectSlice = createSlice({
                 state.loading = false;
                 // Handle both { data: [...] } and direct array responses
                 const payload = action.payload;
-                state.list = Array.isArray(payload) ? payload : (payload?.data || []);
+                state.list = normalizeProjectList(payload, 'list');
                 
                 if (state.list.length > 0) {
                     
@@ -228,7 +235,7 @@ const projectSlice = createSlice({
             .addCase(fetchProjectDetailsThunk.fulfilled, (state, action) => {
                 if (state.currentDetailSlug !== action.meta.arg) return;
                 state.loading = false;
-                state.details = action.payload.data;
+                state.details = action.payload.data ? normalizeProject(action.payload.data, 0, 'detail') : null;
             })
             .addCase(fetchProjectDetailsThunk.rejected, (state, action) => {
                 if (state.currentDetailSlug !== action.meta.arg) return;
@@ -236,45 +243,48 @@ const projectSlice = createSlice({
                 state.error = action.payload;
                 console.log('❌ fetchProjectDetails failed:', action.payload);
             })
+            .addCase(fetchFloorPlansThunk.pending, (state, action) => {
+                state.currentRelatedSlug = action.meta.arg;
+            })
             .addCase(fetchFloorPlansThunk.fulfilled, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.floorPlans = action.payload.data;
             })
             .addCase(fetchFloorPlansThunk.rejected, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.floorPlans = { summary: {}, floor_plans: [] };
                 console.log('âŒ fetchFloorPlans failed:', action.payload);
             })
             .addCase(fetchResaleThunk.fulfilled, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.resale = action.payload.data || [];
             })
             .addCase(fetchResaleThunk.rejected, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.resale = [];
             })
             .addCase(fetchLandmarksThunk.fulfilled, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.landmarks = action.payload.data || [];
             })
             .addCase(fetchLandmarksThunk.rejected, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.landmarks = [];
             })
             .addCase(fetchAmenitiesThunk.fulfilled, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.amenities = action.payload.data || [];
             })
             .addCase(fetchAmenitiesThunk.rejected, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.amenities = [];
             })
             .addCase(fetchSimilarPropertiesThunk.fulfilled, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.similarProperties = action.payload.data || [];
             })
             .addCase(fetchSimilarPropertiesThunk.rejected, (state, action) => {
-                if (state.currentDetailSlug !== action.meta.arg) return;
+                if (state.currentRelatedSlug !== action.meta.arg) return;
                 state.similarProperties = [];
             })
             .addCase(fetchFeaturedProjectsThunk.pending, (state) => { 
@@ -305,7 +315,7 @@ const projectSlice = createSlice({
             .addCase(fetchNearbyProjectsThunk.fulfilled, (state, action) => {
                 state.nearbyLoading = false;
                 const payload = action.payload?.data;
-                state.nearby = payload?.projects || [];
+                state.nearby = normalizeProjectList(payload?.projects || [], 'nearby');
                 state.nearbyMeta = {
                     count: payload?.count ?? state.nearby.length,
                     coordinates: action.meta.arg,
@@ -321,5 +331,5 @@ const projectSlice = createSlice({
     },
 });
 
-export const { clearProject } = projectSlice.actions;
+export const { clearProject, setMapProjects } = projectSlice.actions;
 export default projectSlice.reducer;

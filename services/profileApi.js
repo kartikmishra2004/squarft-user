@@ -56,7 +56,7 @@ export const profileApi = {
         try {
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.message || 'Failed to update phone number');
-        } catch (e) {
+        } catch (_e) {
           throw new Error('Failed to update phone number');
         }
       }
@@ -96,7 +96,7 @@ export const profileApi = {
         try {
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.message || 'Failed to change password');
-        } catch (e) {
+        } catch (_e) {
           throw new Error('Failed to change password');
         }
       }
