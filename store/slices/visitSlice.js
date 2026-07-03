@@ -8,7 +8,12 @@ export const fetchVisitListThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) throw new Error('Not authenticated');
-            return await visitApi.getVisitList(token, status);
+            const statuses = Array.isArray(status) ? status : [status];
+            const responses = await Promise.all(
+                statuses.filter(Boolean).map((item) => visitApi.getVisitList(token, item))
+            );
+            const data = responses.flatMap((response) => response?.data || []);
+            return { success: true, data };
         } catch (e) {
             return rejectWithValue(e.message);
         }

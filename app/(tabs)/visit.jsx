@@ -160,8 +160,8 @@ const buildGoogleMapsDirectionsUrl = ({ origin, destination }) => {
   return `${GOOGLE_MAPS_DIRECTIONS_URL}?${query}`;
 };
 
-const UPCOMING_VISIT_STATUSES = "pending,pending_confirmation,confirmed";
-const ALL_VISIT_STATUSES = "pending,pending_confirmation,confirmed,completed,cancelled,rescheduled";
+const UPCOMING_VISIT_STATUSES = ["pending", "pending_confirmation", "confirmed"];
+const ALL_VISIT_STATUSES = ["pending", "pending_confirmation", "confirmed", "completed", "cancelled", "rescheduled"];
 
 export default function Visit() {
   const router = useRouter();
