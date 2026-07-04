@@ -547,11 +547,14 @@ export default function BookSiteVisit() {
 
       const createdVisits = [];
       for (const target of bookingTargets) {
+        const propertyName = target.item.title || target.item.name || 'the property';
+        
         const result = await dispatch(createSiteVisitThunk({
           property_id: target.propertyId,
           slot_start: slotStart,
           user_note: notes || null,
-          branch_id: selectedBranch?.id
+          branch_id: selectedBranch?.id,
+          property_name: propertyName, // Pass property name for notification
         })).unwrap();
 
         createdVisits.push({

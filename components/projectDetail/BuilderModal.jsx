@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -8,6 +7,7 @@ import { fetchBuilderDetailsThunk, clearBuilder } from "../../store/slices/build
 import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { allProjects } from "../../data/projects";
 import DetailFooter from "./DetailFooter";
+import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
 
 const POSSESSION_FILTERS = ["All", "In 3 yrs", "Ready To Move", "Under Construction"];
 
@@ -56,6 +56,13 @@ const formatCompactPrice = (value) => {
 };
 
 const getPriceText = (project) => {
+    // Use new DTO price display if available
+    if (project.priceDisplay) return project.priceDisplay;
+    
+    // Handle "Price on request" case from new DTO
+    if (project.isPriceOnRequest) return "Price on request";
+    
+    // Legacy fallbacks
     if (project.variants?.[0]?.priceRange) return project.variants[0].priceRange;
     if (project.avgPricePerSqft) return project.avgPricePerSqft;
 
@@ -132,14 +139,21 @@ export default function BuilderModal({ visible, onClose, project }) {
     const sheetRef = useRef(null);
     const snapPoints = ['92%'];
     
-    const { currentBuilder, builderProjects: apiProjects, loading } = useSelector((state) => state.builder);
+    const { currentBuilder, builderProjects: apiProjects, totalProjects, loading, error } = useSelector((state) => state.builder);
     const { list: projectList } = useSelector((state) => state.project);
+    
+    // Track if we've attempted to fetch from API
+    const [apiAttempted, setApiAttempted] = useState(false);
 
-    // Fetch builder details when modal opens
+    // Fetch builder details when modal opens or filter changes
     useEffect(() => {
         if (visible && project?.developerId) {
-            console.log('🏗️ Fetching builder details for ID:', project.developerId);
-            dispatch(fetchBuilderDetailsThunk(project.developerId));
+            console.log('🏗️ Fetching builder details for ID:', project.developerId, 'with filter:', activeFilter);
+            setApiAttempted(true);
+            dispatch(fetchBuilderDetailsThunk({ 
+                builderId: project.developerId,
+                possession: activeFilter 
+            }));
             if (!projectList?.length) {
                 dispatch(fetchProjectListThunk());
             }
@@ -150,13 +164,15 @@ export default function BuilderModal({ visible, onClose, project }) {
                 builder: project?.builder,
                 developerId: project?.developerId 
             });
+            setApiAttempted(false);
         }
-    }, [visible, project?.developerId, project?.id, project?.builder, project?.name, projectList?.length, dispatch]);
+    }, [visible, project?.developerId, project?.id, project?.builder, project?.name, activeFilter, projectList?.length, dispatch]);
 
     // Clear builder data when modal closes
     useEffect(() => {
         if (!visible) {
             dispatch(clearBuilder());
+            setApiAttempted(false);
         }
     }, [visible, dispatch]);
 
@@ -175,26 +191,42 @@ export default function BuilderModal({ visible, onClose, project }) {
         return organizationId && project?.developerId && String(organizationId) === String(project.developerId);
     });
     
+    // Determine if we should use API data or fallback to local data
+    // Use API data if: we attempted API fetch AND (currentBuilder exists OR apiProjects exist)
+    // This ensures we use API results even when apiProjects is empty array (valid API response)
+    const useApiData = apiAttempted && !error && (currentBuilder || (apiProjects !== null && apiProjects !== undefined));
+    
     // Use API projects if available, otherwise fallback to local data
     let builderProjects = [];
-    if (apiProjects && apiProjects.length > 0) {
+    if (useApiData && apiProjects) {
         // Map API projects to match the expected format
+        // Support both new DTO structure and old structure
         builderProjects = apiProjects.map(p => ({
             id: p.id,
             name: p.name,
             slug: p.slug,
-            location: getAddressText(p),
-            area: p.area,
-            city: p.city,
-            pincode: p.pincode,
-            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
+            // Handle both new nested location structure and old flat structure
+            location: p.location?.area ? getAddressText({
+                area: p.location.area,
+                city: p.location.city,
+                pincode: p.location.pincode,
+            }) : getAddressText(p),
+            area: p.location?.area || p.area,
+            city: p.location?.city || p.city,
+            pincode: p.location?.pincode || p.pincode,
+            // Handle both new thumbnail_url and old cover_image_url
+            imageMain: (p.thumbnail_url || p.cover_image_url) ? { uri: p.thumbnail_url || p.cover_image_url } : project?.imageMain,
             possessionStatus: p.possession_status || p.possessionStatus || p.possession,
-            price_from: p.price_from,
-            price_to: p.price_to,
-            configs: p.configs,
-            property_type: p.property_type,
-            property_subtype: p.property_subtype,
-            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id),
+            // Handle new price structure with fallback to old structure
+            price_from: p.price?.min_amount ?? p.price_from,
+            price_to: p.price?.max_amount ?? p.price_to,
+            priceDisplay: p.price?.display, // New field from DTO
+            isPriceOnRequest: p.price?.is_price_on_request ?? false,
+            configs: p.configs || [],
+            property_type: p.property_type || p.propertyType,
+            property_subtype: p.property_subtype || p.propertySubtype,
+            rera: isReraApproved(p),
+            reraNumber: p.rera?.number || p.rera_number,
         }));
     } else if (organizationProjects.length > 0) {
         builderProjects = organizationProjects.map(p => ({
@@ -212,7 +244,7 @@ export default function BuilderModal({ visible, onClose, project }) {
             configs: p.configs,
             property_type: p.property_type,
             property_subtype: p.property_subtype,
-            rera: Boolean(p.rera_approved || p.rera_number || p.rera_id),
+            rera: isReraApproved(p),
         }));
     } else {
         // Fallback to local data
@@ -224,7 +256,15 @@ export default function BuilderModal({ visible, onClose, project }) {
         });
     }
     
-    const filteredProjects = builderProjects.filter(FILTER_MAP[activeFilter] ?? (() => true));
+    // When using API data, filtering is done on backend; otherwise use frontend filtering
+    const filteredProjects = useApiData
+        ? builderProjects // Backend already filtered - trust the API response even if empty
+        : builderProjects.filter(FILTER_MAP[activeFilter] ?? (() => true)); // Frontend fallback filtering
+
+    // Use totalProjects from API if available, otherwise count from builderProjects
+    const displayTotalCount = useApiData && totalProjects !== undefined
+        ? totalProjects
+        : builderProjects.length;
 
     if (!project) return null;
 
@@ -253,7 +293,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                                 <Text className="text-[12px] font-manrope-regular text-gray-500">{project?.builderCity}</Text>
                             </View>
                             <Text className="text-[12px] font-manrope-regular text-gray-400">
-                                {loading ? '...' : `${builderProjects.length} Total Projects`}
+                                {loading ? '...' : `${displayTotalCount} Total Projects`}
                             </Text>
                         </View>
                     </View>
@@ -315,12 +355,12 @@ export default function BuilderModal({ visible, onClose, project }) {
                                     <Text className="text-[14px] font-manrope-bold text-gray-800 mb-1" numberOfLines={1}>{p.name}</Text>
                                     <Text className="text-[12px] font-manrope-semibold text-gray-500 mb-1" numberOfLines={1}>{bhkText}</Text>
                                     <Text className="text-[11px] text-gray-400 mb-3 leading-4" numberOfLines={2}>{addressText}</Text>
-                                    {p.rera && (
-                                        <View className="self-start flex-row items-center bg-[#E5F7F1] rounded-md px-2 py-1">
-                                            <Text className="text-[10px] font-bold text-[#00B67A] mr-1">RERA Verified</Text>
-                                            <MaterialCommunityIcons name="check-decagram" size={12} color="#00B67A" />
-                                        </View>
-                                    )}
+                                    <ReraStatusBadge
+                                        approved={p.rera}
+                                        approvedLabel="RERA Verified"
+                                        className="self-start rounded-md px-2 py-1"
+                                        textClassName="text-[10px]"
+                                    />
                                 </View>
                             </View>
                         );})

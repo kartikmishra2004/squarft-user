@@ -5,6 +5,8 @@ import { useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setOtpDigit, clearOtp, setLoggedIn, clearError, clearAuthInputs } from "../../store/slices/authSlice";
 import { verifyOtpThunk, sendOtpThunk } from "../../store/slices/authSlice";
+import { addNotification } from "../../store/slices/notificationSlice";
+import { NOTIFICATION_EVENTS } from "../../constants/notificationTypes";
 
 const logo = require("../../assets/icons/app-icon.png");
 
@@ -42,6 +44,18 @@ export default function OtpVerification() {
             if (otpFlow === 'reset_password') {
                 router.push("/change-password");
             } else {
+                // New user registration successful - send welcome notification
+                dispatch(addNotification({
+                    title: 'Welcome to SquarFT',
+                    description: 'Your account is ready. Explore verified properties, save favourites, and book a site visit.',
+                    eventKey: NOTIFICATION_EVENTS.USER_WELCOME,
+                    category: 'success',
+                    deepLink: '/home',
+                    data: {
+                        user_name: result.payload?.data?.user?.name || 'User',
+                    },
+                }));
+                
                 dispatch(setLoggedIn(true));
                 router.replace("/(tabs)/home");
             }

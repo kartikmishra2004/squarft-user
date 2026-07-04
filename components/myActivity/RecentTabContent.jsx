@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSelector } from "react-redux";
 import { router } from "expo-router";
 import EmptyState from "./EmptyState";
+import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
 
 const RecentTabContent = () => {
   const { properties } = useSelector((state) => state.properties);
@@ -44,15 +45,10 @@ const RecentTabContent = () => {
                 Possession: {property.possession}  •  Avg Price: {property.avgPricePerSqft}
               </Text>
               <View className="flex-row items-center mb-1">
-                <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{property.title}</Text>
-                {property.rera && (
-                  <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
-                    <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
-                    <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
-                      <Feather name="check" size={6} color="white" />
-                    </View>
-                  </View>
-                )}
+                <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>
+                  {property.title}
+                </Text>
+                <ReraStatusBadge approved={isReraApproved(property)} className="ml-2" />
               </View>
               <Text className="text-[11px] text-[#9CA3AF] font-manrope">{property.location}</Text>
             </View>
@@ -93,7 +89,7 @@ const RecentTabContent = () => {
             Enhance your search{"\n"}experience with just 3 quick{"\n"}answers.
           </Text>
           <Pressable className="self-start border border-[#4A43EC] rounded-xl px-4 py-[8px] bg-white">
-            <Text className="text-[#4A43EC] font-manrope-extrabold text-[12px]">Let's begin</Text>
+            <Text className="text-[#4A43EC] font-manrope-extrabold text-[12px]">Let&apos;s begin</Text>
           </Pressable>
         </View>
       </View>

@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import EmptyState from "./EmptyState";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { PropertyCardSkeleton } from "../SkeletonLoader";
+import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
 
 const SavedTabContent = () => {
   const dispatch = useDispatch();
@@ -97,17 +98,10 @@ const SavedTabContent = () => {
                   {propertyDetails.area || 'N/A'}, {propertyDetails.city || 'N/A'} {isPropertyType ? ` •  ${propertyDetails.bedrooms || 0} BHK` : ''}
                 </Text>
                 <View className="flex-row items-center mb-1">
-                  <Text className="text-[15px] font-manrope-extrabold text-[#111827]">
+                  <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>
                     {propertyDetails.title || propertyDetails.name || 'Unnamed Asset'}
                   </Text>
-                  {propertyDetails.rera_id && (
-                    <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
-                      <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
-                      <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
-                        <Feather name="check" size={6} color="white" />
-                      </View>
-                    </View>
-                  )}
+                  <ReraStatusBadge approved={isReraApproved(propertyDetails)} className="ml-2" />
                 </View>
                 <Text className="text-[11px] text-[#9CA3AF] font-manrope">{propertyDetails.pincode || ''}</Text>
               </View>

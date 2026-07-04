@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { PropertyCardSkeleton } from "../../components/SkeletonLoader";
+import ReraStatusBadge, { isReraApproved } from "../../components/ReraStatusBadge";
 
 function compactPrice(value) {
   const amount = Number(value);
@@ -150,14 +151,7 @@ export default function SavedProperties() {
                   </Text>
                   <View className="flex-row items-center mb-1">
                     <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={2}>{title}</Text>
-                    {(propertyDetails.rera_id || propertyDetails.rera_number) && (
-                      <View className="flex-row items-center bg-[#E5F7F1] px-[6px] py-[2px] rounded ml-2">
-                        <Text className="text-[#00B67A] text-[8px] font-manrope-extrabold mr-1">RERA</Text>
-                        <View className="w-[8px] h-[8px] bg-[#00B67A] rounded-full items-center justify-center">
-                          <Feather name="check" size={6} color="white" />
-                        </View>
-                      </View>
-                    )}
+                    <ReraStatusBadge approved={isReraApproved(propertyDetails)} className="ml-2" />
                   </View>
                   <Text className="text-[11px] text-[#9CA3AF] font-manrope">{propertyDetails.pincode || ''}</Text>
                 </View>

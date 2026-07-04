@@ -1,9 +1,11 @@
 import { View, Text, Pressable, StatusBar, Platform, ScrollView, Image } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect } from "react";
 import { markAllAsWatched, markAsWatched } from "../../store/slices/notificationSlice";
+import { getNotificationIcon } from "../../utils/notificationIcons";
+import { navigateToNotification } from "../../utils/notificationNavigation";
 
 export default function Notifications() {
   const router = useRouter();
@@ -13,39 +15,12 @@ export default function Notifications() {
   useEffect(() => {
   }, []);
 
-  const getIcon = (type) => {
-    switch (type) {
-      case 'customer':
-        return (
-          <View className="w-12 h-12 rounded-full bg-[#FFF3D6] items-center justify-center">
-            <MaterialCommunityIcons name="account-search" size={24} color="#FFB800" />
-          </View>
-        );
-      case 'success':
-        return (
-          <View className="w-12 h-12 rounded-full bg-[#E8EAFD] items-center justify-center">
-            <Ionicons name="checkmark-circle" size={28} color="#4A43EC" />
-          </View>
-        );
-      case 'error':
-        return (
-          <View className="w-12 h-12 rounded-full bg-[#FEEBF0] items-center justify-center">
-            <Ionicons name="close-circle" size={28} color="#FF3B30" />
-          </View>
-        );
-      case 'love':
-        return (
-          <View className="w-12 h-12 rounded-full bg-[#FFEBEE] items-center justify-center">
-            <Ionicons name="heart" size={24} color="#FF3B30" />
-          </View>
-        );
-      default:
-        return (
-          <View className="w-12 h-12 rounded-full bg-[#EBF1FF] items-center justify-center">
-            <Ionicons name="notifications" size={24} color="#4A43EC" />
-          </View>
-        );
-    }
+  const handleNotificationPress = (notification) => {
+    // Mark as watched
+    dispatch(markAsWatched(notification.id));
+
+    // Navigate to appropriate screen
+    navigateToNotification(notification);
   };
 
   return (
@@ -95,14 +70,9 @@ export default function Notifications() {
                 transform: [{ scale: pressed ? 0.98 : 1 }]
               })}
               className="flex-row mb-6 relative"
-              onPress={() => {
-                dispatch(markAsWatched(item.id));
-                if (item.type === 'customer') {
-                  router.push("/(tabs)/home");
-                }
-              }}
+              onPress={() => handleNotificationPress(item)}
             >
-              {getIcon(item.type)}
+              {getNotificationIcon(item.category || item.type)}
               <View className="ml-4 flex-1">
                 <Text className={`text-[15px] ${item.watched ? 'text-[#6B7280]' : 'text-[#1F2937]'} font-manrope-bold mb-0.5`}>
                   {item.title}

@@ -4,10 +4,10 @@ import { builderApi } from '../../services/builderApi';
 // Fetch builder details and projects
 export const fetchBuilderDetailsThunk = createAsyncThunk(
     'builder/fetchDetails',
-    async (builderId, { getState, rejectWithValue }) => {
+    async ({ builderId, possession = 'All' }, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
-            return await builderApi.getBuilderDetails(builderId, token);
+            return await builderApi.getBuilderDetails(builderId, token, { possession });
         } catch (e) {
             return rejectWithValue(e.message || e);
         }
@@ -19,6 +19,9 @@ const builderSlice = createSlice({
     initialState: {
         currentBuilder: null,
         builderProjects: [],
+        totalProjects: 0,
+        pagination: null,
+        currentPossession: 'All',
         loading: false,
         error: null,
     },
@@ -26,6 +29,9 @@ const builderSlice = createSlice({
         clearBuilder: (state) => {
             state.currentBuilder = null;
             state.builderProjects = [];
+            state.totalProjects = 0;
+            state.pagination = null;
+            state.currentPossession = 'All';
             state.error = null;
         },
     },
@@ -39,6 +45,9 @@ const builderSlice = createSlice({
                 state.loading = false;
                 state.currentBuilder = action.payload.data.builder;
                 state.builderProjects = action.payload.data.projects || [];
+                state.totalProjects = action.payload.data.totalProjects || 0;
+                state.pagination = action.payload.data.pagination || null;
+                state.currentPossession = action.payload.data.possession || 'All';
             })
             .addCase(fetchBuilderDetailsThunk.rejected, (state, action) => {
                 state.loading = false;

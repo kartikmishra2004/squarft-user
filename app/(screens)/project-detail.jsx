@@ -16,13 +16,14 @@ import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetch
 import { fetchBuilderDetailsThunk } from "../../store/slices/builderSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { allProjects } from "../../data/projects";
 import Overview from "../../components/projectDetail/Overview";
 import Highlights from "../../components/projectDetail/Highlights";
 import PropertyTour from "../../components/projectDetail/PropertyTour";
 import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import DetailFooter from "../../components/projectDetail/DetailFooter";
+import ReraStatusBadge from "../../components/ReraStatusBadge";
 
 const frame260 = require("../../assets/images/Frame 26086854.png");
 const frame871 = require("../../assets/images/Frame 26086871.png");
@@ -140,34 +141,82 @@ function formatProjectDate(value) {
   });
 }
 
+function normalizeProjectRating(...values) {
+  for (const value of values) {
+    const rating = Number(value);
+    if (Number.isFinite(rating) && rating > 0) {
+      const cappedRating = Math.min(rating, 10);
+      return Number.isInteger(cappedRating)
+        ? String(cappedRating)
+        : cappedRating.toFixed(1);
+    }
+  }
+
+  return '8.8';
+}
+
+function formatConfigLabel(value) {
+  const text = cleanText(value).replace(/[_-]+/g, ' ');
+  if (!text) return '';
+
+  return text
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (upper === 'BHK' || upper === 'PG') return upper;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 function normalizeConfigLabel(value) {
   if (!value) return null;
 
   const values = Array.isArray(value) ? value : String(value).split(',');
-  const bhkValues = values
-    .flatMap((item) => {
-      const text = String(item ?? '').toLowerCase();
-      const bhkMatches = text.match(/\d+\+?(?=\s*bhk\b)/g) || [];
-      if (bhkMatches.length > 0) return bhkMatches;
+  const bhkValues = [];
+  const otherValues = [];
 
-      const plainNumber = text.trim().match(/^\d+\+?$/);
-      return plainNumber ? [plainNumber[0]] : [];
-    })
-    .filter((item) => item && !['undefined', 'null'].includes(item));
+  values.forEach((item) => {
+    const rawText = cleanText(item);
+    const text = rawText.toLowerCase();
+    if (!text) return;
+
+    const bhkMatches = text.match(/\d+\+?(?=\s*bhk\b)/g) || [];
+    if (bhkMatches.length > 0) {
+      bhkValues.push(...bhkMatches);
+      return;
+    }
+
+    const plainNumber = text.trim().match(/^\d+\+?$/);
+    if (plainNumber) {
+      bhkValues.push(plainNumber[0]);
+      return;
+    }
+
+    const label = formatConfigLabel(rawText);
+    if (label) otherValues.push(label);
+  });
 
   const cleaned = [...new Set(bhkValues)].sort((a, b) => parseFloat(a) - parseFloat(b));
+  const uniqueOtherValues = [...new Set(otherValues)];
+  const parts = [];
 
-  return cleaned.length > 0 ? `${cleaned.join(', ')} BHK` : null;
+  if (cleaned.length > 0) parts.push(`${cleaned.join(', ')} BHK`);
+  if (uniqueOtherValues.length > 0) parts.push(uniqueOtherValues.join(', '));
+
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 function normalizeFloorPlan(plan) {
-  const title = plan.title || (plan.bedrooms ? `${plan.bedrooms} BHK` : 'Unit');
+  const title = plan.title
+    || (plan.bedrooms ? `${plan.bedrooms} BHK` : formatConfigLabel(plan.property_subtype || plan.sub_type || plan.type) || 'Unit');
   const areaSqft = plan.area_sqft ?? plan.total_area_sqft ?? plan.areaSqft ?? null;
 
   return {
     ...plan,
     title,
-    type: plan.type || title,
+    type: plan.property_subtype || plan.sub_type || plan.type || title,
     area_sqft: areaSqft,
     area: plan.area || (areaSqft ? `${areaSqft} sqft` : null),
     price: plan.price ?? plan.base_price ?? plan.price_from ?? null,
@@ -341,7 +390,7 @@ export default function ProjectDetail() {
     ? floorPlans.floor_plans.map(normalizeFloorPlan)
     : (apiVariants.length > 0 ? apiVariants : (base.variants || []));
   const variantConfig = normalizedVariants
-    .map((variant) => variant.bedrooms || variant.type || variant.title)
+    .map((variant) => variant.bedrooms || variant.property_subtype || variant.sub_type || variant.type || variant.title)
     .filter(Boolean);
   const coverImage = activeApiProject?.cover_image
     || activeApiProject?.cover_image_url
@@ -376,7 +425,12 @@ export default function ProjectDetail() {
     ?? activeApiProject?.total_properties
     ?? activeApiProject?.units
     ?? (normalizedVariants.length > 0 ? normalizedVariants.length : base.units);
-  const apiRating = activeApiProject?.rating ?? activeApiProject?.score ?? activeApiProject?.project_rating ?? base.rating ?? 8.8;
+  const apiRating = normalizeProjectRating(
+    activeApiProject?.rating,
+    activeApiProject?.score,
+    activeApiProject?.project_rating,
+    base.rating,
+  );
   const rawConfig = floorPlans?.summary?.configs ?? floorPlans?.configs ?? activeApiProject?.summary?.configs ?? activeApiProject?.configs ?? activeApiProject?.config;
   const rawStartingPrice = floorPlans?.summary?.starting_from
     ?? floorPlans?.summary?.startingFrom
@@ -416,7 +470,7 @@ export default function ProjectDetail() {
       brochure: activeApiProject.brochure || base.brochure || null,
       units: unitsValue,
       launchedIn: launchedValue ? formatProjectDate(launchedValue) : base.launchedIn,
-      rating: apiRating ?? base.rating,
+      rating: apiRating,
       subTypes: base.subTypes || variantConfig,
       propertyType: base.propertyType || activeApiProject.property_type,
       avgPricePerSqft: base.avgPricePerSqft,
@@ -441,7 +495,7 @@ export default function ProjectDetail() {
       possession: base.possession_date || base.possession,
       units: base.units,
       launchedIn: base.launchedIn,
-      rating: base.rating,
+      rating: normalizeProjectRating(base.rating),
     }),
     variants: normalizedVariants,
     floorPlans: normalizedVariants,
@@ -591,19 +645,7 @@ export default function ProjectDetail() {
                     Prime Location
                   </Text>
                 </View>
-                {project.rera && (
-                  <View className="flex-row items-center space-x-1">
-                    <MaterialCommunityIcons
-                      name="check-decagram"
-                      size={14}
-                      color="#22C55E"
-                    />
-                    <Text className="text-[11px] font-manrope-regular text-gray-500">
-                      {" "}
-                      RERA
-                    </Text>
-                  </View>
-                )}
+                <ReraStatusBadge approved={project.rera} textClassName="text-[10px]" />
               </View>
               <Image
                 source={group1597}

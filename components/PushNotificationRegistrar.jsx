@@ -1,9 +1,15 @@
-import { useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useEffect, useRef } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "../services/pushNotifications";
+import { addNotification } from "../store/slices/notificationSlice";
+import { navigateToNotification } from "../utils/notificationNavigation";
 
 export default function PushNotificationRegistrar() {
     const { isLoggedIn, token } = useSelector((state) => state.auth);
+    const dispatch = useDispatch();
+    const notificationListener = useRef();
+    const responseListener = useRef();
 
     useEffect(() => {
         console.log("[PushNotificationRegistrar] Auth state changed", {
@@ -20,6 +26,7 @@ export default function PushNotificationRegistrar() {
 
         let cancelled = false;
 
+        // Register for push notifications
         registerForPushNotificationsAsync(token)
             .then((expoPushToken) => {
                 if (!cancelled) {
@@ -36,11 +43,67 @@ export default function PushNotificationRegistrar() {
                 }
             });
 
+        // Listen for foreground notifications
+        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+            console.log("[PushNotificationRegistrar] Foreground notification received", {
+                title: notification.request.content.title,
+                body: notification.request.content.body,
+            });
+
+            const { title, body, data } = notification.request.content;
+
+            // Add to Redux store
+            dispatch(addNotification({
+                title,
+                description: body,
+                eventKey: data?.eventKey || null,
+                category: data?.category || null,
+                deepLink: data?.deepLink || null,
+                data: data || {},
+                time: 'Just now',
+            }));
+        });
+
+        // Listen for notification tap (app opened from notification)
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+            console.log("[PushNotificationRegistrar] Notification tapped", {
+                actionIdentifier: response.actionIdentifier,
+            });
+
+            const { data } = response.notification.request.content;
+
+            // Navigate to appropriate screen
+            if (data) {
+                const notificationPayload = {
+                    eventKey: data.eventKey,
+                    deepLink: data.deepLink,
+                    data,
+                };
+                navigateToNotification(notificationPayload);
+            }
+        });
+
         return () => {
             cancelled = true;
             console.log("[PushNotificationRegistrar] Registration effect cleaned up");
+
+            // Clean up listeners
+            if (notificationListener.current) {
+                try {
+                    notificationListener.current.remove();
+                } catch (error) {
+                    console.warn("[PushNotificationRegistrar] Failed to remove notification listener:", error.message);
+                }
+            }
+            if (responseListener.current) {
+                try {
+                    responseListener.current.remove();
+                } catch (error) {
+                    console.warn("[PushNotificationRegistrar] Failed to remove response listener:", error.message);
+                }
+            }
         };
-    }, [isLoggedIn, token]);
+    }, [isLoggedIn, token, dispatch]);
 
     return null;
 }

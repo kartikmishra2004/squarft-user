@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { properties, projectsInFocus, missedProperties, highGrowthLocalities } from '../../data/properties';
 import { propertyApi } from '../../services/propertyApi';
+import { addNotification } from './notificationSlice';
+import { NOTIFICATION_EVENTS } from '../../constants/notificationTypes';
 
 // Fetch saved properties from API
 export const fetchSavedPropertiesThunk = createAsyncThunk(
@@ -20,13 +22,28 @@ export const fetchSavedPropertiesThunk = createAsyncThunk(
 // Save an item to API (property or project)
 export const savePropertyThunk = createAsyncThunk(
     'properties/save',
-    async ({ itemType, itemId, itemData = null }, { getState, rejectWithValue }) => {
+    async ({ itemType, itemId, itemData = null }, { getState, rejectWithValue, dispatch }) => {
         try {
             const { token, isLoggedIn } = getState().auth;
             if (!isLoggedIn || !token || !itemId) return null;
             
             console.log('📤 Dispatching Save API Call for:', { itemType, itemId });
             await propertyApi.saveItem(token, itemType, itemId);
+            
+            // Dispatch notification after successful save
+            const propertyName = itemData?.title || itemData?.name || itemData?.project_name || 'Property';
+            dispatch(addNotification({
+                eventKey: NOTIFICATION_EVENTS.PROPERTY_SAVED,
+                title: 'Added to Your Shortlist',
+                description: `${propertyName} has been added to your shortlist. You can review it anytime from Saved Properties.`,
+                deepLink: '/shortlist',
+                data: {
+                    property_id: itemId,
+                    property_name: propertyName,
+                    item_type: itemType,
+                },
+            }));
+            
             return { itemType, itemId, itemData };
         } catch (e) {
             return rejectWithValue(e.message);

@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { visitApi } from '../../services/visitApi';
+import { addNotification } from './notificationSlice';
+import { NOTIFICATION_EVENTS } from '../../constants/notificationTypes';
 
 // Fetch visits by status
 export const fetchVisitListThunk = createAsyncThunk(
@@ -46,11 +48,29 @@ export const fetchAvailableSlotsThunk = createAsyncThunk(
 // Create site visit
 export const createSiteVisitThunk = createAsyncThunk(
     'visit/create',
-    async (visitData, { getState, rejectWithValue }) => {
+    async (visitData, { getState, rejectWithValue, dispatch }) => {
         try {
             const { token } = getState().auth;
             if (!token) throw new Error('Not authenticated');
-            return await visitApi.createSiteVisit(token, visitData);
+            const response = await visitApi.createSiteVisit(token, visitData);
+            
+            // Dispatch notification after successful visit creation
+            const propertyName = visitData.property_name || visitData.project_name || 'the property';
+            const visitId = response?.data?.id || response?.id;
+            
+            dispatch(addNotification({
+                eventKey: NOTIFICATION_EVENTS.VISIT_REQUEST_SUBMITTED,
+                title: 'Your Visit Request Has Been Received',
+                description: `We received your request to visit ${propertyName}. Our team will confirm the slot shortly.`,
+                deepLink: visitId ? `/visits/${visitId}` : '/visits',
+                data: {
+                    visit_id: visitId,
+                    property_id: visitData.property_id,
+                    property_name: propertyName,
+                },
+            }));
+            
+            return response;
         } catch (e) {
             return rejectWithValue(e.message);
         }
