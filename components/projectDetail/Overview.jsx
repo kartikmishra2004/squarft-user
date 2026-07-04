@@ -1,10 +1,7 @@
-import { View, Text, ScrollView, Image, TouchableOpacity, Dimensions, ImageBackground } from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, Dimensions, ImageBackground, Linking } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
-import { router } from "expo-router";
-import { allProjects } from "../../data/projects";
-import { getResaleByProject } from "../../data/resaleProperties";
 import BuilderModal from "./BuilderModal";
 
 import PropertyDetailModal from "./PropertyDetailModal";
@@ -49,7 +46,11 @@ function getPropertyTitle(item) {
 }
 
 function getPropertyLocation(item) {
-    return item.location || [item.area, item.city, item.pincode].filter(Boolean).join(", ") || "Address on request";
+    if (typeof item.location === "string" && item.location.trim()) return item.location;
+    if (item.location && typeof item.location === "object") {
+        return [item.location.area, item.location.city, item.location.pincode].filter(Boolean).join(", ") || "Address on request";
+    }
+    return [item.area, item.city, item.pincode].filter(Boolean).join(", ") || "Address on request";
 }
 
 function getPropertyPriceText(item) {
@@ -90,6 +91,17 @@ function buildPropertyVariant(item) {
     };
 }
 
+function getBrochureUrl(brochure) {
+    if (!brochure) return "";
+    if (typeof brochure === "string") return brochure;
+    return brochure.url || brochure.file_url || brochure.download_url || "";
+}
+
+function getBrochureLabel(brochure) {
+    if (!brochure || typeof brochure === "string") return "Project Brochure";
+    return brochure.label || brochure.name || "Project Brochure";
+}
+
 
 
 const cardShadow = {
@@ -99,6 +111,17 @@ const cardShadow = {
     shadowRadius: 2,
     elevation: 1,
 };
+
+function EmptySection({ label, width: emptyWidth = 260 }) {
+    return (
+        <View
+            className="bg-white rounded-2xl px-4 py-5 border border-gray-100"
+            style={{ width: emptyWidth, ...cardShadow }}
+        >
+            <Text className="text-[13px] font-manrope-semibold text-gray-500">{label}</Text>
+        </View>
+    );
+}
 
 export default function Overview({ project }) {
     const [builderModalVisible, setBuilderModalVisible] = useState(false);
@@ -139,14 +162,21 @@ export default function Overview({ project }) {
         </TouchableOpacity>
     );
 
-    const resaleItems = project.resaleProperties?.length > 0
-        ? project.resaleProperties
-        : getResaleByProject(project.id);
+    const resaleItems = project.resaleProperties?.length > 0 ? project.resaleProperties : [];
     const recommendedItems = project.recommendedProperties?.length > 0
         ? project.recommendedProperties.filter((item) => item.id !== project.id)
-        : allProjects.filter((p) => p.tags.includes("recommended") && p.id !== project.id).slice(0, 6);
+        : [];
     const similarApiItems = project.similarProperties?.length > 0 ? project.similarProperties : [];
-    const similarFallbackItems = allProjects.filter((p) => p.id !== project.id).slice(0, 5);
+    const brochureUrl = getBrochureUrl(project.brochure);
+    const brochureLabel = getBrochureLabel(project.brochure);
+
+    const handleOpenBrochure = async () => {
+        if (!brochureUrl) return;
+        const supported = await Linking.canOpenURL(brochureUrl);
+        if (supported) {
+            await Linking.openURL(brochureUrl);
+        }
+    };
 
     return (
         <View>
@@ -203,9 +233,7 @@ export default function Overview({ project }) {
                     <View className="flex-1 pr-2">
                         <Text className="text-[11px] text-gray-400 ">Posted by</Text>
                         <Text className="text-[14px] font-manrope-extrabold text-gray-900" numberOfLines={1}>{project.builder}</Text>
-                        <TouchableOpacity>
-                            <Text className="text-[11px] font-semibold text-indigo-600 mt-0.5">See Developer Profile →</Text>
-                        </TouchableOpacity>
+                        <Text className="text-[11px] font-semibold text-indigo-600 mt-0.5">Developer details</Text>
                     </View>
                 </View>
                 <TouchableOpacity onPress={() => setBuilderModalVisible(true)} className="border border-indigo-500 rounded-xl px-4 py-2.5 ml-3">
@@ -265,8 +293,7 @@ export default function Overview({ project }) {
                 {(project.description
                     ? [project.description]
                     : [
-                        `Exclusive luxury residency located in ${project.location} with lush green surroundings.`,
-                        `Designed with sustainable architecture and world-class amenities by ${project.builder}.`,
+                        "Description not available for this project yet.",
                     ]
                 ).map((point, i) => (
                     <View key={i} className="flex-row gap-2 mb-2">
@@ -274,22 +301,26 @@ export default function Overview({ project }) {
                         <Text className="text-[12px] font-manrope-regular text-[#4B5563] flex-1 leading-6 mb-1">{point}</Text>
                     </View>
                 ))}
-                <TouchableOpacity className="mt-1">
-                    <Text className="text-[14px] font-manrope-semibold text-[#5E23DC] mb-2">Read more →</Text>
-                </TouchableOpacity>
             </View>
 
             {/* Brochure download */}
 
-            <TouchableOpacity style={{ backgroundColor: "#6C3BFF2A", borderColor: "#6C3BFF1A" }} className=" mx-6 mb-6 mt-5 border rounded-2xl p-4 flex-row items-center gap-3">
+            <TouchableOpacity
+                disabled={!brochureUrl}
+                onPress={handleOpenBrochure}
+                style={{ backgroundColor: "#6C3BFF2A", borderColor: "#6C3BFF1A", opacity: brochureUrl ? 1 : 0.65 }}
+                className=" mx-6 mb-6 mt-5 border rounded-2xl p-4 flex-row items-center gap-3"
+            >
                 <View className="w-16 h-16 bg-indigo-600 rounded-2xl items-center justify-center">
                     <MaterialIcons name="picture-as-pdf" size={26} color="#fff" />
                 </View>
                 <View className="flex-1">
-                    <Text className="text-[15px] font-public-bold text-gray-900">Project Brochure</Text>
-                    <Text className="text-[11px] font-public-regular text-[#64748B] mt-0.5">PDF • 4.5 MB</Text>
+                    <Text className="text-[15px] font-public-bold text-gray-900">{brochureLabel}</Text>
+                    <Text className="text-[11px] font-public-regular text-[#64748B] mt-0.5">
+                        {brochureUrl ? "PDF document" : "Brochure not available"}
+                    </Text>
                 </View>
-                <Text className="text-[12px] font-public-bold text-[#4A43EC] tracking-wide">DOWNLOAD</Text>
+                <Text className="text-[12px] font-public-bold text-[#4A43EC] tracking-wide">{brochureUrl ? "DOWNLOAD" : "N/A"}</Text>
             </TouchableOpacity>
 
             {/* Resale properties */}
@@ -305,7 +336,9 @@ export default function Overview({ project }) {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingHorizontal: 24, gap: 14, paddingTop: 44, paddingBottom: 15, marginBottom: 12 }}
                 >
-                    {resaleItems.map((item) => renderPropertyCard(item, { width: 220, imageHeight: 138 }))}
+                    {resaleItems.length > 0
+                        ? resaleItems.map((item) => renderPropertyCard(item, { width: 220, imageHeight: 138 }))
+                        : <EmptySection label="No resale properties listed for this project yet." width={260} />}
                 </ScrollView>
             </ImageBackground>
 
@@ -313,10 +346,11 @@ export default function Overview({ project }) {
             <View className="mb-10">
                 <View className="flex-row items-center justify-between mx-4 mb-7">
                     <Text className="text-[15px] font-manrope-bold text-gray-900">Recommended Property</Text>
-                    <TouchableOpacity><Text className="text-[12px] font-manrope-semibold text-[#4A43EC]">View All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
-                    {recommendedItems.map((item) => renderPropertyCard(item, { width: 200 }))}
+                    {recommendedItems.length > 0
+                        ? recommendedItems.map((item) => renderPropertyCard(item, { width: 200 }))
+                        : <EmptySection label="No recommended properties available yet." width={260} />}
                 </ScrollView>
             </View>
 
@@ -324,36 +358,11 @@ export default function Overview({ project }) {
             <View className="mb-20">
                 <View className="flex-row items-center justify-between mx-4 mb-8">
                     <Text className="text-[15px] font-manrope-bold text-gray-900">Similar Property</Text>
-                    <TouchableOpacity><Text className="text-[13px] font-manrope-semibold text-indigo-600">Clear All</Text></TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
                     {similarApiItems.length > 0
                         ? similarApiItems.map((item) => renderPropertyCard(item, { width: 180 }))
-                        : similarFallbackItems.map((item) => (
-                            <TouchableOpacity
-                                key={item.id}
-                                onPress={() => {
-                                    if (item.slug) {
-                                        router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } });
-                                    }
-                                }}
-                                disabled={!item.slug}
-                                className="bg-white rounded-2xl overflow-hidden mb-2"
-                                style={{ width: 180, ...cardShadow }}
-                            >
-                                <Image source={item.imageMain} style={{ width: "100%", height: 120 }} resizeMode="cover" />
-                                <View className="p-3">
-                                    <Text className="text-[13px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{item.name}</Text>
-                                    <Text className="text-[12px] font-inter-bold text-indigo-600 mb-0.5">
-                                        {item.variants?.[0]?.priceRange ?? item.avgPricePerSqft ?? '\u2014'}
-                                    </Text>
-                                    <View className="flex-row items-center gap-1">
-                                        <MaterialCommunityIcons name="map-marker-outline" size={11} color="#9CA3AF" />
-                                        <Text className="text-[10px] font-inter-regular text-gray-400" numberOfLines={1}>{item.location}</Text>
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                        : <EmptySection label="No similar properties available yet." width={240} />}
                 </ScrollView>
             </View>
         </View>

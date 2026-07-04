@@ -1,42 +1,11 @@
-import { Text, View, Image, Pressable } from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { Link } from 'expo-router';
+import OnboardingScreen from "../../components/OnboardingScreen";
 
 export default function Onboarding3() {
     return (
-        <View className="flex-1 bg-white">
-            <StatusBar style="dark" />
-     
-            <View className="pt-32 px-7">
-                <Text className="text-[17px] text-black/60 font-lato-regular mb-2.5">
-                    Connect with real buyers and close
-                </Text>
-                <Text className="text-[30px] text-black font-lato-bold mb-4">
-                    Deals faster
-                </Text>
-                <Text className="text-[15px] text-black/40 font-lato-regular leading-6 mb-7">
-                    Meet real buyers. Make real deals. All in one trusted place.
-                </Text>
-                <View className="flex-row items-center mb-8">
-                    <View className="w-12 h-[5px] rounded-l-full bg-[#D0CFEF]" />
-                    <View className="w-12 h-[5px] bg-[#D0CFEF]" />
-                    <View className="w-12 h-[5px] rounded-l-full rounded-r-full bg-[#4A43EC]" />
-                </View>
-                <Link href="/login" asChild>
-                    <Pressable className="bg-[#4A43EC] rounded-2xl py-4 items-center w-[50%] min-w-[150px]">
-                        <Text className="text-white text-[16px] font-lato-bold tracking-wider" adjustsFontSizeToFit numberOfLines={1}>
-                            NEXT
-                        </Text>
-                    </Pressable>
-                </Link>
-            </View>
-            <View className="absolute bottom-0 left-0 right-0 overflow-hidden h-[50%] w-[100%]">
-                <Image
-                    source={require("../../assets/images/onboarding/onboarding3.png")}
-                    className="w-full h-full"
-                    resizeMode="contain"
-                />
-            </View>
-        </View>
+        <OnboardingScreen
+            image={require("../../assets/images/onboarding/onboarding3.png")}
+            activeIndex={2}
+            nextHref="/login"
+        />
     );
 }

@@ -15,6 +15,14 @@ import { projectApi } from "../../services/projectApi";
 
 const FALLBACK_PROPERTY_IMAGE = { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" };
 
+const STATIC_SALES_OFFICERS = [
+  { id: "rahul-sharma", name: "Rahul Sharma", role: "Senior Sales Officer" },
+  { id: "priya-verma", name: "Priya Verma", role: "Site Visit Specialist" },
+  { id: "amit-jain", name: "Amit Jain", role: "Property Consultant" },
+];
+
+const PREVIOUS_SALES_OFFICER = STATIC_SALES_OFFICERS[0];
+
 const formatSlotTime = (value) =>
   new Date(value).toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -227,7 +235,7 @@ export default function BookSiteVisit() {
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
-  const { branches, availableSlots, slotsLoading, creating } = useSelector((state) => state.visit);
+  const { branches, availableSlots, branchesLoading, slotsLoading, creating } = useSelector((state) => state.visit);
 
   // Deduplicate securely to prevent persisted duplicates lingering from old bug
   const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
@@ -244,6 +252,11 @@ export default function BookSiteVisit() {
   const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
   const [notes, setNotes] = useState(initialNotes || "");
   const [selectedBranch, setSelectedBranch] = useState(null);
+  const [resolvedPropertyCity, setResolvedPropertyCity] = useState(null);
+  const [resolvingPropertyCity, setResolvingPropertyCity] = useState(false);
+  const [selectedSalesOfficerId, setSelectedSalesOfficerId] = useState(null);
+  const [usePreviousSalesOfficer, setUsePreviousSalesOfficer] = useState(false);
+  const [isOfficerDropdownOpen, setIsOfficerDropdownOpen] = useState(false);
   const [detailModalData, setDetailModalData] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const insets = useSafeAreaInsets();
@@ -253,6 +266,8 @@ export default function BookSiteVisit() {
   // Get first property to determine city for branch lookup
   const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(v.id));
   const propertyCity = getCityForVisit(firstProperty);
+  const propertyIdForSlots = getPropertyIdForVisit(firstProperty);
+  const bookingCity = propertyCity || resolvedPropertyCity;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -268,17 +283,53 @@ export default function BookSiteVisit() {
     }
   }, [now, selectedDate]);
 
+  useEffect(() => {
+    setResolvedPropertyCity(null);
+  }, [propertyIdForSlots]);
+
+  useEffect(() => {
+    if (propertyCity || !isLoggedIn || !token || !propertyIdForSlots) return;
+
+    let isMounted = true;
+    setResolvingPropertyCity(true);
+
+    propertyApi.getPropertyList(token, { limit: 500 })
+      .then((response) => {
+        if (!isMounted) return;
+        const properties = getApiList(response);
+        const property = findById(properties, propertyIdForSlots);
+        const city = property?.city || getCityForVisit({
+          ...property,
+          location: property?.location || [property?.area, property?.city].filter(Boolean).join(", "),
+        });
+
+        if (city) {
+          setResolvedPropertyCity(city);
+        }
+      })
+      .catch((error) => {
+        console.log("Failed to resolve property city for visit slots:", error?.message || error);
+      })
+      .finally(() => {
+        if (isMounted) setResolvingPropertyCity(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyCity, propertyIdForSlots, isLoggedIn, token]);
+
   // Fetch branches when component mounts
   useEffect(() => {
     setSelectedBranch(null);
     setSelectedTime([]);
-    if (isLoggedIn && token && propertyCity) {
-      console.log('🏢 Fetching branches for city:', propertyCity);
-      dispatch(fetchBranchListThunk(propertyCity));
+    if (isLoggedIn && token && bookingCity) {
+      console.log('🏢 Fetching branches for city:', bookingCity);
+      dispatch(fetchBranchListThunk(bookingCity));
     } else {
       dispatch(clearAvailableSlots());
     }
-  }, [dispatch, propertyCity, isLoggedIn, token]);
+  }, [dispatch, bookingCity, isLoggedIn, token]);
 
   // Auto-select first branch when branches load
   useEffect(() => {
@@ -290,27 +341,22 @@ export default function BookSiteVisit() {
 
   // Fetch available slots when date or branch changes
   useEffect(() => {
-    if (isLoggedIn && token && selectedDate && selectedBranch && firstProperty) {
-      // Get property_id from stored data, fallback to project ID
-      const propertyId = getPropertyIdForVisit(firstProperty);
-      if (!propertyId) {
-        dispatch(clearAvailableSlots());
-        return;
-      }
-      
+    if (isLoggedIn && token && selectedDate && selectedBranch && propertyIdForSlots) {
       console.log('🕐 Fetching available slots:', {
-        property_id: propertyId,
+        property_id: propertyIdForSlots,
         date: selectedDate,
         branch_id: selectedBranch.id
       });
       
       dispatch(fetchAvailableSlotsThunk({
-        property_id: propertyId,
+        property_id: propertyIdForSlots,
         date: selectedDate,
         branch_id: selectedBranch.id
       }));
+    } else {
+      dispatch(clearAvailableSlots());
     }
-  }, [dispatch, selectedDate, selectedBranch, firstProperty, isLoggedIn, token]);
+  }, [dispatch, selectedDate, selectedBranch, propertyIdForSlots, isLoggedIn, token]);
 
   const futureAvailableSlots = useMemo(
     () => availableSlots.filter(slot => isFutureSlot(slot, now)),
@@ -322,8 +368,18 @@ export default function BookSiteVisit() {
     const availableLabels = new Set(futureAvailableSlots.map(slot => formatSlotTime(slot.slot_start)));
     if (availableSlots.length > 0 && !availableLabels.has(selectedTime[0])) {
       setSelectedTime([]);
+      setSelectedSalesOfficerId(null);
+      setUsePreviousSalesOfficer(false);
+      setIsOfficerDropdownOpen(false);
     }
   }, [availableSlots.length, futureAvailableSlots, selectedTime]);
+
+  useEffect(() => {
+    if (selectedTime.length) return;
+    setSelectedSalesOfficerId(null);
+    setUsePreviousSalesOfficer(false);
+    setIsOfficerDropdownOpen(false);
+  }, [selectedTime.length]);
 
   // Clear slots when component unmounts
   useEffect(() => {
@@ -336,10 +392,32 @@ export default function BookSiteVisit() {
     ? groupAvailableSlots(futureAvailableSlots)
     : { morning: [], afternoon: [], evening: [] };
 
+  const slotSetupLoading = resolvingPropertyCity || branchesLoading;
+  const selectedSalesOfficer = usePreviousSalesOfficer
+    ? PREVIOUS_SALES_OFFICER
+    : STATIC_SALES_OFFICERS.find((officer) => officer.id === selectedSalesOfficerId);
+  const emptySlotTitle = !propertyIdForSlots
+    ? "Property unit missing"
+    : !bookingCity
+      ? "City details missing"
+      : !selectedBranch
+        ? "No active branch found"
+        : "No slots available";
+  const emptySlotMessage = !propertyIdForSlots
+    ? "Please reopen the project and add a specific unit to your site visit."
+    : !bookingCity
+      ? "We could not detect this property's city. Please reopen the property details and add the unit again."
+      : !selectedBranch
+        ? `No active branch is available for ${bookingCity}.`
+        : "Try a different date or nearby branch.";
+
   const isPreviousMonthDisabled = getMonthKey(calendarMonth) <= getMonthKey(toLocalDateKey(now));
 
   const handleSlotPress = (slot) => {
     setSelectedTime([typeof slot === 'string' ? slot : formatSlotTime(slot.slot_start)]);
+    setSelectedSalesOfficerId(null);
+    setUsePreviousSalesOfficer(false);
+    setIsOfficerDropdownOpen(false);
   };
 
   const isSlotSelected = (slot) =>
@@ -503,6 +581,11 @@ export default function BookSiteVisit() {
       return;
     }
 
+    if (!selectedSalesOfficer) {
+      Alert.alert('Select Sales Officer', 'Please select a sales officer for your site visit');
+      return;
+    }
+
     const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
     if (itemsToBook.length === 0) return;
 
@@ -595,6 +678,9 @@ export default function BookSiteVisit() {
         isoDate: result.data?.slot_start || slotStart,
         visitors: visitors,
         notes: notes,
+        salesOfficerId: selectedSalesOfficer.id,
+        salesOfficerName: selectedSalesOfficer.name,
+        salesOfficerRole: selectedSalesOfficer.role,
         bookingId: result.data?.id || `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
         visitorName: currentUser.name,
         duration: "1.5 Hours",
@@ -828,10 +914,12 @@ export default function BookSiteVisit() {
           <View className="mb-7">
             <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Time Slot</Text>
 
-            {slotsLoading ? (
+            {slotSetupLoading || slotsLoading ? (
               <View className="py-8 items-center justify-center">
                 <ActivityIndicator size="small" color="#4A43EC" />
-                <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available slots...</Text>
+                <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">
+                  {slotSetupLoading ? "Preparing visit slots..." : "Checking available slots..."}
+                </Text>
               </View>
             ) : futureAvailableSlots.length > 0 ? (
               <>
@@ -842,16 +930,90 @@ export default function BookSiteVisit() {
             ) : (
               <View className="border border-dashed border-gray-200 rounded-2xl p-5 items-center bg-gray-50">
                 <Text className="text-[13px] font-manrope-bold text-[#111827]">
-                  {propertyCity ? "No slots available" : "City details missing"}
+                  {emptySlotTitle}
                 </Text>
                 <Text className="text-[11px] font-manrope text-[#6B7280] text-center mt-1">
-                  {propertyCity
-                    ? "Try a different date or nearby branch."
-                    : "Please reopen the property details and add the unit again."}
+                  {emptySlotMessage}
                 </Text>
               </View>
             )}
           </View>
+
+          {selectedTime.length > 0 && (
+            <View className="mb-7">
+              <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Sales Officer</Text>
+              <Pressable
+                onPress={() => {
+                  const nextValue = !usePreviousSalesOfficer;
+                  setUsePreviousSalesOfficer(nextValue);
+                  setSelectedSalesOfficerId(null);
+                  setIsOfficerDropdownOpen(false);
+                }}
+                className={`mb-3 rounded-2xl border px-4 py-3 flex-row items-center ${usePreviousSalesOfficer ? 'bg-[#F8F7FF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+              >
+                <View className={`w-[22px] h-[22px] rounded-md border items-center justify-center mr-3 ${usePreviousSalesOfficer ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300 bg-white'}`}>
+                  {usePreviousSalesOfficer && <Feather name="check" size={14} color="white" />}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[13px] font-manrope-bold text-[#111827]">
+                    Use previous sales officer
+                  </Text>
+                  <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                    {PREVIOUS_SALES_OFFICER.name} • {PREVIOUS_SALES_OFFICER.role}
+                  </Text>
+                </View>
+              </Pressable>
+              <View className="relative">
+                <Pressable
+                  onPress={() => {
+                    if (usePreviousSalesOfficer) return;
+                    setIsOfficerDropdownOpen((value) => !value);
+                  }}
+                  disabled={usePreviousSalesOfficer}
+                  className={`bg-white border rounded-2xl px-4 py-3.5 flex-row items-center justify-between ${selectedSalesOfficer ? 'border-[#B2A7FF]' : 'border-gray-200'} ${usePreviousSalesOfficer ? 'opacity-60' : ''}`}
+                >
+                  <View className="flex-row items-center flex-1 pr-3">
+                    <View className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${selectedSalesOfficer ? 'bg-[#F2EFFF]' : 'bg-gray-100'}`}>
+                      <Feather name="user-check" size={16} color={selectedSalesOfficer ? "#4A43EC" : "#9CA3AF"} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className={`text-[13px] font-manrope-bold ${selectedSalesOfficer ? 'text-[#111827]' : 'text-[#9CA3AF]'}`} numberOfLines={1}>
+                        {selectedSalesOfficer?.name || "Choose sales officer"}
+                      </Text>
+                      <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                        {selectedSalesOfficer?.role || "Required before booking"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Feather name={isOfficerDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#6B7280" />
+                </Pressable>
+
+                {isOfficerDropdownOpen && !usePreviousSalesOfficer && (
+                  <View className="mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    {STATIC_SALES_OFFICERS.map((officer, index) => {
+                      const isSelectedOfficer = officer.id === selectedSalesOfficerId;
+                      return (
+                        <Pressable
+                          key={officer.id}
+                          onPress={() => {
+                            setSelectedSalesOfficerId(officer.id);
+                            setIsOfficerDropdownOpen(false);
+                          }}
+                          className={`px-4 py-3.5 flex-row items-center justify-between ${index !== STATIC_SALES_OFFICERS.length - 1 ? 'border-b border-gray-100' : ''} ${isSelectedOfficer ? 'bg-[#F8F7FF]' : 'bg-white'}`}
+                        >
+                          <View className="flex-1 pr-3">
+                            <Text className="text-[13px] font-manrope-bold text-[#111827]">{officer.name}</Text>
+                            <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5">{officer.role}</Text>
+                          </View>
+                          {isSelectedOfficer && <Feather name="check-circle" size={17} color="#4A43EC" />}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Number of Visitors */}
           <View className="bg-[#F8F9FB] rounded-[18px] p-4 flex-row justify-between items-center mb-8">

@@ -56,13 +56,9 @@ const formatCompactPrice = (value) => {
 };
 
 const getPriceText = (project) => {
-    // Use new DTO price display if available
     if (project.priceDisplay) return project.priceDisplay;
-    
-    // Handle "Price on request" case from new DTO
+    if (project.price?.display) return project.price.display;
     if (project.isPriceOnRequest) return "Price on request";
-    
-    // Legacy fallbacks
     if (project.variants?.[0]?.priceRange) return project.variants[0].priceRange;
     if (project.avgPricePerSqft) return project.avgPricePerSqft;
 
@@ -129,8 +125,40 @@ const getBhkText = (project) => {
     return formatPossessionLabel(project.possessionStatus);
 };
 
-const getAddressText = (project) =>
-    project.location || [project.area, project.city, project.pincode].filter(Boolean).join(", ") || "Address on request";
+const cleanAddressPart = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object") return "";
+
+    const text = String(value).replace(/\s+/g, " ").trim();
+    return text && !["null", "undefined", "none"].includes(text.toLowerCase()) ? text : "";
+};
+
+const getAddressText = (project = {}) => {
+    const location = project.location;
+
+    if (typeof location === "string") {
+        const text = cleanAddressPart(location);
+        if (text) return text;
+    }
+
+    if (location && typeof location === "object") {
+        const locationText = [
+            location.area,
+            location.city,
+            location.pincode,
+        ].map(cleanAddressPart).filter(Boolean).join(", ");
+
+        if (locationText) return locationText;
+    }
+
+    const addressText = [
+        project.area,
+        project.city,
+        project.pincode,
+    ].map(cleanAddressPart).filter(Boolean).join(", ");
+
+    return addressText || "Address on request";
+};
 
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
@@ -205,7 +233,6 @@ export default function BuilderModal({ visible, onClose, project }) {
             id: p.id,
             name: p.name,
             slug: p.slug,
-            // Handle both new nested location structure and old flat structure
             location: p.location?.area ? getAddressText({
                 area: p.location.area,
                 city: p.location.city,
@@ -214,14 +241,12 @@ export default function BuilderModal({ visible, onClose, project }) {
             area: p.location?.area || p.area,
             city: p.location?.city || p.city,
             pincode: p.location?.pincode || p.pincode,
-            // Handle both new thumbnail_url and old cover_image_url
             imageMain: (p.thumbnail_url || p.cover_image_url) ? { uri: p.thumbnail_url || p.cover_image_url } : project?.imageMain,
             possessionStatus: p.possession_status || p.possessionStatus || p.possession,
-            // Handle new price structure with fallback to old structure
             price_from: p.price?.min_amount ?? p.price_from,
             price_to: p.price?.max_amount ?? p.price_to,
-            priceDisplay: p.price?.display, // New field from DTO
-            isPriceOnRequest: p.price?.is_price_on_request ?? false,
+            priceDisplay: p.price?.display || p.priceDisplay,
+            isPriceOnRequest: p.price?.is_price_on_request ?? p.isPriceOnRequest ?? p.is_price_on_request ?? false,
             configs: p.configs || [],
             property_type: p.property_type || p.propertyType,
             property_subtype: p.property_subtype || p.propertySubtype,

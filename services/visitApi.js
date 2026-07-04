@@ -24,26 +24,26 @@ const query = (params) =>
 export const visitApi = {
     // Get list of visits by status
     getVisitList: (token, status) =>
-        request(`/api/v1/visit/list?${query({ status })}`, token),
+        request(`/api/v1/list?${query({ status })}`, token),
 
     // Get branches by city
     getBranchList: (token, city) =>
-        request(`/api/v1/visit/branches?${query({ city })}`, token),
+        request(`/api/v1/branches?${query({ city })}`, token),
 
     // Get available time slots
     getAvailableSlots: (token, property_id, date, branch_id) =>
-        request(`/api/v1/visit/slots?${query({ property_id, date, branch_id })}`, token),
+        request(`/api/v1/slots?${query({ property_id, date, branch_id })}`, token),
 
     // Create site visit
     createSiteVisit: (token, visitData) =>
-        request('/api/v1/visit', token, {
+        request('/api/v1', token, {
             method: 'POST',
             body: JSON.stringify(visitData),
         }),
 
     // Update site visit
     updateSiteVisit: (token, visitId, updateData) =>
-        request(`/api/v1/visit/${visitId}`, token, {
+        request(`/api/v1/${visitId}`, token, {
             method: 'PUT',
             body: JSON.stringify(updateData),
         }),
