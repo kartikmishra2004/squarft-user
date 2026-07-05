@@ -160,6 +160,38 @@ const getAddressText = (project = {}) => {
     return addressText || "Address on request";
 };
 
+const mapBuilderProject = (projectData = {}, fallbackImage = null) => {
+    const nestedLocation = projectData.location && typeof projectData.location === "object"
+        ? projectData.location
+        : null;
+    const imageUrl = projectData.thumbnail_url
+        || projectData.cover_image_url
+        || projectData.image_url
+        || projectData.cover_image
+        || projectData.image;
+
+    return {
+        id: projectData.id,
+        name: projectData.name,
+        slug: projectData.slug,
+        location: nestedLocation ? getAddressText(nestedLocation) : getAddressText(projectData),
+        area: nestedLocation?.area || projectData.area,
+        city: nestedLocation?.city || projectData.city,
+        pincode: nestedLocation?.pincode || projectData.pincode,
+        imageMain: imageUrl ? { uri: imageUrl } : fallbackImage,
+        possessionStatus: projectData.possession_status || projectData.possessionStatus || projectData.possession,
+        price_from: projectData.price?.min_amount ?? projectData.price_from ?? projectData.property_min_price ?? projectData.min_price,
+        price_to: projectData.price?.max_amount ?? projectData.price_to ?? projectData.property_max_price ?? projectData.max_price,
+        priceDisplay: projectData.price?.display || projectData.priceDisplay || projectData.display_price || projectData.priceRange || projectData.priceINR,
+        isPriceOnRequest: projectData.price?.is_price_on_request ?? projectData.isPriceOnRequest ?? projectData.is_price_on_request ?? false,
+        configs: projectData.configs || [],
+        property_type: projectData.property_type || projectData.propertyType,
+        property_subtype: projectData.property_subtype || projectData.propertySubtype,
+        rera: isReraApproved(projectData),
+        reraNumber: projectData.rera?.number || projectData.rera_number || projectData.reraNumber,
+    };
+};
+
 export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
@@ -224,53 +256,19 @@ export default function BuilderModal({ visible, onClose, project }) {
     // This ensures we use API results even when apiProjects is empty array (valid API response)
     const useApiData = apiAttempted && !error && (currentBuilder || (apiProjects !== null && apiProjects !== undefined));
     
-    // Use API projects if available, otherwise fallback to local data
+    const apiBuilderProjects = Array.isArray(apiProjects)
+        ? apiProjects.map((p) => mapBuilderProject(p, project?.imageMain))
+        : [];
+    const organizationBuilderProjects = organizationProjects.map((p) => mapBuilderProject(p, project?.imageMain));
+    const useOrganizationProjects = organizationBuilderProjects.length > 0
+        && (!useApiData || organizationBuilderProjects.length > apiBuilderProjects.length);
+
+    // Use API projects if available, otherwise fallback to project-list/local data
     let builderProjects = [];
-    if (useApiData && apiProjects) {
-        // Map API projects to match the expected format
-        // Support both new DTO structure and old structure
-        builderProjects = apiProjects.map(p => ({
-            id: p.id,
-            name: p.name,
-            slug: p.slug,
-            location: p.location?.area ? getAddressText({
-                area: p.location.area,
-                city: p.location.city,
-                pincode: p.location.pincode,
-            }) : getAddressText(p),
-            area: p.location?.area || p.area,
-            city: p.location?.city || p.city,
-            pincode: p.location?.pincode || p.pincode,
-            imageMain: (p.thumbnail_url || p.cover_image_url) ? { uri: p.thumbnail_url || p.cover_image_url } : project?.imageMain,
-            possessionStatus: p.possession_status || p.possessionStatus || p.possession,
-            price_from: p.price?.min_amount ?? p.price_from,
-            price_to: p.price?.max_amount ?? p.price_to,
-            priceDisplay: p.price?.display || p.priceDisplay,
-            isPriceOnRequest: p.price?.is_price_on_request ?? p.isPriceOnRequest ?? p.is_price_on_request ?? false,
-            configs: p.configs || [],
-            property_type: p.property_type || p.propertyType,
-            property_subtype: p.property_subtype || p.propertySubtype,
-            rera: isReraApproved(p),
-            reraNumber: p.rera?.number || p.rera_number,
-        }));
-    } else if (organizationProjects.length > 0) {
-        builderProjects = organizationProjects.map(p => ({
-            id: p.id,
-            name: p.name,
-            slug: p.slug,
-            location: getAddressText(p),
-            area: p.area,
-            city: p.city,
-            pincode: p.pincode,
-            imageMain: p.cover_image_url ? { uri: p.cover_image_url } : project?.imageMain,
-            possessionStatus: p.possession_status || p.possessionStatus || p.possession,
-            price_from: p.price_from,
-            price_to: p.price_to,
-            configs: p.configs,
-            property_type: p.property_type,
-            property_subtype: p.property_subtype,
-            rera: isReraApproved(p),
-        }));
+    if (useOrganizationProjects) {
+        builderProjects = organizationBuilderProjects;
+    } else if (useApiData) {
+        builderProjects = apiBuilderProjects;
     } else {
         // Fallback to local data
         const normalizeBuilder = (name) => name?.toLowerCase().trim() || "";
@@ -282,14 +280,14 @@ export default function BuilderModal({ visible, onClose, project }) {
     }
     
     // When using API data, filtering is done on backend; otherwise use frontend filtering
-    const filteredProjects = useApiData
+    const filteredProjects = useApiData && !useOrganizationProjects
         ? builderProjects // Backend already filtered - trust the API response even if empty
         : builderProjects.filter(FILTER_MAP[activeFilter] ?? (() => true)); // Frontend fallback filtering
 
     // Use totalProjects from API if available, otherwise count from builderProjects
-    const displayTotalCount = useApiData && totalProjects !== undefined
+    const displayTotalCount = useApiData && !useOrganizationProjects && totalProjects !== undefined
         ? totalProjects
-        : builderProjects.length;
+        : filteredProjects.length;
 
     if (!project) return null;
 
