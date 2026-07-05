@@ -3,12 +3,18 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --lan",
+    "start:lan": "expo start --lan",
+    "start:tunnel": "expo start --tunnel",
+    "start:localhost": "expo start --localhost",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest",
+    "test:bugfix": "jest expo-qr-connection.bugfix.test.js",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
@@ -21,6 +27,7 @@
     "@livekit/react-native": "^2.11.0",
     "@livekit/react-native-expo-plugin": "^1.0.2",
     "@livekit/react-native-webrtc": "^144.1.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
@@ -70,9 +77,14 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "eslint": "^9.25.0",
-    "eslint-config-expo": "~10.0.0"
+    "eslint-config-expo": "~10.0.0",
+    "fast-check": "^4.8.0",
+    "jest": "^29.7.0",
+    "jest-expo": "^57.0.1"
   },
   "private": true
 }

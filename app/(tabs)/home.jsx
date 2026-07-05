@@ -21,7 +21,7 @@ import {
 } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useFocusEffect, useNavigation, router } from "expo-router";
-import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, fetchSavedPropertiesThunk, savePropertyThunk, unsavePropertyThunk } from "../../store/slices/propertiesSlice";
+import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, fetchSavedPropertiesThunk, savePropertyThunk, unsavePropertyThunk, fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import { fetchProfileThunk } from "../../store/slices/authSlice";
 import FilterModal from "../../components/FilterModal";
@@ -219,7 +219,15 @@ export default function Home() {
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
   const { token, profile, user } = useSelector((s) => s.auth);
-  const { missed, highGrowthLocalities, recommendedLoading, favouriteProjects } = useSelector((s) => s.properties);
+  const { 
+    missed, 
+    highGrowthLocalities, 
+    highGrowthProjects,
+    highGrowthLoading,
+    highGrowthCity,
+    recommendedLoading, 
+    favouriteProjects 
+  } = useSelector((s) => s.properties);
   const { featured: apiFeatured, featuredLoading, list: projectList } = useSelector((s) => s.project);
   const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
 
@@ -263,6 +271,7 @@ export default function Home() {
     dispatch(fetchProjectListThunk());
     dispatch(fetchRecommendedPropertiesThunk());
     dispatch(fetchSavedPropertiesThunk());
+    dispatch(fetchHighGrowthProjectsThunk());
   }, [dispatch, token]);
 
   useEffect(() => {
@@ -358,6 +367,23 @@ export default function Home() {
       isFavourite: favouriteProjects.includes(projectId),
     };
   });
+
+  // Use API data if available, fallback to static data
+  const displayHighGrowthProjects = useMemo(() => {
+    if (highGrowthProjects && highGrowthProjects.length > 0) {
+      return highGrowthProjects.map(project => ({
+        ...project,
+        title: project.name || 'Project',
+        location: project.location || '',
+        priceRange: project.price_range || '',
+        bhk: project.bhk_config || '',
+        possession: project.possession || '',
+        image: project.cover_image ? { uri: project.cover_image } : null,
+        isFavourite: favouriteProjects.includes(project.id),
+      }));
+    }
+    return highGrowthLocalities.map(p => ({ ...p, isFavourite: favouriteProjects.includes(p.id) }));
+  }, [highGrowthProjects, highGrowthLocalities, favouriteProjects]);
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
@@ -706,114 +732,75 @@ export default function Home() {
           </View>
         )}
 
-        {/* In case you missed */}
-        <View className="px-5 mt-5 mb-1 ml-2">
-          <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">In case you missed</Text>
-          <Text className="text-[13px] font-manrope-medium text-gray-500 mb-3 mt-0.5">{`3 Properties you liked but didn't contact`}</Text>
-        </View>
-        <FlatList
-          data={missed}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 12 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
-              style={{ width: 300 }}
-            >
-              <View
-                className="rounded-3xl overflow-hidden"
-                style={{
-                  width: 300,
-                  height: 200,
-                  borderRadius: 24,
-                  borderWidth: 2,
-                  borderColor: "#E5E7EB",
-                  ...cardShadow,
-                }}
-              >
-                <Image source={item.image} style={{ width: 300, height: 200 }} resizeMode="cover" />
-                {item.badge && (
-                  <View className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1">
-                    <Text className="text-[11px] font-bold text-indigo-600">{item.badge}</Text>
-                  </View>
-                )}
-                <TouchableOpacity
-                  onPress={() => handleToggleFav(item.id)}
-                  style={{
-                    position: "absolute",
-                    bottom: 12,
-                    right: 12,
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "rgba(255,255,255,0.9)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons
-                    name={item.isFavourite ? "heart" : "heart-outline"}
-                    size={20}
-                    color={item.isFavourite ? "#EF4444" : "#9CA3AF"}
-                  />
-                </TouchableOpacity>
-                <View className="absolute bottom-3 left-3 bg-gray-900/70 rounded-3xl px-3 py-2">
-                  <Text className="text-white text-[16px] font-inter-bold">{item.priceINR}</Text>
-                </View>
-              </View>
-              <View className="px-1 pt-2.5">
-                <Text className="text-[16px] font-inter-bold text-[#0F172A]">{item.title}</Text>
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="location-outline" size={12} color="#9CA3AF" />
-                  <Text className="text-[13px] font-inter-regular text-gray-400">{item.location}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-
         {/* High Growth Localities */}
         <View className="flex-row justify-between items-center px-5 mt-10 mb-5">
-          <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">High growth localities in indore</Text>
-          <TouchableOpacity>
+          <Text className="text-[15px] font-manrope-extrabold text-[#0F172A]">
+            High growth localities{highGrowthCity ? ` in ${highGrowthCity}` : ''}
+          </Text>
+          <TouchableOpacity onPress={() => router.push({ pathname: "/(screens)/property-listing", params: { highGrowth: "1" } })}>
             <Text className="text-sm text-[#6C3BFF] font-manrope-bold">View All</Text>
           </TouchableOpacity>
         </View>
-        {highGrowthLocalities.slice(0, 2).map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            activeOpacity={0.85}
-            onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id } })}
-            className="mx-5 mb-3 bg-white rounded-2xl flex-row items-center border border-[#F1F5F9] px-2.5 py-3"
-            style={{
-              minHeight: 110,
-              shadowColor: "#bcc0c2ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 6.07, shadowRadius: 30, elevation: 1
-            }}
-          >
-            <View className="w-[130px] h-[130px] rounded-2xl border border-indigo-100 overflow-hidden items-center justify-center">
-              <Image source={item.image} className="w-[130px] h-[130px]" resizeMode="cover" />
-              <View className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-indigo-100 items-center justify-center">
-                <MaterialCommunityIcons name="check-decagram-outline" size={16} color="#6366F1" />
-              </View>
-            </View>
-            <View className="flex-1 px-4 self-stretch justify-around">
-              <View>
-                <Text className="text-[16px] font-public-bold text-[#0F172A]">{item.title}</Text>
-                <Text className="text-[12px] font-public-regular text-gray-500">{item.location}</Text>
-                <Text className="text-[13px] font-manrope-bold text-[#6C3BFF] mt-1">{item.priceRange}</Text>
-              </View>
-              <View className="flex-row justify-between items-center mt-2">
-                <View className="bg-slate-100 rounded-md px-2.5 py-1">
-                  <Text className="text-[11px] text-gray-800 font-public-bold">{item.bhk}</Text>
+        {highGrowthLoading ? (
+          <View className="px-5 py-4">
+            <HomeSectionSkeleton count={2} />
+          </View>
+        ) : displayHighGrowthProjects.length > 0 ? (
+          displayHighGrowthProjects.slice(0, 2).map((item) => {
+            const itemImage = item.image 
+              ? (typeof item.image === 'string' ? { uri: item.image } : item.image)
+              : null;
+
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: item.id, slug: item.slug || 'none' } })}
+                className="mx-5 mb-3 bg-white rounded-2xl flex-row items-center border border-[#F1F5F9] px-2.5 py-3"
+                style={{
+                  minHeight: 110,
+                  shadowColor: "#bcc0c2ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 6.07, shadowRadius: 30, elevation: 1
+                }}
+              >
+                <View className="w-[130px] h-[130px] rounded-2xl border border-indigo-100 overflow-hidden items-center justify-center">
+                  {itemImage ? (
+                    <Image source={itemImage} className="w-[130px] h-[130px]" resizeMode="cover" />
+                  ) : (
+                    <View className="w-[130px] h-[130px] bg-gray-100 items-center justify-center">
+                      <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
+                    </View>
+                  )}
+                  <View className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-indigo-100 items-center justify-center">
+                    <MaterialCommunityIcons name="check-decagram-outline" size={16} color="#6366F1" />
+                  </View>
                 </View>
-                <Text className="text-[11px] text-gray-400">{item.possession}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+                <View className="flex-1 px-4 self-stretch justify-around">
+                  <View>
+                    <Text className="text-[16px] font-public-bold text-[#0F172A]" numberOfLines={1}>{item.title}</Text>
+                    <Text className="text-[12px] font-public-regular text-gray-500" numberOfLines={1}>{item.location}</Text>
+                    {item.priceRange && (
+                      <Text className="text-[13px] font-manrope-bold text-[#6C3BFF] mt-1">{item.priceRange}</Text>
+                    )}
+                  </View>
+                  <View className="flex-row justify-between items-center mt-2">
+                    {item.bhk && (
+                      <View className="bg-slate-100 rounded-md px-2.5 py-1">
+                        <Text className="text-[11px] text-gray-800 font-public-bold">{item.bhk}</Text>
+                      </View>
+                    )}
+                    {item.possession && (
+                      <Text className="text-[11px] text-gray-400">{item.possession}</Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View className="px-5 py-4">
+            <Text className="text-[13px] text-gray-500">No high growth projects available right now.</Text>
+          </View>
+        )}
 
         {/* Like the app? Share the app */}
         <View className="mx-4 mt-10 mb-15 rounded-3xl border border-[#4A43EC]/30 bg-white overflow-hidden">

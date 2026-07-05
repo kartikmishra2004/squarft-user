@@ -1,96 +1,227 @@
-import React from "react";
-import { View, Text, Pressable, ScrollView, Image } from "react-native";
+import { useEffect } from "react";
+import { View, Text, Pressable, ScrollView, Image, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
 import EmptyState from "./EmptyState";
-import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
+import { selectRecentProjects, selectRecentProjectsLoading } from "../../store/slices/recentProjectsSlice";
+import { PropertyCardSkeleton } from "../SkeletonLoader";
 
+/**
+ * RecentTabContent Component
+ * 
+ * Displays projects that the user has recently viewed (within the last 3 days).
+ * Projects are automatically tracked and sorted by most recent view first.
+ * 
+ * Integration:
+ * 1. Add recentProjectsReducer to store
+ * 2. Call hydrateAndCleanRecentTrackers() on app boot
+ * 3. Call addToRecentProjects(projectId) when user opens a project
+ */
 const RecentTabContent = () => {
-  const { properties } = useSelector((state) => state.properties);
-  const RECENT_PROPERTIES = properties.filter((p) => p.isRecent);
+  const dispatch = useDispatch();
+  const recentProjects = useSelector(selectRecentProjects);
+  const loading = useSelector(selectRecentProjectsLoading);
 
-  if (RECENT_PROPERTIES.length === 0) {
-    return <EmptyState type="RECENT" />;
+  // Get full project details from project slice or properties slice
+  // You'll need to join the recent tracker IDs with your actual project data
+  const { list: allProjects } = useSelector((state) => state.project || {});
+  const { properties: allProperties } = useSelector((state) => state.properties || {});
+
+  // Enrich recent trackers with full project data
+  const enrichedRecentProjects = recentProjects
+    .map(tracker => {
+      // Try to find in projects list first
+      const project = allProjects?.find(p => p.id === tracker.id || p.slug === tracker.id);
+      if (project) {
+        return {
+          ...project,
+          lastViewedAt: tracker.lastViewedAt,
+        };
+      }
+
+      // Fallback to properties list
+      const property = allProperties?.find(p => p.id === tracker.id);
+      if (property) {
+        return {
+          ...property,
+          lastViewedAt: tracker.lastViewedAt,
+        };
+      }
+
+      // If not found in Redux, return minimal data
+      // In production, you might want to fetch the project details here
+      return {
+        id: tracker.id,
+        name: 'Unknown Project',
+        lastViewedAt: tracker.lastViewedAt,
+      };
+    })
+    .filter(Boolean);
+
+  const formatTimeAgo = (timestamp) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 3) return `${days}d ago`;
+    return 'Recently';
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-white pt-10 px-4">
+        {[1, 2, 3].map((i) => <PropertyCardSkeleton key={i} />)}
+      </View>
+    );
+  }
+
+  if (enrichedRecentProjects.length === 0) {
+    return (
+      <View className="flex-1 items-center justify-center px-6 bg-white">
+        <Feather name="clock" size={48} color="#D1D5DB" />
+        <Text className="text-gray-900 text-lg font-bold mt-4">No Recent Projects</Text>
+        <Text className="text-gray-500 text-center mt-2">
+          Projects you view will appear here for 3 days
+        </Text>
+        <Pressable
+          onPress={() => router.push("/(tabs)/home")}
+          className="mt-6 bg-[#4A43EC] px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-bold">Browse Projects</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      className="flex-1 bg-white" 
+      contentContainerStyle={{ paddingBottom: 100 }} 
+      showsVerticalScrollIndicator={false}
+    >
       <StatusBar style="dark" />
       <View className="mt-10 px-4 mb-6">
-        {RECENT_PROPERTIES.map((property, index) => (
-          <View key={property.id + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
-            <View className="flex-row h-36 w-full">
-              <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                <Image source={property.image} className="w-full h-full" resizeMode="cover" />
-                <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
-                  <Text className="text-white text-[10px] font-manrope">{property.builder}</Text>
-                </View>
-                {property.zeroBrokerage && (
-                  <View className="absolute bottom-2 left-2 bg-[#00B67A] px-2 py-[4px] rounded">
-                    <Text className="text-white text-[10px] font-manrope-extrabold tracking-wide">ZERO BROKERAGE</Text>
-                  </View>
-                )}
-              </View>
-              <View className="flex-[1] relative bg-gray-200">
-                <Image source={property.imageThumb} className="w-full h-full" resizeMode="cover" />
-                <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                  <Text className="text-white text-[10px] font-manrope">1/{property.totalImages}</Text>
-                </View>
-              </View>
-            </View>
-            <View className="px-3 pt-3 pb-2">
-              <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                Possession: {property.possession}  •  Avg Price: {property.avgPricePerSqft}
-              </Text>
-              <View className="flex-row items-center mb-1">
-                <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>
-                  {property.title}
-                </Text>
-                <ReraStatusBadge approved={isReraApproved(property)} className="ml-2" />
-              </View>
-              <Text className="text-[11px] text-[#9CA3AF] font-manrope">{property.location}</Text>
-            </View>
-            <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
-            <View className="flex-row justify-between px-3 pb-3">
-              <View>
-                <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.variants[0]?.type}</Text>
-                <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{property.variants[0]?.priceRange}</Text>
-              </View>
-              {property.variants[1] && (
-                <View className="items-end">
-                  <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">{property.variants[1].type}</Text>
-                  <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">{property.variants[1].priceRange}</Text>
-                </View>
-              )}
-            </View>
-            <View className="px-3 pb-3">
-              <Pressable
-                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: property.id } })}
-                className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
-              >
-                <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>
-              </Pressable>
-            </View>
-          </View>
-        ))}
-      </View>
-      <View className="px-4">
-        <View className="flex-row justify-between items-center mb-3">
-          <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{RECENT_PROPERTIES.length} Recent Properties</Text>
-          <Pressable className="w-[32px] h-[32px] rounded-full border border-gray-200 items-center justify-center">
-            <Feather name="share-2" size={14} color="#4B5563" />
-          </Pressable>
-        </View>
-        <View className="bg-[#F4F2FF] rounded-xl p-4 mb-6">
-          <Text className="text-[14px] font-manrope-extrabold text-[#111827] mb-1">Personalise your home search journey!</Text>
-          <Text className="text-[12px] text-[#6B7280] font-manrope leading-[16px] mb-4 w-[85%]">
-            Enhance your search{"\n"}experience with just 3 quick{"\n"}answers.
+        <View className="mb-4">
+          <Text className="text-[15px] font-manrope-extrabold text-gray-900">
+            Recent Projects ({enrichedRecentProjects.length})
           </Text>
-          <Pressable className="self-start border border-[#4A43EC] rounded-xl px-4 py-[8px] bg-white">
-            <Text className="text-[#4A43EC] font-manrope-extrabold text-[12px]">Let&apos;s begin</Text>
-          </Pressable>
+          <Text className="text-[12px] text-gray-500 mt-1">
+            Projects viewed in the last 3 days
+          </Text>
+        </View>
+
+        {enrichedRecentProjects.map((project, index) => {
+          const coverImage = project.cover_image_url || project.cover_image || project.image;
+          const title = project.name || project.title || "Project";
+          const location = project.location || [project.area, project.city].filter(Boolean).join(", ");
+          const priceText = project.price || project.display_price || "Price on request";
+          const timeAgo = formatTimeAgo(project.lastViewedAt);
+
+          return (
+            <View 
+              key={`${project.id}-${index}`} 
+              className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4"
+            >
+              <View className="flex-row h-36 w-full">
+                <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
+                  {coverImage ? (
+                    <Image 
+                      source={{ uri: coverImage }} 
+                      className="w-full h-full" 
+                      resizeMode="cover" 
+                    />
+                  ) : (
+                    <View className="w-full h-full bg-gray-200 items-center justify-center">
+                      <Feather name="image" size={32} color="#9CA3AF" />
+                    </View>
+                  )}
+                  <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
+                    <Text className="text-white text-[10px] font-manrope">
+                      {project.type || "Project"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="flex-[1] relative bg-gray-100 items-center justify-center">
+                  <Feather name="clock" size={24} color="#4A43EC" />
+                  <Text className="text-[10px] text-gray-600 font-manrope-bold mt-2">
+                    {timeAgo}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="px-3 pt-3 pb-2">
+                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
+                  {location || "Location unavailable"}
+                </Text>
+                <Text 
+                  className="text-[15px] font-manrope-extrabold text-[#111827]" 
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              </View>
+
+              <View 
+                className="mx-3 mb-2" 
+                style={{ 
+                  borderBottomWidth: 1, 
+                  borderStyle: "dashed", 
+                  borderColor: "#E5E7EB" 
+                }} 
+              />
+
+              <View className="flex-row justify-between px-3 pb-3">
+                <View>
+                  <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">
+                    {project.possession_status || project.type || "Project"}
+                  </Text>
+                  <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">
+                    {priceText}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="px-3 pb-3">
+                <Pressable
+                  onPress={() => 
+                    router.push({ 
+                      pathname: "/(screens)/project-detail", 
+                      params: { id: project.id, slug: project.slug } 
+                    })
+                  }
+                  className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
+                >
+                  <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">
+                    View again
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <View className="px-4 mb-6">
+        <View className="bg-[#F4F2FF] rounded-xl p-4">
+          <View className="flex-row items-center mb-2">
+            <Feather name="info" size={16} color="#4A43EC" />
+            <Text className="text-[12px] font-manrope-bold text-[#111827] ml-2">
+              About Recent Projects
+            </Text>
+          </View>
+          <Text className="text-[11px] text-[#6B7280] font-manrope leading-[16px]">
+            Projects appear here when you view them and automatically disappear after 3 days. 
+            Viewing a project again resets its 3-day timer.
+          </Text>
         </View>
       </View>
     </ScrollView>

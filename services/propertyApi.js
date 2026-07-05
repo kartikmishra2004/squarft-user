@@ -83,4 +83,31 @@ export const propertyApi = {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
         }),
+
+    // Get high growth localities/projects
+    getHighGrowthProjects: (token, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/high-growth-projects${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    },
+
+    // Get property tour price trajectory for a project
+    getPriceTrajectory: (token, slug, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/property-tour/${slug}/price-trajectory${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    },
+
+    // Get recommended properties based on price appreciation
+    getRecommendedProjectsByAppreciation: (token, params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request(`/api/v1/property-tour/recommended${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+    },
 };

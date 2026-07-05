@@ -94,6 +94,20 @@ export const fetchRecommendedPropertiesThunk = createAsyncThunk(
     }
 );
 
+// Fetch high growth projects from API
+export const fetchHighGrowthProjectsThunk = createAsyncThunk(
+    'properties/fetchHighGrowth',
+    async (params = {}, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (!token) return { data: [], is_fallback: true };
+            return await propertyApi.getHighGrowthProjects(token, params);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const formatPrice = (value) => {
     const num = Number(value);
     if (!num || Number.isNaN(num)) return null;
@@ -166,6 +180,10 @@ const propertiesSlice = createSlice({
         projectsInFocus: projectsInFocus.map((p) => ({ ...p })),
         missed: missedProperties.map((p) => ({ ...p })),
         highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
+        highGrowthProjects: [],
+        highGrowthLoading: false,
+        highGrowthCity: null,
+        highGrowthIsFallback: false,
         favouriteProjects: [],
         savedProperties: [], 
         contactedProperties: [], 
@@ -295,6 +313,21 @@ const propertiesSlice = createSlice({
             })
             .addCase(fetchRecommendedPropertiesThunk.rejected, (state, action) => {
                 state.recommendedLoading = false;
+                state.error = action.payload;
+            })
+            .addCase(fetchHighGrowthProjectsThunk.pending, (state) => {
+                state.highGrowthLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchHighGrowthProjectsThunk.fulfilled, (state, action) => {
+                state.highGrowthLoading = false;
+                const payload = action.payload || {};
+                state.highGrowthProjects = payload.data || [];
+                state.highGrowthCity = payload.city || null;
+                state.highGrowthIsFallback = payload.is_fallback || false;
+            })
+            .addCase(fetchHighGrowthProjectsThunk.rejected, (state, action) => {
+                state.highGrowthLoading = false;
                 state.error = action.payload;
             });
     },
