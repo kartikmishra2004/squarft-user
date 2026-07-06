@@ -3,11 +3,14 @@ import { Link } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DOTS = [0, 1, 2];
 
 export default function OnboardingScreen({ image, activeIndex, nextHref }) {
     const { height } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+    const bottomPadding = Math.max(insets.bottom, 18);
     const panelHeight = Math.max(210, Math.min(245, height * 0.28));
 
     return (
@@ -22,7 +25,8 @@ export default function OnboardingScreen({ image, activeIndex, nextHref }) {
             <View
                 className="absolute bottom-0 left-0 right-0 items-center rounded-t-[28px] bg-white px-8 pt-6"
                 style={{
-                    height: panelHeight,
+                    height: panelHeight + bottomPadding,
+                    paddingBottom: bottomPadding,
                     shadowColor: "#4A43EC",
                     shadowOffset: { width: 0, height: -14 },
                     shadowOpacity: 0.08,

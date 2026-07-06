@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, ActivityIndicator, StyleSheet, Alert, Linking } from "react-native";
+import { View, Text, Pressable, ScrollView, Image, ActivityIndicator, StyleSheet, Alert, Linking, Platform } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
@@ -12,21 +12,23 @@ import { propertyApi } from "../../services/propertyApi";
 import { ALL_VISITS } from "../../data/visits";
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
+const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 82;
+const ACTION_BAR_TAB_MARGIN = 44;
 
 const styles = StyleSheet.create({
   tabsOuter: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
   },
   tabsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
   },
   tabButton: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
   },
   tabButtonActive: {
@@ -38,7 +40,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "manrope-bold",
   },
   tabTextActive: {
@@ -379,10 +381,10 @@ export default function Visit() {
     <View className="flex-1 bg-[#ffffff]">
       <StatusBar style="dark" />
 
-      <View className="bg-white pb-4">
+      <View className="bg-white pb-3">
         <Image
           source={siteVisitBanner}
-          className="w-full h-[205px]"
+          className="w-full h-[150px]"
           resizeMode="cover"
         />
 
@@ -415,20 +417,20 @@ export default function Visit() {
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: activeTab === "Book visit" && bookedSiteVisits.length > 0 ? 172 : 94 }} showsVerticalScrollIndicator={false}>
 
         {/* Book visit Tab */}
         {activeTab === "Book visit" && (
           <View className="flex-1 mt-1">
             {bookedSiteVisits.length > 0 ? (
               <>
-                <View className="flex-1 pb-[100px]">
+                <View className="flex-1 pb-6">
                   {bookedSiteVisits.map((visit) => {
                     const fallbackId = visit.id.replace(/\d{13}$/, "");
                     const isSelected = selectedForBooking.includes(visit.id);
                     return (
-                      <View key={visit.id} className={`mx-4 mt-3 bg-white rounded-xl border relative overflow-hidden ${isSelected ? 'border-[#4A43EC] bg-[#F8F7FF]' : 'border-gray-200'}`}>
-                        <View className="flex-row items-center p-3 pl-4">
+                      <View key={visit.id} className={`mx-3 mt-2.5 bg-white rounded-xl border relative overflow-hidden ${isSelected ? 'border-[#4A43EC] bg-[#F8F7FF]' : 'border-gray-200'}`}>
+                        <View className="flex-row items-center p-2.5 pl-3">
                           <Pressable
                             className="flex-1 flex-row items-center"
                             onPress={() => {
@@ -439,7 +441,7 @@ export default function Visit() {
                               }
                             }}
                           >
-                            <View className={`w-[22px] h-[22px] rounded-full border items-center justify-center mr-3 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
+                            <View className={`w-[20px] h-[20px] rounded-full border items-center justify-center mr-2.5 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
                               {isSelected && <Feather name="check" size={12} color="white" />}
                             </View>
                             <Image
@@ -448,33 +450,33 @@ export default function Visit() {
                                   ? (typeof visit.image === 'string' ? { uri: visit.image } : visit.image)
                                   : (typeof visit.imageMain === 'string' ? { uri: visit.imageMain } : visit.imageMain)
                               }
-                              className="w-[70px] h-[70px] rounded-lg mr-3"
+                              className="w-[58px] h-[58px] rounded-lg mr-2.5"
                               resizeMode="cover"
                             />
-                            <View className="flex-1 justify-between h-[70px] py-1 pr-2">
+                            <View className="flex-1 justify-between h-[58px] py-0.5 pr-2">
                               <View>
-                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                                <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
                                   {visit.title || visit.name}
                                 </Text>
-                                <Text className="text-[#6B7280] text-[11px] font-manrope" numberOfLines={1}>
+                                <Text className="text-[#6B7280] text-[10px] font-manrope" numberOfLines={1}>
                                   {visit.location}
                                 </Text>
                               </View>
-                              <Text className="text-[12px] font-manrope-bold text-[#4A43EC]">
+                              <Text className="text-[11px] font-manrope-bold text-[#4A43EC]" numberOfLines={1}>
                                 {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
                               </Text>
                             </View>
                           </Pressable>
 
                           <Pressable
-                            className="items-center justify-center pl-2 pr-1 z-20"
+                            className="items-center justify-center pl-1 pr-0.5 z-20"
                             onPress={() => router.push({
                               pathname: "/(screens)/project-detail",
                               params: { id: visit.projectId || fallbackId, from: "visit" },
                             })}
                           >
                             <Feather name="chevron-right" size={20} color="#9CA3AF" />
-                            <Text className="text-[10px] font-manrope-bold text-[#9CA3AF] uppercase mt-1">VIEW</Text>
+                            <Text className="text-[9px] font-manrope-bold text-[#9CA3AF] uppercase mt-0.5">VIEW</Text>
                           </Pressable>
                         </View>
                       </View>
@@ -482,11 +484,11 @@ export default function Visit() {
                   })}
 
                   <Pressable
-                    className="mx-4 mt-6 border border-dashed border-[#CBD5E1] rounded-xl py-4 flex-row justify-center items-center bg-slate-50/50"
+                    className="mx-3 mt-4 border border-dashed border-[#CBD5E1] rounded-xl py-3 flex-row justify-center items-center bg-slate-50/50"
                     onPress={() => router.push("/(tabs)/myActivity")}
                   >
                     <Feather name="plus-circle" size={18} color="#94A3B8" />
-                    <Text className="text-[#64748B] font-manrope-bold text-[14px] ml-2">
+                    <Text className="text-[#64748B] font-manrope-bold text-[13px] ml-2">
                       Add more properties to visit
                     </Text>
                   </Pressable>
@@ -522,40 +524,40 @@ export default function Visit() {
               </View>
             ) : upcomingVisits.length > 0 ? (
               upcomingVisits.map((visit) => (
-                <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                  <View className="p-3.5">
-                    <View className="flex-row mb-3">
+                <View key={visit.id} className="mx-3 mt-2.5 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                  <View className="p-3">
+                    <View className="flex-row mb-2.5">
                       <Image
                         source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
-                        className="w-16 h-16 rounded-lg mr-3"
+                        className="w-14 h-14 rounded-lg mr-2.5"
                         resizeMode="cover"
                       />
                       <View className="flex-1 justify-center">
                         <View className="bg-[#EEECFF] self-start px-2 py-0.5 rounded-md mb-1.5">
-                          <Text className="text-[#4A43EC] text-[9px] font-manrope-bold tracking-wider uppercase">
+                          <Text className="text-[#4A43EC] text-[8px] font-manrope-bold tracking-wider uppercase">
                             {visit.status}
                           </Text>
                         </View>
-                        <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                        <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
                           {visit.title}
                         </Text>
                         <View className="flex-row items-center">
                           <Ionicons name="location-outline" size={11} color="#9CA3AF" />
-                          <Text className="text-[#6B7280] text-[11px] font-manrope ml-1" numberOfLines={1}>
+                          <Text className="text-[#6B7280] text-[10px] font-manrope ml-1" numberOfLines={1}>
                             {visit.location}
                           </Text>
                         </View>
                       </View>
                     </View>
 
-                    <View className="h-[1px] bg-gray-50 mb-3" />
+                    <View className="h-[1px] bg-gray-50 mb-2.5" />
 
-                    <View className="flex-row justify-between items-center mb-3 bg-gray-50 p-2.5 rounded-lg">
+                    <View className="flex-row justify-between items-center mb-2.5 bg-gray-50 p-2 rounded-lg">
                       <View>
                         <Text className="text-[9px] text-[#9CA3AF] font-manrope-bold tracking-wider uppercase mb-1">
                           DATE & TIME
                         </Text>
-                        <Text className="text-[12px] font-manrope-bold text-gray-700">
+                        <Text className="text-[11px] font-manrope-bold text-gray-700">
                           {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {getVisitTimeLabel(visit)}
                         </Text>
                       </View>
@@ -566,7 +568,7 @@ export default function Visit() {
 
                     <View className="flex-row gap-2">
                       <Pressable
-                        className={`flex-1 bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center shadow-md shadow-indigo-200 ${directionsVisitId === visit.id ? "opacity-80" : ""}`}
+                        className={`flex-1 bg-[#4A43EC] rounded-lg py-2 flex-row items-center justify-center shadow-md shadow-indigo-200 ${directionsVisitId === visit.id ? "opacity-80" : ""}`}
                         disabled={directionsVisitId === visit.id}
                         onPress={() => handleOpenDirections(visit)}
                       >
@@ -580,7 +582,7 @@ export default function Visit() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        className="flex-1 bg-[#4A43EC1A] rounded-lg py-2.5 flex-row items-center justify-center"
+                        className="flex-1 bg-[#4A43EC1A] rounded-lg py-2 flex-row items-center justify-center"
                         onPress={() => {
                           setSelectedVisit(visit);
                           openModal();
@@ -628,39 +630,39 @@ export default function Visit() {
                     ? "text-[#00B67A]"
                     : "text-[#EF4444]";
                 return (
-                  <View key={visit.id} className="mx-4 mt-3 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                    <View className="p-3.5">
-                      <View className="flex-row mb-3">
+                  <View key={visit.id} className="mx-3 mt-2.5 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                    <View className="p-3">
+                      <View className="flex-row mb-2.5">
                         <Image
                           source={typeof visit.image === 'string' ? { uri: visit.image } : visit.image}
-                          className="w-16 h-16 rounded-lg mr-3"
+                          className="w-14 h-14 rounded-lg mr-2.5"
                           resizeMode="cover"
                         />
                         <View className="flex-1 justify-center">
                           <View className={`self-start px-2 py-0.5 rounded-md mb-1.5 ${statusBadgeClass}`}>
-                            <Text className={`text-[9px] font-manrope-bold tracking-wider uppercase ${statusTextClass}`}>
+                            <Text className={`text-[8px] font-manrope-bold tracking-wider uppercase ${statusTextClass}`}>
                               {visit.status}
                             </Text>
                           </View>
-                          <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                          <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
                             {visit.title}
                           </Text>
                           <View className="flex-row items-center">
                             <Ionicons name="location-outline" size={11} color="#9CA3AF" />
-                            <Text className="text-[#6B7280] text-[11px] font-manrope ml-1" numberOfLines={1}>
+                            <Text className="text-[#6B7280] text-[10px] font-manrope ml-1" numberOfLines={1}>
                               {visit.location}
                             </Text>
                           </View>
                         </View>
                       </View>
 
-                      <View className="h-[1px] bg-gray-50 mb-3" />
+                      <View className="h-[1px] bg-gray-50 mb-2.5" />
 
-                      <View className="mb-3 bg-gray-50 p-2.5 rounded-lg">
+                      <View className="mb-2.5 bg-gray-50 p-2 rounded-lg">
                         <Text className="text-[9px] text-[#9CA3AF] font-manrope-bold tracking-wider uppercase mb-1">
                           VISITED ON
                         </Text>
-                        <Text className="text-[12px] font-manrope-bold text-gray-700">
+                        <Text className="text-[11px] font-manrope-bold text-gray-700">
                           {new Date(visit.isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {getVisitTimeLabel(visit)}
                         </Text>
                       </View>
@@ -668,7 +670,7 @@ export default function Visit() {
                       {isCompleted ? (
                         <View className="flex-col gap-2">
                           <Pressable
-                            className="w-full bg-[#4A43EC] rounded-lg py-3 flex-row items-center justify-center"
+                            className="w-full bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center"
                             onPress={() => router.push({
                               pathname: "/(screens)/review",
                               params: {
@@ -686,7 +688,7 @@ export default function Visit() {
                           </Pressable>
 
                           <Pressable
-                            className="w-full border border-gray-200 rounded-lg py-3 flex-row items-center justify-center bg-white"
+                            className="w-full border border-gray-200 rounded-lg py-2.5 flex-row items-center justify-center bg-white"
                             onPress={() => router.push({
                               pathname: "/(screens)/project-detail",
                               params: {
@@ -704,7 +706,7 @@ export default function Visit() {
                       ) : (
                         <Pressable
                           onPress={() => handleRebookVisit(visit)}
-                          className="w-full bg-[#F4F2FF] rounded-lg py-2.5 flex-row items-center justify-center"
+                          className="w-full bg-[#F4F2FF] rounded-lg py-2 flex-row items-center justify-center"
                         >
                           <Feather name="refresh-cw" size={13} color="#4A43EC" />
                           <Text className="text-[#4A43EC] font-manrope-bold text-[12px] ml-2">
@@ -728,14 +730,17 @@ export default function Visit() {
       </ScrollView>
 
       {activeTab === "Book visit" && bookedSiteVisits.length > 0 && (
-        <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4 border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pt-6 pb-[80px]">
+        <View
+          className="absolute left-0 right-0 bg-white px-3 py-3 border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+          style={{ bottom: TAB_BAR_HEIGHT + ACTION_BAR_TAB_MARGIN }}
+        >
           <View className="flex-row items-center justify-between">
-            <View>
-              <Text className="text-[10px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">
+            <View className="flex-1 pr-3">
+              <Text className="text-[9px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">
                 TOTAL SELECTION
               </Text>
               <View className="flex-row items-center">
-                <Text className="text-[16px] font-manrope-bold text-gray-900">
+                <Text className="text-[14px] font-manrope-bold text-gray-900" numberOfLines={1}>
                   {selectedForBooking.length} Stops • {selectedForBooking.length * 1.5} hrs
                 </Text>
                 {selectedForBooking.length > 0 && (
@@ -744,15 +749,15 @@ export default function Visit() {
                       selectedForBooking.forEach(id => dispatch(removeSiteVisit(id)));
                       setSelectedForBooking([]);
                     }}
-                    className="ml-3 w-8 h-8 rounded-full bg-[#FEE2E2] items-center justify-center border border-[#FECACA]"
+                    className="ml-2 w-7 h-7 rounded-full bg-[#FEE2E2] items-center justify-center border border-[#FECACA]"
                   >
-                    <Feather name="trash-2" size={14} color="#EF4444" />
+                    <Feather name="trash-2" size={13} color="#EF4444" />
                   </Pressable>
                 )}
               </View>
             </View>
             <Pressable
-              className={`rounded-xl py-3.5 px-6 flex-row items-center justify-center ${selectedForBooking.length > 0 ? 'bg-[#6C3BFF]' : 'bg-gray-300'}`}
+              className={`rounded-xl py-3 px-4 flex-row items-center justify-center ${selectedForBooking.length > 0 ? 'bg-[#6C3BFF]' : 'bg-gray-300'}`}
               disabled={selectedForBooking.length === 0}
               onPress={() => {
                 if (selectedForBooking.length === 0) return;
@@ -762,7 +767,7 @@ export default function Visit() {
                 });
               }}
             >
-              <Text className="text-white font-manrope-bold text-[14px] mr-2">
+              <Text className="text-white font-manrope-bold text-[13px] mr-2">
                 Book Site Visit
               </Text>
               <Feather name="calendar" size={16} color="white" />
@@ -784,16 +789,16 @@ export default function Visit() {
 
 function EmptyState({ icon, title, message, children }) {
   return (
-    <View className="flex-1 items-center justify-center pt-20 px-8">
-      <View className="w-24 h-24 bg-[#F8F7FF] rounded-full items-center justify-center mb-6 border-8 border-white shadow-sm">
-        <View className="w-16 h-16 bg-[#EEECFF] rounded-full items-center justify-center">
-          <Feather name={icon} size={28} color="#4A43EC" />
+    <View className="flex-1 items-center justify-center pt-14 px-8">
+      <View className="w-20 h-20 bg-[#F8F7FF] rounded-full items-center justify-center mb-4 border-[6px] border-white shadow-sm">
+        <View className="w-[52px] h-[52px] bg-[#EEECFF] rounded-full items-center justify-center">
+          <Feather name={icon} size={24} color="#4A43EC" />
         </View>
       </View>
-      <Text className="text-[20px] font-manrope-extrabold text-gray-900 text-center mb-2">
+      <Text className="text-[18px] font-manrope-extrabold text-gray-900 text-center mb-1.5">
         {title}
       </Text>
-      <Text className="text-[14px] font-manrope text-gray-500 text-center mb-8 leading-relaxed">
+      <Text className="text-[13px] font-manrope text-gray-500 text-center mb-6 leading-relaxed">
         {message}
       </Text>
       {children}

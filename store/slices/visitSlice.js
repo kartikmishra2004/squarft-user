@@ -50,6 +50,20 @@ export const fetchAvailableSlotsThunk = createAsyncThunk(
     }
 );
 
+// Fetch available sales officers for a selected slot
+export const fetchAvailableOfficersThunk = createAsyncThunk(
+    'visit/fetchOfficers',
+    async ({ property_id, slot_start, branch_id }, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            if (!token) throw new Error('Not authenticated');
+            return await visitApi.getAvailableOfficers(token, property_id, slot_start, branch_id);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 // Create site visit
 export const createSiteVisitThunk = createAsyncThunk(
     'visit/create',
@@ -102,9 +116,12 @@ const visitSlice = createSlice({
         visits: [],
         branches: [],
         availableSlots: [],
+        availableOfficers: [],
+        officerMeta: null,
         loading: false,
         branchesLoading: false,
         slotsLoading: false,
+        officersLoading: false,
         creating: false,
         updating: false,
         error: null,
@@ -115,6 +132,11 @@ const visitSlice = createSlice({
         },
         clearAvailableSlots: (state) => {
             state.availableSlots = [];
+        },
+        clearAvailableOfficers: (state) => {
+            state.availableOfficers = [];
+            state.officerMeta = null;
+            state.officersLoading = false;
         },
     },
     extraReducers: (builder) => {
@@ -158,6 +180,24 @@ const visitSlice = createSlice({
                 state.slotsLoading = false;
                 state.error = action.payload;
             })
+            // Fetch available officers
+            .addCase(fetchAvailableOfficersThunk.pending, (state) => {
+                state.officersLoading = true;
+                state.availableOfficers = [];
+                state.officerMeta = null;
+                state.error = null;
+            })
+            .addCase(fetchAvailableOfficersThunk.fulfilled, (state, action) => {
+                state.officersLoading = false;
+                state.availableOfficers = action.payload.data || [];
+                state.officerMeta = action.payload.meta || null;
+            })
+            .addCase(fetchAvailableOfficersThunk.rejected, (state, action) => {
+                state.officersLoading = false;
+                state.availableOfficers = [];
+                state.officerMeta = null;
+                state.error = action.payload;
+            })
             // Create site visit
             .addCase(createSiteVisitThunk.pending, (state) => {
                 state.creating = true;
@@ -196,5 +236,5 @@ const visitSlice = createSlice({
     },
 });
 
-export const { clearVisitError, clearAvailableSlots } = visitSlice.actions;
+export const { clearVisitError, clearAvailableSlots, clearAvailableOfficers } = visitSlice.actions;
 export default visitSlice.reducer;

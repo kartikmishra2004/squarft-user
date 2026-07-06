@@ -34,6 +34,10 @@ export const visitApi = {
     getAvailableSlots: (token, property_id, date, branch_id) =>
         request(`/api/v1/slots?${query({ property_id, date, branch_id })}`, token),
 
+    // Get available sales officers for a selected slot
+    getAvailableOfficers: (token, property_id, slot_start, branch_id) =>
+        request(`/api/v1/available-officers?${query({ property_id, slot_start, branch_id })}`, token),
+
     // Create site visit
     createSiteVisit: (token, visitData) =>
         request('/api/v1', token, {

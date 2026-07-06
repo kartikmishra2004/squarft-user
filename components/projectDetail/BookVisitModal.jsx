@@ -1,6 +1,5 @@
-import { useRef, useCallback, useEffect, useState } from "react";
-import { View, Text, Image, TouchableOpacity } from "react-native";
-import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, View, Text, Image, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
@@ -34,21 +33,7 @@ export default function BookVisitModal({ visible, onClose, project }) {
     const [selected, setSelected] = useState([]);
     const dispatch = useDispatch();
     const router = useRouter();
-    const sheetRef = useRef(null);
-
-    useEffect(() => {
-        if (visible) sheetRef.current?.present();
-        else sheetRef.current?.dismiss();
-    }, [visible]);
-
-    const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            onPress={onClose}
-        />
-    ), [onClose]);
+    const visitOptions = project?.floorPlans?.length ? project.floorPlans : (project?.variants || []);
 
     const toggle = (type) => {
         setSelected((prev) =>
@@ -60,7 +45,6 @@ export default function BookVisitModal({ visible, onClose, project }) {
         if (selected.length === 0) return;
         
         // Extract property IDs from selected floor plans
-        const visitOptions = project?.floorPlans?.length ? project.floorPlans : (project?.variants || []);
         const propertyIds = visitOptions
             .filter(fp => selected.includes(fp.type || fp.title))
             .map(fp => fp.id)
@@ -80,16 +64,18 @@ export default function BookVisitModal({ visible, onClose, project }) {
     };
 
     return (
-        <BottomSheetModal
-            ref={sheetRef}
-            index={1}
-            snapPoints={["45%"]}
-            enablePanDownToClose
-            onDismiss={onClose}
-            backdropComponent={renderBackdrop}
-            handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
-            backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
+        <Modal
+            visible={visible}
+            transparent
+            animationType="slide"
+            onRequestClose={onClose}
         >
+            <View className="flex-1 justify-end">
+                <Pressable style={styles.backdrop} onPress={onClose} />
+                <View className="bg-white rounded-t-[24px] overflow-hidden" style={{ maxHeight: "75%" }}>
+                    <View className="items-center pt-3 pb-1">
+                        <View className="w-10 h-1 rounded-full bg-gray-300" />
+                    </View>
             {/* Header */}
             <View className="flex-row items-start justify-between px-5 mb-2 mt-1">
                 <View className="flex-1 pr-4">
@@ -102,8 +88,8 @@ export default function BookVisitModal({ visible, onClose, project }) {
             </View>
 
             {/* Scrollable variants */}
-            <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
-                {(project?.variants || project?.floorPlans || []).map((v, i) => {
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                {visitOptions.map((v, i) => {
                     const isSelected = selected.includes(v.type || v.title);
                     const priceText = v.priceRange || formatCompactPrice(v.price ?? v.base_price ?? v.price_from) || '\u2014';
                     const areaText = v.area || (v.area_sqft ? `${v.area_sqft} SQ.FT.` : (project.areaSqft ? `${project.areaSqft} SQ.FT.` : '\u2014'));
@@ -132,7 +118,7 @@ export default function BookVisitModal({ visible, onClose, project }) {
                         </TouchableOpacity>
                     );
                 })}
-            </BottomSheetScrollView>
+            </ScrollView>
 
             {/* Fixed footer */}
             <View className="px-5 pt-3 border-t border-gray-100" style={{ paddingBottom: insets.bottom + 12 }}>
@@ -158,6 +144,15 @@ export default function BookVisitModal({ visible, onClose, project }) {
                     <Text className="text-white text-[16px] font-bold">Continue</Text>
                 </TouchableOpacity>
             </View>
-        </BottomSheetModal>
+                </View>
+            </View>
+        </Modal>
     );
 }
+
+const styles = StyleSheet.create({
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0,0,0,0.4)",
+    },
+});

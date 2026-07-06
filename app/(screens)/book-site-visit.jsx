@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { confirmVisits } from "../../store/slices/propertiesSlice";
-import { fetchBranchListThunk, fetchAvailableSlotsThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots } from "../../store/slices/visitSlice";
+import { fetchBranchListThunk, fetchAvailableSlotsThunk, fetchAvailableOfficersThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots, clearAvailableOfficers } from "../../store/slices/visitSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,14 +14,6 @@ import { propertyApi } from "../../services/propertyApi";
 import { projectApi } from "../../services/projectApi";
 
 const FALLBACK_PROPERTY_IMAGE = { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" };
-
-const STATIC_SALES_OFFICERS = [
-  { id: "rahul-sharma", name: "Rahul Sharma", role: "Senior Sales Officer" },
-  { id: "priya-verma", name: "Priya Verma", role: "Site Visit Specialist" },
-  { id: "amit-jain", name: "Amit Jain", role: "Property Consultant" },
-];
-
-const PREVIOUS_SALES_OFFICER = STATIC_SALES_OFFICERS[0];
 
 const formatSlotTime = (value) =>
   new Date(value).toLocaleTimeString('en-US', {
@@ -141,6 +133,18 @@ const normalizeApiAmenities = (amenities = []) =>
 const findById = (items, id) =>
   items.find((item) => id && String(item?.id) === String(id));
 
+const normalizeOfficer = (officer = {}) => {
+  const name = officer.full_name || [officer.first_name, officer.last_name].filter(Boolean).join(" ") || officer.name || "Sales Officer";
+  return {
+    ...officer,
+    id: officer.officer_id || officer.id,
+    officer_id: officer.officer_id || officer.id,
+    name,
+    role: officer.role || "Sales Officer",
+    isPrevious: Boolean(officer.isPrevious),
+  };
+};
+
 const resolveProjectSlug = (visit, property, projects) => {
   const directSlug = visit?.slug || visit?.projectSlug || visit?.project?.slug;
   if (directSlug && directSlug !== "none") return directSlug;
@@ -235,7 +239,7 @@ export default function BookSiteVisit() {
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
-  const { branches, availableSlots, branchesLoading, slotsLoading, creating } = useSelector((state) => state.visit);
+  const { branches, availableSlots, availableOfficers, officerMeta, branchesLoading, slotsLoading, officersLoading, creating } = useSelector((state) => state.visit);
 
   // Deduplicate securely to prevent persisted duplicates lingering from old bug
   const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
@@ -255,16 +259,15 @@ export default function BookSiteVisit() {
   const [resolvedPropertyCity, setResolvedPropertyCity] = useState(null);
   const [resolvingPropertyCity, setResolvingPropertyCity] = useState(false);
   const [selectedSalesOfficerId, setSelectedSalesOfficerId] = useState(null);
-  const [usePreviousSalesOfficer, setUsePreviousSalesOfficer] = useState(false);
   const [isOfficerDropdownOpen, setIsOfficerDropdownOpen] = useState(false);
   const [detailModalData, setDetailModalData] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => v.id);
+  const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => String(v.id));
 
   // Get first property to determine city for branch lookup
-  const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(v.id));
+  const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(String(v.id)));
   const propertyCity = getCityForVisit(firstProperty);
   const propertyIdForSlots = getPropertyIdForVisit(firstProperty);
   const bookingCity = propertyCity || resolvedPropertyCity;
@@ -369,7 +372,6 @@ export default function BookSiteVisit() {
     if (availableSlots.length > 0 && !availableLabels.has(selectedTime[0])) {
       setSelectedTime([]);
       setSelectedSalesOfficerId(null);
-      setUsePreviousSalesOfficer(false);
       setIsOfficerDropdownOpen(false);
     }
   }, [availableSlots.length, futureAvailableSlots, selectedTime]);
@@ -377,14 +379,35 @@ export default function BookSiteVisit() {
   useEffect(() => {
     if (selectedTime.length) return;
     setSelectedSalesOfficerId(null);
-    setUsePreviousSalesOfficer(false);
     setIsOfficerDropdownOpen(false);
   }, [selectedTime.length]);
+
+  const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
+  const selectedApiSlot = useMemo(
+    () => futureAvailableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal),
+    [futureAvailableSlots, selectedTimeVal]
+  );
+
+  useEffect(() => {
+    setSelectedSalesOfficerId(null);
+    setIsOfficerDropdownOpen(false);
+
+    if (isLoggedIn && token && propertyIdForSlots && selectedApiSlot?.slot_start) {
+      dispatch(fetchAvailableOfficersThunk({
+        property_id: propertyIdForSlots,
+        slot_start: selectedApiSlot.slot_start,
+        branch_id: selectedBranch?.id,
+      }));
+    } else {
+      dispatch(clearAvailableOfficers());
+    }
+  }, [dispatch, isLoggedIn, token, propertyIdForSlots, selectedApiSlot?.slot_start, selectedBranch?.id]);
 
   // Clear slots when component unmounts
   useEffect(() => {
     return () => {
       dispatch(clearAvailableSlots());
+      dispatch(clearAvailableOfficers());
     };
   }, [dispatch]);
 
@@ -393,9 +416,12 @@ export default function BookSiteVisit() {
     : { morning: [], afternoon: [], evening: [] };
 
   const slotSetupLoading = resolvingPropertyCity || branchesLoading;
-  const selectedSalesOfficer = usePreviousSalesOfficer
-    ? PREVIOUS_SALES_OFFICER
-    : STATIC_SALES_OFFICERS.find((officer) => officer.id === selectedSalesOfficerId);
+  const salesOfficers = useMemo(
+    () => (availableOfficers || []).map(normalizeOfficer).filter((officer) => officer.id),
+    [availableOfficers]
+  );
+  const selectedSalesOfficer = salesOfficers.find((officer) => officer.id === selectedSalesOfficerId);
+  const requiresSalesOfficerSelection = selectedTime.length > 0 && Boolean(officerMeta?.show_officer_dropdown);
   const emptySlotTitle = !propertyIdForSlots
     ? "Property unit missing"
     : !bookingCity
@@ -416,7 +442,6 @@ export default function BookSiteVisit() {
   const handleSlotPress = (slot) => {
     setSelectedTime([typeof slot === 'string' ? slot : formatSlotTime(slot.slot_start)]);
     setSelectedSalesOfficerId(null);
-    setUsePreviousSalesOfficer(false);
     setIsOfficerDropdownOpen(false);
   };
 
@@ -581,7 +606,7 @@ export default function BookSiteVisit() {
       return;
     }
 
-    if (!selectedSalesOfficer) {
+    if (requiresSalesOfficerSelection && !selectedSalesOfficer) {
       Alert.alert('Select Sales Officer', 'Please select a sales officer for your site visit');
       return;
     }
@@ -602,8 +627,6 @@ export default function BookSiteVisit() {
       return;
     }
 
-    const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
-    const selectedApiSlot = futureAvailableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal);
     if (!selectedApiSlot) {
       Alert.alert('Slot Unavailable', 'This time slot has already passed. Please choose another available slot.');
       setSelectedTime([]);
@@ -625,7 +648,9 @@ export default function BookSiteVisit() {
         property_count: bookingTargets.length,
         slot_start: slotStart,
         user_note: notes || null,
-        branch_id: selectedBranch?.id
+        branch_id: selectedBranch?.id,
+        officer_id: selectedSalesOfficer?.officer_id || null,
+        visitors_count: visitors,
       });
 
       const createdVisits = [];
@@ -637,6 +662,8 @@ export default function BookSiteVisit() {
           slot_start: slotStart,
           user_note: notes || null,
           branch_id: selectedBranch?.id,
+          officer_id: selectedSalesOfficer?.officer_id,
+          visitors_count: visitors,
           property_name: propertyName, // Pass property name for notification
         })).unwrap();
 
@@ -678,9 +705,9 @@ export default function BookSiteVisit() {
         isoDate: result.data?.slot_start || slotStart,
         visitors: visitors,
         notes: notes,
-        salesOfficerId: selectedSalesOfficer.id,
-        salesOfficerName: selectedSalesOfficer.name,
-        salesOfficerRole: selectedSalesOfficer.role,
+        salesOfficerId: selectedSalesOfficer?.id || result.data?.officer_id,
+        salesOfficerName: selectedSalesOfficer?.name || "Assigned sales officer",
+        salesOfficerRole: selectedSalesOfficer?.role || "Sales Officer",
         bookingId: result.data?.id || `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
         visitorName: currentUser.name,
         duration: "1.5 Hours",
@@ -942,76 +969,76 @@ export default function BookSiteVisit() {
           {selectedTime.length > 0 && (
             <View className="mb-7">
               <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Sales Officer</Text>
-              <Pressable
-                onPress={() => {
-                  const nextValue = !usePreviousSalesOfficer;
-                  setUsePreviousSalesOfficer(nextValue);
-                  setSelectedSalesOfficerId(null);
-                  setIsOfficerDropdownOpen(false);
-                }}
-                className={`mb-3 rounded-2xl border px-4 py-3 flex-row items-center ${usePreviousSalesOfficer ? 'bg-[#F8F7FF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
-              >
-                <View className={`w-[22px] h-[22px] rounded-md border items-center justify-center mr-3 ${usePreviousSalesOfficer ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300 bg-white'}`}>
-                  {usePreviousSalesOfficer && <Feather name="check" size={14} color="white" />}
+              {officersLoading ? (
+                <View className="py-5 items-center justify-center border border-gray-200 rounded-2xl bg-white">
+                  <ActivityIndicator size="small" color="#4A43EC" />
+                  <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available sales officers...</Text>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-[13px] font-manrope-bold text-[#111827]">
-                    Use previous sales officer
-                  </Text>
-                  <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
-                    {PREVIOUS_SALES_OFFICER.name} • {PREVIOUS_SALES_OFFICER.role}
-                  </Text>
-                </View>
-              </Pressable>
-              <View className="relative">
-                <Pressable
-                  onPress={() => {
-                    if (usePreviousSalesOfficer) return;
-                    setIsOfficerDropdownOpen((value) => !value);
-                  }}
-                  disabled={usePreviousSalesOfficer}
-                  className={`bg-white border rounded-2xl px-4 py-3.5 flex-row items-center justify-between ${selectedSalesOfficer ? 'border-[#B2A7FF]' : 'border-gray-200'} ${usePreviousSalesOfficer ? 'opacity-60' : ''}`}
-                >
-                  <View className="flex-row items-center flex-1 pr-3">
-                    <View className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${selectedSalesOfficer ? 'bg-[#F2EFFF]' : 'bg-gray-100'}`}>
-                      <Feather name="user-check" size={16} color={selectedSalesOfficer ? "#4A43EC" : "#9CA3AF"} />
+              ) : requiresSalesOfficerSelection ? (
+                <View className="relative">
+                  <Pressable
+                    onPress={() => {
+                      if (salesOfficers.length === 0) return;
+                      setIsOfficerDropdownOpen((value) => !value);
+                    }}
+                    disabled={salesOfficers.length === 0}
+                    className={`bg-white border rounded-2xl px-4 py-3.5 flex-row items-center justify-between ${selectedSalesOfficer ? 'border-[#B2A7FF]' : 'border-gray-200'} ${salesOfficers.length === 0 ? 'opacity-60' : ''}`}
+                  >
+                    <View className="flex-row items-center flex-1 pr-3">
+                      <View className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${selectedSalesOfficer ? 'bg-[#F2EFFF]' : 'bg-gray-100'}`}>
+                        <Feather name="user-check" size={16} color={selectedSalesOfficer ? "#4A43EC" : "#9CA3AF"} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className={`text-[13px] font-manrope-bold ${selectedSalesOfficer ? 'text-[#111827]' : 'text-[#9CA3AF]'}`} numberOfLines={1}>
+                          {selectedSalesOfficer?.name || (salesOfficers.length === 0 ? "No officers available" : "Choose sales officer")}
+                        </Text>
+                        <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                          {selectedSalesOfficer?.isPrevious ? "Previous sales officer" : selectedSalesOfficer?.role || "Required before booking"}
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <Text className={`text-[13px] font-manrope-bold ${selectedSalesOfficer ? 'text-[#111827]' : 'text-[#9CA3AF]'}`} numberOfLines={1}>
-                        {selectedSalesOfficer?.name || "Choose sales officer"}
-                      </Text>
-                      <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
-                        {selectedSalesOfficer?.role || "Required before booking"}
-                      </Text>
-                    </View>
-                  </View>
-                  <Feather name={isOfficerDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#6B7280" />
-                </Pressable>
+                    <Feather name={isOfficerDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#6B7280" />
+                  </Pressable>
 
-                {isOfficerDropdownOpen && !usePreviousSalesOfficer && (
-                  <View className="mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                    {STATIC_SALES_OFFICERS.map((officer, index) => {
-                      const isSelectedOfficer = officer.id === selectedSalesOfficerId;
-                      return (
-                        <Pressable
-                          key={officer.id}
-                          onPress={() => {
-                            setSelectedSalesOfficerId(officer.id);
-                            setIsOfficerDropdownOpen(false);
-                          }}
-                          className={`px-4 py-3.5 flex-row items-center justify-between ${index !== STATIC_SALES_OFFICERS.length - 1 ? 'border-b border-gray-100' : ''} ${isSelectedOfficer ? 'bg-[#F8F7FF]' : 'bg-white'}`}
-                        >
-                          <View className="flex-1 pr-3">
-                            <Text className="text-[13px] font-manrope-bold text-[#111827]">{officer.name}</Text>
-                            <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5">{officer.role}</Text>
-                          </View>
-                          {isSelectedOfficer && <Feather name="check-circle" size={17} color="#4A43EC" />}
-                        </Pressable>
-                      );
-                    })}
+                  {isOfficerDropdownOpen && (
+                    <View className="mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                      {salesOfficers.map((officer, index) => {
+                        const isSelectedOfficer = officer.id === selectedSalesOfficerId;
+                        return (
+                          <Pressable
+                            key={officer.id}
+                            onPress={() => {
+                              setSelectedSalesOfficerId(officer.id);
+                              setIsOfficerDropdownOpen(false);
+                            }}
+                            className={`px-4 py-3.5 flex-row items-center justify-between ${index !== salesOfficers.length - 1 ? 'border-b border-gray-100' : ''} ${isSelectedOfficer ? 'bg-[#F8F7FF]' : 'bg-white'}`}
+                          >
+                            <View className="flex-1 pr-3">
+                              <Text className="text-[13px] font-manrope-bold text-[#111827]">{officer.name}</Text>
+                              <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5">
+                                {officer.isPrevious ? "Previous sales officer" : officer.role}
+                              </Text>
+                            </View>
+                            {isSelectedOfficer && <Feather name="check-circle" size={17} color="#4A43EC" />}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View className="rounded-2xl border border-gray-200 bg-[#F8F9FB] px-4 py-3.5 flex-row items-center">
+                  <View className="w-9 h-9 rounded-full items-center justify-center mr-3 bg-white border border-gray-200">
+                    <Feather name="user-check" size={16} color="#4A43EC" />
                   </View>
-                )}
-              </View>
+                  <View className="flex-1">
+                    <Text className="text-[13px] font-manrope-bold text-[#111827]">Sales officer will be assigned</Text>
+                    <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                      An available officer will be assigned for this slot.
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
