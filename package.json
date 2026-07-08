@@ -35,7 +35,7 @@
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.33",
     "expo-av": "~16.0.8",
-    "expo-clipboard": "^55.0.9",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
@@ -78,13 +78,13 @@
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.0.1",
-    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
+    "@types/jest": "29.5.14",
+    "jest-expo": "~54.0.17",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "fast-check": "^4.8.0",
-    "jest": "^29.7.0",
-    "jest-expo": "^57.0.1"
+    "jest": "^29.7.0"
   },
   "private": true
 }
