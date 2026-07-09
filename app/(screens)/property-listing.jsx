@@ -11,6 +11,7 @@ import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
 import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
+import { isReraApproved } from "../../components/ReraStatusBadge";
 
 // Filter constants
 const BUDGET_MIN = 2000000;
@@ -50,8 +51,34 @@ const getNumber = (...values) => {
 };
 
 const getProjectPriceRange = (project) => {
-    const min = firstProjectPrice(project.price_from, project.min_price, project.budgetMin, project.priceMin, project.base_price, project.price);
-    const max = firstProjectPrice(project.price_to, project.max_price, project.budgetMax, project.priceMax, project.price) ?? min;
+    const variantPrices = collectVariantPrices(project);
+    const min = firstProjectPrice(
+        project.price_from,
+        project.min_price,
+        project.budgetMin,
+        project.priceMin,
+        project.base_price,
+        project.property_min_price,
+        project.inventory_min_price,
+        project.display_price,
+        project.priceRange,
+        project.price_range,
+        project.priceINR,
+        project.price,
+    ) ?? (variantPrices.length ? Math.min(...variantPrices) : null);
+    const max = firstProjectPrice(
+        project.price_to,
+        project.max_price,
+        project.budgetMax,
+        project.priceMax,
+        project.property_max_price,
+        project.inventory_max_price,
+        project.display_price,
+        project.priceRange,
+        project.price_range,
+        project.priceINR,
+        project.price,
+    ) ?? (variantPrices.length ? Math.max(...variantPrices) : min);
     return { min, max };
 };
 
@@ -62,6 +89,41 @@ const firstProjectPrice = (...values) => {
     }
     return null;
 };
+
+const getSortPrice = (project) => {
+    const priceRange = getProjectPriceRange(project);
+    return priceRange.min || priceRange.max || null;
+};
+
+const getCreatedTime = (project) => {
+    const value = project.created_at || project.createdAt || project.updated_at || project.updatedAt;
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+};
+
+const getNestedUnits = (project) => [
+    ...(Array.isArray(project.variants) ? project.variants : []),
+    ...(Array.isArray(project.floorPlans) ? project.floorPlans : []),
+    ...(Array.isArray(project.floor_plans) ? project.floor_plans : []),
+    ...(Array.isArray(project.properties) ? project.properties : []),
+    ...(Array.isArray(project.units) ? project.units : []),
+    ...(Array.isArray(project.inventory_units) ? project.inventory_units : []),
+];
+
+const collectVariantPrices = (project) =>
+    getNestedUnits(project)
+        .flatMap((unit) => [
+            unit?.price,
+            unit?.base_price,
+            unit?.price_from,
+            unit?.min_price,
+            unit?.price_to,
+            unit?.max_price,
+            unit?.priceRange,
+            unit?.price_range,
+        ])
+        .map(parseProjectPriceAmount)
+        .filter(Boolean);
 
 const getProjectArea = (project) =>
     getNumber(project.total_area_sqft, project.area_sqft, project.areaSqft, project.total_area, project.carpet_area);
@@ -94,21 +156,37 @@ const getBhkValues = (project) => {
     const fields = [
         project.bedrooms,
         project.bhk,
+        project.bhk_config,
         project.configuration,
         project.configurations,
+        project.configs,
         project.property_subtype,
-        project.propertyType,
-        project.type,
-        project.name,
+        project.propertySubtype,
+        project.sub_type,
         ...(Array.isArray(project.subTypes) ? project.subTypes : []),
-        ...(Array.isArray(project.variants) ? project.variants.map((variant) => variant.type || variant.title) : []),
+        ...getNestedUnits(project).flatMap((unit) => [
+            unit?.bedrooms,
+            unit?.bhk,
+            unit?.configuration,
+            unit?.property_subtype,
+            unit?.sub_type,
+            unit?.type,
+            unit?.title,
+        ]),
     ];
 
     fields.forEach((field) => {
         const text = normalizeText(field);
         if (!text) return;
-        const matches = text.match(/\d+\+?\s*bhk|\d+\+/g) || [];
-        matches.forEach((match) => values.add(match.replace(/\s*bhk/g, '').trim()));
+
+        const matches = text.match(/\d+\+?(?=\s*(?:bhk|bed|bedroom)\b)/g) || [];
+        matches.forEach((match) => values.add(match.trim()));
+
+        if (text.includes('bhk')) {
+            const looseMatches = text.match(/\d+\+?/g) || [];
+            looseMatches.forEach((match) => values.add(match.trim()));
+        }
+
         const plainNumber = Number(text);
         if (Number.isFinite(plainNumber) && plainNumber > 0) values.add(String(plainNumber));
     });
@@ -122,19 +200,69 @@ const matchesBhk = (project, selectedSubTypes) => {
     const bhkValues = getBhkValues(project);
     return selectedSubTypes.some((subType) => {
         const selected = normalizeText(subType).replace(/\s*bhk/g, '').trim();
-        return bhkValues.has(selected);
+        const selectedNumber = parseFloat(selected);
+        const selectedIsPlus = selected.includes('+');
+
+        return [...bhkValues].some((value) => {
+            const bhkNumber = parseFloat(value);
+            if (!Number.isFinite(bhkNumber)) return false;
+            if (selectedIsPlus) return bhkNumber >= selectedNumber;
+            return bhkNumber === selectedNumber;
+        });
     });
 };
 
+const getPossessionStatuses = (project) => {
+    const values = [
+        project.possessionStatus,
+        project.possession_status,
+        project.possession,
+        project.possession_date,
+        ...getNestedUnits(project).flatMap((unit) => [
+            unit?.possessionStatus,
+            unit?.possession_status,
+            unit?.possession,
+            unit?.possession_date,
+        ]),
+    ];
+
+    const statuses = new Set();
+
+    values.forEach((value) => {
+        const text = normalizeText(value);
+        if (!text) return;
+
+        if (text.includes('ready') || text.includes('immediate')) {
+            statuses.add('Ready to Move');
+            return;
+        }
+
+        if (text.includes('under') || text.includes('construction') || text.includes('upcoming')) {
+            statuses.add('Under Construction');
+            return;
+        }
+
+        const parsedDate = new Date(value);
+        if (!Number.isNaN(parsedDate.getTime())) {
+            statuses.add(parsedDate.getTime() <= Date.now() ? 'Ready to Move' : 'Under Construction');
+        }
+    });
+
+    return statuses;
+};
+
 const getPossessionStatus = (project) => {
-    const text = normalizeText(project.possessionStatus || project.possession_status || project.possession);
+    const statuses = getPossessionStatuses(project);
+    if (statuses.size > 0) return [...statuses][0];
+
+    const text = normalizeText(project.possessionStatus || project.possession_status || project.possession || project.possession_date);
     if (!text) return '';
     if (text.includes('ready') || text.includes('immediate')) return 'Ready to Move';
     if (text.includes('under') || text.includes('construction')) return 'Under Construction';
-    return project.possessionStatus || project.possession_status || project.possession;
+    return project.possessionStatus || project.possession_status || project.possession || project.possession_date;
 };
 
-const hasRera = (project) => Boolean(project.rera || project.rera_id || project.reraId || project.rera_number);
+const hasRera = (project) => isReraApproved(project);
 
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
@@ -167,7 +295,10 @@ function applyFilters(projects, filter) {
         if (areaLowerActive && projectArea < filter.areaRange[0]) return false;
         if (areaUpperActive && projectArea > filter.areaRange[1]) return false;
 
-        if (filter.possessionStatus.length > 0 && !filter.possessionStatus.includes(getPossessionStatus(p))) return false;
+        if (filter.possessionStatus.length > 0) {
+            const statuses = getPossessionStatuses(p);
+            if (!filter.possessionStatus.some((status) => statuses.has(status) || status === getPossessionStatus(p))) return false;
+        }
 
         if (filter.reraOnly && !hasRera(p)) return false;
 
@@ -302,7 +433,17 @@ export default function PropertyListing() {
     const filtered = applyFilters(projects, effectiveFilter);
 
     const sorted = [...filtered].sort((a, b) => {
-        if (sortKey === 'newest') return (b.created_at || '').localeCompare(a.created_at || '');
+        if (sortKey === 'newest') return getCreatedTime(b) - getCreatedTime(a);
+
+        if (sortKey === 'price_asc' || sortKey === 'price_desc') {
+            const priceA = getSortPrice(a);
+            const priceB = getSortPrice(b);
+            if (priceA === null && priceB === null) return 0;
+            if (priceA === null) return 1;
+            if (priceB === null) return -1;
+            return sortKey === 'price_asc' ? priceA - priceB : priceB - priceA;
+        }
+
         return 0;
     });
 

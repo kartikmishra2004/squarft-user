@@ -2,13 +2,14 @@ import {
     View, Text, Image, TouchableOpacity,
     ScrollView, Switch, Alert,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { logout, fetchProfileThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 import { ProfileSkeleton } from "../../components/SkeletonLoader";
+import { userVerificationApi } from "../../services/userVerificationApi";
 
 const cardShadow = {
     shadowColor: "#7a7878ff",
@@ -77,17 +78,69 @@ function SettingsRow({ icon, iconBg, label, sublabel, sublabelColor, right, onPr
     );
 }
 
+const formatVerificationStatus = (status) => {
+    const normalized = String(status || "").toLowerCase();
+    if (["fully_verified", "verified", "approved"].includes(normalized)) return "Verified";
+    if (normalized === "rejected") return "Rejected";
+    if (normalized === "partially_verified") return "Partially Verified";
+    if (["pending", "under_review"].includes(normalized)) return "Pending Review";
+    return "Not Submitted";
+};
+
+const isKycStatusVerified = (data) => {
+    if (data?.is_kyc_verified) return true;
+    if (Number(data?.completion_percentage) >= 100) return true;
+
+    const requiredDocuments = data?.required_documents || ["profile_photo", "aadhaar_front", "pan_card"];
+    const documentsStatus = data?.documents_status || {};
+
+    return requiredDocuments.every((type) => {
+        const status = String(documentsStatus[type]?.status || "").toLowerCase();
+        return ["approved", "verified"].includes(status);
+    });
+};
+
 export default function Settings() {
     const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
+    const [idVerificationStatus, setIdVerificationStatus] = useState(null);
     
-    const { profile, loading, isLoggedIn } = useSelector((state) => state.auth);
+    const { profile, loading, isLoggedIn, token } = useSelector((state) => state.auth);
 
     useEffect(() => {
         if (isLoggedIn) {
             dispatch(fetchProfileThunk());
         }
     }, [isLoggedIn, dispatch]);
+
+    const loadIdVerificationStatus = useCallback(async () => {
+        if (!isLoggedIn || !token) {
+            setIdVerificationStatus(null);
+            return;
+        }
+
+        try {
+            const response = await userVerificationApi.getStatus(token);
+            setIdVerificationStatus(
+                isKycStatusVerified(response.data)
+                    ? "Verified"
+                    : formatVerificationStatus(response.data?.overall_status)
+            );
+        } catch (_error) {
+            setIdVerificationStatus(null);
+        }
+    }, [isLoggedIn, token]);
+
+    useEffect(() => {
+        loadIdVerificationStatus();
+    }, [loadIdVerificationStatus]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadIdVerificationStatus();
+            return () => undefined;
+        }, [loadIdVerificationStatus])
+    );
 
     const handleLogout = () => {
         Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -127,7 +180,7 @@ export default function Settings() {
     const displayEmail = profile?.user?.email || currentUser.email;
     const displayPhone = profile?.user?.phone || currentUser.phone;
     const displayRole = profile?.user?.role || 'PROPERTY OWNER';
-    const displayVerification = profile?.user?.verification_status || 'Verified Level 2';
+    const displayVerification = idVerificationStatus || profile?.user?.verification_status || 'Not Submitted';
     // const listingsCount = profile?.activity?.listings_count || 12;
     // const subscription = profile?.subscription;
 

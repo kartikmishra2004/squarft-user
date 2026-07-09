@@ -53,8 +53,13 @@ export function parseProjectPriceAmount(value) {
     const number = Number(match[0]);
     if (!Number.isFinite(number) || number <= 0) return null;
 
-    if (/\b(cr|crore|crores)\b/.test(text)) return number * 10000000;
-    if (/\b(l|lac|lakh|lakhs)\b/.test(text)) return number * 100000;
+    const suffixText = text.slice(match.index + match[0].length).trim();
+    if (/^(cr|crore|crores)\b/.test(suffixText) || /\d(?:\.\d+)?\s*(cr|crore|crores)\b/.test(text)) {
+        return number * 10000000;
+    }
+    if (/^(l|lac|lakh|lakhs)\b/.test(suffixText) || /\d(?:\.\d+)?\s*(l|lac|lakh|lakhs)\b/.test(text)) {
+        return number * 100000;
+    }
     return number;
 }
 
