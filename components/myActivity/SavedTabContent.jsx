@@ -6,12 +6,24 @@ import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
 import EmptyState from "./EmptyState";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { PropertyCardSkeleton } from "../SkeletonLoader";
 import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
+import {
+  getSavedItemDetails,
+  getSavedItemId,
+  getSavedItemType,
+  getSavedLocation,
+  getSavedPrice,
+  getSavedPrimaryImage,
+  getSavedSecondaryImage,
+  getSavedSummary,
+} from "../../services/savedItemDisplay";
 
 const SavedTabContent = () => {
   const dispatch = useDispatch();
   const { savedProperties, loading } = useSelector((state) => state.properties);
+  const { list: projectList } = useSelector((state) => state.project);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
 
   // Fetch saved properties when component mounts
@@ -19,6 +31,7 @@ const SavedTabContent = () => {
     if (isLoggedIn && token) {
       console.log('📥 Fetching saved properties...');
       dispatch(fetchSavedPropertiesThunk());
+      dispatch(fetchProjectListThunk());
     }
   }, [isLoggedIn, token, dispatch]);
 
@@ -56,12 +69,18 @@ const SavedTabContent = () => {
       <View className="mt-10 px-4 mb-6">
         {savedProperties.map((item, index) => {
           // ✅ FIXED: Unpack the nested data layer safely to look up fields cleanly
-          const isPropertyType = item.type === 'property';
-          const propertyDetails = item.data || {};
-          const itemId = item.item_id || propertyDetails.id || item.id;
+          const itemType = getSavedItemType(item);
+          const isPropertyType = itemType === 'property';
+          const propertyDetails = getSavedItemDetails(item, projectList);
+          const itemId = getSavedItemId(item);
           
           // Fallback parsing blocks for cover images arrays
-          const coverImage = propertyDetails.cover_image_url || (propertyDetails.images && propertyDetails.images[0]?.url);
+          const coverImage = getSavedPrimaryImage(propertyDetails);
+          const secondaryImage = getSavedSecondaryImage(propertyDetails);
+          const imageCount = propertyDetails.total_images || propertyDetails.images?.length || (coverImage ? 1 : 0);
+          const location = getSavedLocation(propertyDetails);
+          const price = getSavedPrice(propertyDetails);
+          const summaryText = getSavedSummary(propertyDetails, !isPropertyType);
 
           return (
             <View key={(itemId || index) + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
@@ -81,15 +100,15 @@ const SavedTabContent = () => {
                   </View>
                 </View>
                 <View className="flex-[1] relative bg-gray-200">
-                  {propertyDetails.images && propertyDetails.images.length > 1 ? (
-                    <Image source={{ uri: isPropertyType ? propertyDetails.images[1]?.url : propertyDetails.images[1] }} className="w-full h-full" resizeMode="cover" />
+                  {secondaryImage ? (
+                    <Image source={{ uri: secondaryImage }} className="w-full h-full" resizeMode="cover" />
                   ) : (
                     <View className="w-full h-full bg-gray-100 items-center justify-center">
                       <Feather name="image" size={24} color="#D1D5DB" />
                     </View>
                   )}
                   <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-[2px] rounded">
-                    <Text className="text-white text-[10px] font-manrope">1/{propertyDetails.images?.length || 1}</Text>
+                    <Text className="text-white text-[10px] font-manrope">1/{Math.max(imageCount, 1)}</Text>
                   </View>
                 </View>
               </View>

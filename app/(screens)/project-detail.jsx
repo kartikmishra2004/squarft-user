@@ -24,6 +24,7 @@ import PropertyTour from "../../components/projectDetail/PropertyTour";
 import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import DetailFooter from "../../components/projectDetail/DetailFooter";
 import ReraStatusBadge from "../../components/ReraStatusBadge";
+import BuilderModal from "../../components/projectDetail/BuilderModal";
 
 const frame260 = require("../../assets/images/Frame 26086854.png");
 const frame871 = require("../../assets/images/Frame 26086871.png");
@@ -266,6 +267,7 @@ export default function ProjectDetail() {
   const from = getRouteParam(params.from);
   const [activeTab, setActiveTab] = useState("Overview");
   const [bookModalVisible, setBookModalVisible] = useState(false);
+  const [builderModalVisible, setBuilderModalVisible] = useState(false);
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
   const recommendedProperties = useSelector((s) => s.properties.recommended);
@@ -368,7 +370,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (projectOrganisationId) {
-      dispatch(fetchBuilderDetailsThunk(projectOrganisationId));
+      dispatch(fetchBuilderDetailsThunk({ builderId: projectOrganisationId }));
     }
   }, [dispatch, projectOrganisationId]);
 
@@ -667,7 +669,10 @@ export default function ProjectDetail() {
             imageStyle={{ borderRadius: 12 }}
             resizeMode="stretch"
           >
-            <TouchableOpacity className="px-4 py-3 flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={() => setBuilderModalVisible(true)}
+              className="px-4 py-3 flex-row items-center justify-between"
+            >
               <Text
                 className="text-[12px] font-bold text-indigo-600 flex-1 mr-2"
                 numberOfLines={1}
@@ -752,6 +757,11 @@ export default function ProjectDetail() {
       <BookVisitModal
         visible={bookModalVisible}
         onClose={() => setBookModalVisible(false)}
+        project={project}
+      />
+      <BuilderModal
+        visible={builderModalVisible}
+        onClose={() => setBuilderModalVisible(false)}
         project={project}
       />
     </View>

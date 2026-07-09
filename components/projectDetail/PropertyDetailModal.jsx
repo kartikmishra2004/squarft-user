@@ -99,13 +99,29 @@ export default function PropertyDetailModal({
     const snapPoints = ['88%'];
 
     useEffect(() => {
+        const sheet = sheetRef.current;
         if (visible && project && variant) sheetRef.current?.present();
         else sheetRef.current?.dismiss();
+
+        return () => {
+            sheet?.dismiss();
+        };
     }, [visible, project, variant]);
 
+    const handleClose = useCallback(() => {
+        sheetRef.current?.dismiss();
+        onClose?.();
+    }, [onClose]);
+
     const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} onPress={onClose} />
-    ), [onClose]);
+        <BottomSheetBackdrop
+            {...props}
+            disappearsOnIndex={-1}
+            appearsOnIndex={0}
+            pressBehavior="close"
+            onPress={handleClose}
+        />
+    ), [handleClose]);
 
     if (!project || !variant) return null;
 
@@ -179,7 +195,7 @@ export default function PropertyDetailModal({
             >
                 {/* Header Section mimicking original layout handle style */}
                 <View className="flex-row items-center justify-between px-5 pt-2 pb-4">
-                    <TouchableOpacity onPress={onClose}>
+                    <TouchableOpacity onPress={handleClose}>
                         <Ionicons name="close" size={22} color="#374151" />
                     </TouchableOpacity>
                     <Text className="text-[17px] font-manrope-bold text-[#111827]">Property Details</Text>
@@ -416,7 +432,7 @@ export default function PropertyDetailModal({
                                     }),
                                 );
                             }
-                            onClose();
+                            handleClose();
                         }}
                         className="rounded-2xl py-4 items-center flex-row justify-center gap-2"
                         style={{ backgroundColor: isAdded ? "#22C55E" : "#4A43EC" }}

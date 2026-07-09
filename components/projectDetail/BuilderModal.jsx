@@ -237,13 +237,29 @@ export default function BuilderModal({ visible, onClose, project }) {
     }, [visible, dispatch]);
 
     useEffect(() => {
+        const sheet = sheetRef.current;
         if (visible && project) sheetRef.current?.present();
         else sheetRef.current?.dismiss();
+
+        return () => {
+            sheet?.dismiss();
+        };
     }, [visible, project]);
 
+    const handleClose = useCallback(() => {
+        sheetRef.current?.dismiss();
+        onClose?.();
+    }, [onClose]);
+
     const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} onPress={onClose} />
-    ), [onClose]);
+        <BottomSheetBackdrop
+            {...props}
+            disappearsOnIndex={-1}
+            appearsOnIndex={0}
+            pressBehavior="close"
+            onPress={handleClose}
+        />
+    ), [handleClose]);
 
     const builderName = currentBuilder?.name || project?.builder || "";
     const organizationProjects = (projectList || []).filter((p) => {

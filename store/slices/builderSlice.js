@@ -4,8 +4,10 @@ import { builderApi } from '../../services/builderApi';
 // Fetch builder details and projects
 export const fetchBuilderDetailsThunk = createAsyncThunk(
     'builder/fetchDetails',
-    async ({ builderId, possession = 'All' }, { getState, rejectWithValue }) => {
+    async (arg, { getState, rejectWithValue }) => {
         try {
+            const builderId = typeof arg === 'string' ? arg : arg?.builderId;
+            const possession = typeof arg === 'object' && arg?.possession ? arg.possession : 'All';
             const { token } = getState().auth;
             return await builderApi.getBuilderDetails(builderId, token, { possession });
         } catch (e) {

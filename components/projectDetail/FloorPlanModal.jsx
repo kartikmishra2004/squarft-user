@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ScrollView } from "react-native";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
@@ -29,13 +29,20 @@ export default function FloorPlanModal({ visible, onClose, project }) {
         })),
     ];
 
-    
-    const prevVisible = useRef(false);
-    if (visible !== prevVisible.current) {
-        prevVisible.current = visible;
+    useEffect(() => {
+        const sheet = sheetRef.current;
         if (visible) sheetRef.current?.present();
         else sheetRef.current?.dismiss();
-    }
+
+        return () => {
+            sheet?.dismiss();
+        };
+    }, [visible]);
+
+    const handleClose = useCallback(() => {
+        sheetRef.current?.dismiss();
+        onClose?.();
+    }, [onClose]);
 
     const renderBackdrop = useCallback(
         (props) => (
@@ -45,10 +52,11 @@ export default function FloorPlanModal({ visible, onClose, project }) {
                 appearsOnIndex={0}
                 style={[props.style, { backgroundColor: "#fff" }]}
                 opacity={2.92}
-                onPress={onClose}
+                pressBehavior="close"
+                onPress={handleClose}
             />
         ),
-        [onClose]
+        [handleClose]
     );
 
     const activeVariants = filters[activeFilter]?.variants ?? allVariants;
@@ -84,7 +92,7 @@ export default function FloorPlanModal({ visible, onClose, project }) {
                     Floor Plan
                 </Text>
                 <TouchableOpacity
-                    onPress={onClose}
+                    onPress={handleClose}
                     style={{
                         flexDirection: "row",
                         alignItems: "center",

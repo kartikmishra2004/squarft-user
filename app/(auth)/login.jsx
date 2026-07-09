@@ -41,7 +41,7 @@ export default function Login() {
                         </View>
                         <Text className="text-white text-[26px] font-manrope-bold mb-5">Login</Text>
                         <View className="flex-row items-center ">
-                            <Text className="text-white/80 text-[14px]">Don't have an account? </Text>
+                            <Text className="text-white/80 text-[14px]">Don&apos;t have an account? </Text>
                             <Link href="/register">
                                 <Text className="text-white text-[14px] font-semibold underline">Sign Up</Text>
                             </Link>
@@ -115,24 +115,6 @@ export default function Login() {
                             }
                         </TouchableOpacity>
 
-
-                        <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-3xl py-4 mb-4 relative">
-                            <Image
-                                source={require('../../assets/icons/google.png')}
-                                style={{ width: 20, height: 20, position: 'absolute', left: 20 }}
-                                resizeMode="contain"
-                            />
-                            <Text className="text-black text-[15px] font-semibold">Continue With Google</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity className="flex-row items-center justify-center border border-gray-200 rounded-3xl py-4 mb-4 relative">
-                            <Image
-                                source={require('../../assets/icons/apple-logo.png')}
-                                style={{ width: 20, height: 20, position: 'absolute', left: 20 }}
-                                resizeMode="contain"
-                            />
-                            <Text className="text-black text-[15px] font-semibold">Continue With Apple</Text>
-                        </TouchableOpacity>
 
                     </ScrollView>
                 </View>
