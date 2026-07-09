@@ -1,14 +1,14 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
 import { useState, useEffect } from "react"; 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router, useLocalSearchParams } from "expo-router";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
-import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
 import { fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
@@ -544,12 +544,9 @@ export default function PropertyListing() {
                             style={{ flex: 1, fontSize: 14, color: '#111827' }}
                         />
                     </View>
-                    <TouchableOpacity onPress={() => dispatch(openFilter())} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
-                        <AntDesign name="spotify" size={18} color="#7F88E5" />
+                    <TouchableOpacity onPress={handleOpenMap} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
+                        <MaterialCommunityIcons name="map-outline" size={20} color="#fff" />
                     </TouchableOpacity>
-                    {/* <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }} onPress={handleOpenMap}>
-                        <MaterialCommunityIcons name="map-outline" size={18} color="#333" />
-                    </TouchableOpacity> */}
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>

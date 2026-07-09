@@ -144,16 +144,6 @@ function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, o
             {item.location || item.area}
           </Text>
         </View>
-        {/* <View className="mt-2 flex-row items-center">
-          <MaterialCommunityIcons name="bed-outline" size={13} color="#FE8A71" />
-          <Text className="ml-1 mr-3 text-[11px] text-gray-600" numberOfLines={1}>
-            {item.beds || "Beds N/A"}
-          </Text>
-          <MaterialCommunityIcons name="shower" size={13} color="#FE8A71" />
-          <Text className="ml-1 flex-1 text-[11px] text-gray-600" numberOfLines={1}>
-            {item.baths || "Baths N/A"}
-          </Text>
-        </View> */}
       </View>
     </TouchableOpacity>
   );
@@ -251,12 +241,16 @@ export default function Home() {
   }, [profile, user]);
 
   const profileUser = profile?.user || profile;
-  const displayAvatar = profileUser?.avatar_url || profileUser?.avatarUrl || user?.avatar_url || user?.avatarUrl || null;
+  const displayAvatar = profileUser?.profilePictureUrl 
+    || profileUser?.avatar_url 
+    || profileUser?.avatarUrl 
+    || user?.profilePictureUrl
+    || user?.avatar_url
+    || user?.avatarUrl
+    || null;
   const displayJoinedDate = formatJoinedDate(
     profileUser?.created_at
-      || profileUser?.createdAt
       || profileUser?.created_date
-      || user?.created_at
       || user?.createdAt,
     currentUser.joinedDate,
   );
@@ -451,7 +445,7 @@ export default function Home() {
                   </Text>
                   <MaterialIcons name="verified" size={20} color="#3AFF08" />
                 </View>
-                <Text className="text-[10px] font-lato-regular text-gray-400 mt-1">
+                <Text className="text-[10px] font-lato-regular text-gray-900 mt-1">
                   {displayJoinedDate}
                 </Text>
               </View>
@@ -797,16 +791,16 @@ export default function Home() {
                       <Text className="text-[13px] font-manrope-bold text-[#6C3BFF] mt-1">{item.priceRange}</Text>
                     )}
                   </View>
-                  <View className="flex-row justify-between items-center mt-2">
+                  <View className="flex-row justify-between items-center s">
                     {item.bhk && (
                       <View className="bg-slate-100 rounded-md px-2.5 py-1">
                         <Text className="text-[11px] text-gray-800 font-public-bold">{item.bhk}</Text>
                       </View>
                     )}
+                  </View>
                     {item.possession && (
                       <Text className="text-[11px] text-gray-400">{item.possession}</Text>
                     )}
-                  </View>
                 </View>
               </TouchableOpacity>
             );

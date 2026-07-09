@@ -31,6 +31,50 @@ export const profileApi = {
     }
   },
 
+  updateProfilePicture: async (token, picture) => {
+    try {
+      console.log('Updating profile picture...');
+
+      const formData = new FormData();
+      formData.append('profilePicture', {
+        uri: picture.uri,
+        name: picture.name || 'profile-picture.jpg',
+        type: picture.type || 'image/jpeg',
+      });
+
+      const response = await fetch(`${BASE_URL}/api/v1/profile/me/profile-picture`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      console.log('Profile Picture API Response Status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Profile Picture API Error:', errorText);
+
+        let errorMessage = 'Failed to update profile picture';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (_e) { }
+
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('Profile picture updated successfully');
+
+      return data.data;
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      throw error;
+    }
+  },
+
   updatePhoneNumber: async (token, verifiedToken, newPhone) => {
     try {
       console.log('📱 Updating phone number...');

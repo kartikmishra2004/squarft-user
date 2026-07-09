@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Image,
-    Platform,
     SafeAreaView,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from "react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { allProjects } from "../../data/projects";
@@ -22,6 +22,8 @@ import {
     unsavePropertyThunk,
 } from "../../store/slices/propertiesSlice";
 import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
+import { GeocodingService } from "../../services/geocoding/GeocodingService";
+import { processProjectsForMap } from "../../services/geocoding/processor";
 
 const INDORE_CENTER = { latitude: 22.7196, longitude: 75.8577 };
 const DEFAULT_REGION = {
@@ -29,10 +31,6 @@ const DEFAULT_REGION = {
     latitudeDelta: 0.12,
     longitudeDelta: 0.12,
 };
-const DEFAULT_TILE_URL_TEMPLATE = "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png";
-const MAP_TILE_URL_TEMPLATE = process.env.EXPO_PUBLIC_MAP_TILE_URL || DEFAULT_TILE_URL_TEMPLATE;
-const MAP_ATTRIBUTION = process.env.EXPO_PUBLIC_MAP_ATTRIBUTION || "(c) OpenStreetMap contributors (c) CARTO";
-
 const cardShadow = {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -237,8 +235,9 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
         <MapView
             ref={mapRef}
             style={{ flex: 1 }}
+            provider={PROVIDER_GOOGLE}
             initialRegion={initialRegion}
-            mapType={Platform.OS === "android" ? "none" : "standard"}
+            mapType="standard"
             showsCompass
             showsScale
             showsUserLocation={!!userLocation}
@@ -246,8 +245,6 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
             toolbarEnabled={false}
             rotateEnabled={false}
         >
-            <UrlTile urlTemplate={MAP_TILE_URL_TEMPLATE} maximumZ={19} flipY={false} zIndex={-1} />
-
             {items.map(({ project, coordinate }, index) => {
                 const id = getProjectId(project);
                 const selected = id === selectedId;
@@ -360,7 +357,24 @@ export default function MapViewScreen() {
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState("Finding your location...");
     const [mapStatus, setMapStatus] = useState("");
+    const [geocodedProjects, setGeocodedProjects] = useState([]);
+    const [isGeocoding, setIsGeocoding] = useState(false);
+    const [geocodingProgress, setGeocodingProgress] = useState({ completed: 0, total: 0 });
+    const [geocodingError, setGeocodingError] = useState(null);
+    const geocodingServiceRef = useRef(null);
     const baseProjects = mapProjects?.length ? mapProjects : allProjects;
+
+    // Get API key from environment - hardcoded from .env for now
+    const GOOGLE_MAPS_API_KEY = "AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing";
+
+    // Initialize geocoding service
+    if (!geocodingServiceRef.current && GOOGLE_MAPS_API_KEY) {
+        geocodingServiceRef.current = new GeocodingService({
+            apiKey: GOOGLE_MAPS_API_KEY,
+            maxCacheSize: 500,
+            cacheTTL: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+    }
 
     const visibleProjects = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -374,19 +388,55 @@ export default function MapViewScreen() {
         );
     }, [baseProjects, search]);
 
+    // Geocode projects on mount or when visible projects change
+    useEffect(() => {
+        const geocodeProjects = async () => {
+            if (!geocodingServiceRef.current || visibleProjects.length === 0) {
+                return;
+            }
+
+            setIsGeocoding(true);
+            setGeocodingProgress({ completed: 0, total: visibleProjects.length });
+            setGeocodingError(null);
+
+            try {
+                const results = await processProjectsForMap(
+                    visibleProjects,
+                    geocodingServiceRef.current
+                );
+                
+                // Check if all projects are fallback (indicates API issue)
+                const allFallback = results.every(r => r.source === 'fallback');
+                if (allFallback && results.length > 0) {
+                    setGeocodingError('Geocoding API not enabled. Using approximate locations.');
+                }
+                
+                setGeocodedProjects(results);
+            } catch (error) {
+                console.error('Geocoding error:', error);
+                setGeocodingError('Geocoding failed. Using approximate locations.');
+            } finally {
+                setIsGeocoding(false);
+            }
+        };
+
+        geocodeProjects();
+    }, [visibleProjects]);
+
     const projectsWithCoordinates = useMemo(
         () =>
-            visibleProjects
-                .map((project, index) => ({
-                    project,
-                    listIndex: index,
-                    coordinate: getStoredProjectCoordinate(project),
-                }))
-                .filter((item) => item.coordinate),
-        [visibleProjects]
+            geocodedProjects.map((geocodedProject, index) => ({
+                project: geocodedProject.project,
+                listIndex: index,
+                coordinate: geocodedProject.coordinate,
+                source: geocodedProject.source,
+            })),
+        [geocodedProjects]
     );
 
-    const missingCoordinateCount = visibleProjects.length - projectsWithCoordinates.length;
+    const storedCount = geocodedProjects.filter(gp => gp.source === 'stored').length;
+    const geocodedCount = geocodedProjects.filter(gp => gp.source === 'geocoded').length;
+    const fallbackCount = geocodedProjects.filter(gp => gp.source === 'fallback').length;
 
     const activeSelectedId = projectsWithCoordinates.some(({ project }) => getProjectId(project) === selectedId)
         ? selectedId
@@ -521,19 +571,45 @@ export default function MapViewScreen() {
                 </View>
 
                 <View style={{ position: "absolute", top: 98, left: 20, right: 20, flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                    <View style={{ backgroundColor: "rgba(255,255,255,0.96)", borderRadius: 16, paddingHorizontal: 13, paddingVertical: 8, ...cardShadow }}>
-                        <Text style={{ fontSize: 12, color: "#4B5563", fontWeight: "700" }}>
-                            {projectsWithCoordinates.length}/{visibleProjects.length} projects pinned
-                        </Text>
-                        {!!locationStatus && (
-                            <Text style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>{locationStatus}</Text>
-                        )}
-                    </View>
+                    {geocodingError && (
+                        <View style={{ flex: 1, backgroundColor: "rgba(251, 146, 60, 0.96)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, ...cardShadow }}>
+                            <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }} numberOfLines={2}>
+                                ⚠️ {geocodingError}
+                            </Text>
+                        </View>
+                    )}
+                    
+                    {!geocodingError && (
+                        <View style={{ backgroundColor: "rgba(255,255,255,0.96)", borderRadius: 16, paddingHorizontal: 13, paddingVertical: 8, ...cardShadow }}>
+                            {isGeocoding ? (
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                    <ActivityIndicator size="small" color="#4A43EC" />
+                                    <Text style={{ fontSize: 12, color: "#4B5563", fontWeight: "700" }}>
+                                        Geocoding addresses...
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View>
+                                    <Text style={{ fontSize: 12, color: "#4B5563", fontWeight: "700" }}>
+                                        {projectsWithCoordinates.length}/{visibleProjects.length} projects pinned
+                                    </Text>
+                                    {(geocodedCount > 0 || fallbackCount > 0) && (
+                                        <Text style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>
+                                            {storedCount} stored • {geocodedCount} geocoded • {fallbackCount} fallback
+                                        </Text>
+                                    )}
+                                </View>
+                            )}
+                            {!!locationStatus && (
+                                <Text style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>{locationStatus}</Text>
+                            )}
+                        </View>
+                    )}
 
-                    {missingCoordinateCount > 0 && (
+                    {fallbackCount > 0 && !isGeocoding && !geocodingError && (
                         <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.96)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, ...cardShadow }}>
-                            <Text style={{ fontSize: 10, color: "#EF4444", fontWeight: "700" }} numberOfLines={2}>
-                                {missingCoordinateCount} need exact latitude/longitude
+                            <Text style={{ fontSize: 10, color: "#F59E0B", fontWeight: "700" }} numberOfLines={2}>
+                                {fallbackCount} using approximate location
                             </Text>
                         </View>
                     )}
@@ -564,10 +640,6 @@ export default function MapViewScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <View style={{ position: "absolute", left: 14, bottom: 244, backgroundColor: "rgba(255,255,255,0.94)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
-                    <Text style={{ color: "#6B7280", fontSize: 10, fontWeight: "700" }}>{MAP_ATTRIBUTION}</Text>
-                </View>
-
                 <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: 22 }}>
                     <ScrollView
                         horizontal
@@ -578,7 +650,8 @@ export default function MapViewScreen() {
                     >
                         {visibleProjects.map((item, index) => {
                             const id = getProjectId(item);
-                            const hasCoordinate = !!getStoredProjectCoordinate(item);
+                            const geocodedItem = geocodedProjects.find(gp => getProjectId(gp.project) === id);
+                            const hasCoordinate = geocodedItem && geocodedItem.source !== 'fallback';
                             return (
                                 <MapProjectCard
                                     key={id || index}

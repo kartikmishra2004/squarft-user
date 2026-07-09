@@ -14,6 +14,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { toggleFavourite, savePropertyThunk, unsavePropertyThunk, fetchSavedPropertiesThunk, fetchRecommendedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { fetchProjectDetailsThunk, fetchFloorPlansThunk, fetchResaleThunk, fetchLandmarksThunk, fetchAmenitiesThunk, fetchSimilarPropertiesThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { fetchBuilderDetailsThunk } from "../../store/slices/builderSlice";
+import { incrementProjectView } from "../../store/slices/projectViewTrackingSlice";
+import { addToRecentProjects } from "../../store/slices/recentProjectsSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -300,6 +302,7 @@ export default function ProjectDetail() {
 
   // Save the project itself, not the floor-plan properties
   const projectSaveId = id || resolvedProjectSlug || listProject?.id;
+  const trackedProjectRef = useRef(null);
 
   // If no slug available, fetch project list to resolve it
   useEffect(() => {
@@ -367,6 +370,14 @@ export default function ProjectDetail() {
     // Don't clear project on cleanup - it causes re-loading when navigating between projects
     // Only clear when component actually unmounts (user leaves project detail screen)
   }, [dispatch, detailLookupKey, resolvedProjectSlug, id, slug]);
+
+  useEffect(() => {
+    if (!detailLookupKey || trackedProjectRef.current === detailLookupKey) return;
+
+    trackedProjectRef.current = detailLookupKey;
+    dispatch(incrementProjectView(String(detailLookupKey)));
+    dispatch(addToRecentProjects(String(detailLookupKey)));
+  }, [dispatch, detailLookupKey]);
 
   useEffect(() => {
     if (projectOrganisationId) {

@@ -64,6 +64,18 @@ export const fetchProfileThunk = createAsyncThunk('auth/fetchProfile', async (_,
     }
 });
 
+export const updateProfilePictureThunk = createAsyncThunk('auth/updateProfilePicture', async (picture, { getState, rejectWithValue }) => {
+    try {
+        const { token } = getState().auth;
+        if (!token) {
+            throw new Error('No authentication token');
+        }
+        return await profileApi.updateProfilePicture(token, picture);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
 const authSlice = createSlice({
     name: 'auth',
     initialState: {
@@ -82,6 +94,7 @@ const authSlice = createSlice({
         token: null,
         user: null,
         profile: null,
+        profilePictureLoading: false,
         loading: false,
         error: null,
     },
@@ -185,6 +198,29 @@ const authSlice = createSlice({
             })
             .addCase(fetchProfileThunk.rejected, (state, action) => {
                 state.loading = false;
+                state.error = action.payload;
+            })
+            // Update Profile Picture
+            .addCase(updateProfilePictureThunk.pending, (state) => {
+                state.profilePictureLoading = true;
+                state.error = null;
+            })
+            .addCase(updateProfilePictureThunk.fulfilled, (state, action) => {
+                state.profilePictureLoading = false;
+                const pictureUrl = action.payload?.profilePictureUrl || action.payload?.avatar_url || null;
+
+                if (state.profile?.user && pictureUrl) {
+                    state.profile.user.profilePictureUrl = pictureUrl;
+                    state.profile.user.avatar_url = action.payload?.avatar_url || pictureUrl;
+                }
+
+                if (state.user && pictureUrl) {
+                    state.user.profilePictureUrl = pictureUrl;
+                    state.user.avatar_url = action.payload?.avatar_url || pictureUrl;
+                }
+            })
+            .addCase(updateProfilePictureThunk.rejected, (state, action) => {
+                state.profilePictureLoading = false;
                 state.error = action.payload;
             });
     },

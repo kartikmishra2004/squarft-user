@@ -1,12 +1,26 @@
-import { useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Image, ActivityIndicator } from "react-native";
+import { useEffect, useMemo } from "react";
+import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
-import EmptyState from "./EmptyState";
 import { selectRecentProjects, selectRecentProjectsLoading } from "../../store/slices/recentProjectsSlice";
 import { PropertyCardSkeleton } from "../SkeletonLoader";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
+import { allProjects as localProjects } from "../../data/projects";
+import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
+
+const toImageSource = (value) => {
+  if (typeof value === "string" && value.trim()) return { uri: value };
+  return value || null;
+};
+
+const findProjectByTracker = (tracker, projects) =>
+  projects.find((project) =>
+    String(project.id) === String(tracker.id)
+    || String(project.slug) === String(tracker.id)
+    || String(project.project_id) === String(tracker.id)
+  );
 
 /**
  * RecentTabContent Component
@@ -30,10 +44,16 @@ const RecentTabContent = () => {
   const { properties: allProperties } = useSelector((state) => state.properties || {});
 
   // Enrich recent trackers with full project data
-  const enrichedRecentProjects = recentProjects
-    .map(tracker => {
-      // Try to find in projects list first
-      const project = allProjects?.find(p => p.id === tracker.id || p.slug === tracker.id);
+  useEffect(() => {
+    if (!allProjects?.length) {
+      dispatch(fetchProjectListThunk());
+    }
+  }, [allProjects?.length, dispatch]);
+
+  const enrichedRecentProjects = useMemo(() => recentProjects
+    .map((tracker) => {
+      const projectSource = [...(allProjects || []), ...localProjects];
+      const project = findProjectByTracker(tracker, projectSource);
       if (project) {
         return {
           ...project,
@@ -41,8 +61,7 @@ const RecentTabContent = () => {
         };
       }
 
-      // Fallback to properties list
-      const property = allProperties?.find(p => p.id === tracker.id);
+      const property = allProperties?.find((p) => String(p.id) === String(tracker.id));
       if (property) {
         return {
           ...property,
@@ -58,7 +77,7 @@ const RecentTabContent = () => {
         lastViewedAt: tracker.lastViewedAt,
       };
     })
-    .filter(Boolean);
+    .filter(Boolean), [allProjects, allProperties, recentProjects]);
 
   const formatTimeAgo = (timestamp) => {
     const now = Date.now();
@@ -119,10 +138,11 @@ const RecentTabContent = () => {
         </View>
 
         {enrichedRecentProjects.map((project, index) => {
-          const coverImage = project.cover_image_url || project.cover_image || project.image;
+          const coverImage = project.cover_image_url || project.image_url || project.cover_image || project.image || project.imageMain;
+          const imageSource = toImageSource(coverImage);
           const title = project.name || project.title || "Project";
-          const location = project.location || [project.area, project.city].filter(Boolean).join(", ");
-          const priceText = project.price || project.display_price || "Price on request";
+          const location = buildProjectAddress(project) || project.location || [project.area, project.city].filter(Boolean).join(", ");
+          const priceText = buildProjectPrice(project) || project.price || project.display_price || "Price on request";
           const timeAgo = formatTimeAgo(project.lastViewedAt);
 
           return (
@@ -132,9 +152,9 @@ const RecentTabContent = () => {
             >
               <View className="flex-row h-36 w-full">
                 <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                  {coverImage ? (
+                  {imageSource ? (
                     <Image 
-                      source={{ uri: coverImage }} 
+                      source={imageSource}
                       className="w-full h-full" 
                       resizeMode="cover" 
                     />

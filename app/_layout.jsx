@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Provider } from "react-redux";
+import { Provider, useDispatch } from "react-redux";
 import { useFonts } from "expo-font";
 import { Platform } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
@@ -17,6 +17,8 @@ import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700
 import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
 import { store } from "../store/store";
 import PushNotificationRegistrar from "../components/PushNotificationRegistrar";
+import { hydrateAndCleanTrackers } from "../store/slices/projectViewTrackingSlice";
+import { hydrateAndCleanRecentTrackers } from "../store/slices/recentProjectsSlice";
 
 if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
     registerGlobals();
@@ -24,6 +26,17 @@ if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
 }
 
 SplashScreen.preventAutoHideAsync();
+
+function ActivityTrackerHydrator() {
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        dispatch(hydrateAndCleanTrackers());
+        dispatch(hydrateAndCleanRecentTrackers());
+    }, [dispatch]);
+
+    return null;
+}
 
 export default function RootLayout() {
     const rootNavigationState = useRootNavigationState();
@@ -76,6 +89,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Provider store={store}>
                 <BottomSheetModalProvider>
+                    <ActivityTrackerHydrator />
                     <PushNotificationRegistrar />
                     <Stack screenOptions={{ gestureEnabled: false }}>
                         <Stack.Screen name="index" options={{ headerShown: false }} />

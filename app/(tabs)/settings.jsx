@@ -1,12 +1,13 @@
 import {
     View, Text, Image, TouchableOpacity,
-    ScrollView, Switch, Alert,
+    ScrollView, Switch, Alert, ActivityIndicator,
 } from "react-native";
 import { useCallback, useEffect, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router, useFocusEffect } from "expo-router";
-import { logout, fetchProfileThunk } from "../../store/slices/authSlice";
+import { logout, fetchProfileThunk, updateProfilePictureThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 import { ProfileSkeleton } from "../../components/SkeletonLoader";
 import { userVerificationApi } from "../../services/userVerificationApi";
@@ -105,7 +106,7 @@ export default function Settings() {
     const [notificationsOn, setNotificationsOn] = useState(true);
     const [idVerificationStatus, setIdVerificationStatus] = useState(null);
     
-    const { profile, loading, isLoggedIn, token } = useSelector((state) => state.auth);
+    const { profile, loading, isLoggedIn, token, profilePictureLoading } = useSelector((state) => state.auth);
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -154,6 +155,44 @@ export default function Settings() {
         ]);
     };
 
+    const handleProfilePicturePick = async () => {
+        if (!isLoggedIn || !token) {
+            Alert.alert("Login required", "Please login before updating your profile photo.");
+            return;
+        }
+
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert("Permission needed", "Allow photo access to update your profile picture.");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ["images"],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.85,
+            });
+
+            if (result.canceled) return;
+
+            const asset = result.assets?.[0];
+            if (!asset?.uri) return;
+
+            await dispatch(updateProfilePictureThunk({
+                uri: asset.uri,
+                name: asset.fileName || "profile-picture.jpg",
+                type: asset.mimeType || "image/jpeg",
+            })).unwrap();
+            await dispatch(fetchProfileThunk()).unwrap();
+
+            Alert.alert("Profile updated", "Your profile photo has been updated.");
+        } catch (error) {
+            Alert.alert("Upload failed", error?.message || "Please try again.");
+        }
+    };
+
     const startCustomerSupportCall = () => {
         const phoneNumber = profile?.user?.phone || profile?.user?.phone_number || currentUser.phone;
         const name = profile?.user?.full_name || currentUser.name || 'App User';
@@ -181,6 +220,10 @@ export default function Settings() {
     const displayPhone = profile?.user?.phone || currentUser.phone;
     const displayRole = profile?.user?.role || 'PROPERTY OWNER';
     const displayVerification = idVerificationStatus || profile?.user?.verification_status || 'Not Submitted';
+    const displayAvatar = profile?.user?.profilePictureUrl
+        || profile?.user?.avatar_url
+        || profile?.user?.avatarUrl
+        || null;
     // const listingsCount = profile?.activity?.listings_count || 12;
     // const subscription = profile?.subscription;
 
@@ -205,9 +248,14 @@ export default function Settings() {
             >
 
                 <View style={{ alignItems: 'center', paddingTop: 30, paddingBottom: 2 }}>
-                    <View style={{ position: 'relative', marginBottom: 12, borderWidth: 5, borderColor: '#FFFFFF', borderRadius: 50, shadowColor: "#949193ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 16 }}>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={handleProfilePicturePick}
+                        disabled={profilePictureLoading}
+                        style={{ position: 'relative', marginBottom: 12, borderWidth: 5, borderColor: '#FFFFFF', borderRadius: 50, shadowColor: "#949193ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 16 }}
+                    >
                         <Image
-                            source={currentUser.avatar}
+                            source={displayAvatar ? { uri: displayAvatar } : currentUser.avatar}
                             style={{ width: 80, height: 80, borderRadius: 40 }}
                             resizeMode="cover"
                         />
@@ -218,9 +266,13 @@ export default function Settings() {
                             alignItems: 'center', justifyContent: 'center',
                             borderWidth: 2, borderColor: '#F3F4F6',
                         }}>
-                            <Feather name="camera" size={11} color="#fff" />
+                            {profilePictureLoading ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Feather name="camera" size={11} color="#fff" />
+                            )}
                         </View>
-                    </View>
+                    </TouchableOpacity>
                     <Text style={{ fontSize: 20, fontWeight: '700', color: '#0F172A', marginBottom: 6 }}>
                         {displayName}
                     </Text>

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSelector } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,12 +274,14 @@ export const selectAllViewTrackers = (state) => state.projectViewTracking.viewTr
 /**
  * Select only qualified projects (count >= 5) for "Seen" tab
  * These are projects that have been viewed 5+ times and are within 7 days
+ * Memoized to prevent unnecessary re-renders
  */
-export const selectSeenProjects = (state) => {
-  return state.projectViewTracking.viewTrackers.filter(
+export const selectSeenProjects = createSelector(
+  [selectAllViewTrackers],
+  (viewTrackers) => viewTrackers.filter(
     tracker => tracker.count >= QUALIFICATION_THRESHOLD
-  );
-};
+  )
+);
 
 /**
  * Get view count for a specific project

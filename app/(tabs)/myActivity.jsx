@@ -9,17 +9,21 @@ import SeenTabContent from "../../components/myActivity/SeenTabContent";
 import ContactedTabContent from "../../components/myActivity/ContactedTabContent";
 import RecentTabContent from "../../components/myActivity/RecentTabContent";
 import { fetchContactedPropertiesThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
+import { selectSeenProjects } from "../../store/slices/projectViewTrackingSlice";
+import { selectRecentProjectsCount } from "../../store/slices/recentProjectsSlice";
 
 export default function Favourite() {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState("SAVED");
-  const { properties, savedProperties, contactedProperties } = useSelector((state) => state.properties);
+  const { savedProperties, contactedProperties } = useSelector((state) => state.properties);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
+  const seenProjects = useSelector(selectSeenProjects);
+  const recentProjectsCount = useSelector(selectRecentProjectsCount);
   const savedCount = savedProperties.length;
-  const seenCount = properties.filter((p) => p.isSeen).length;
+  const seenCount = seenProjects.length;
   const contactedCount = contactedProperties.length;
-  const recentCount = properties.filter((p) => p.isRecent).length;
+  const recentCount = recentProjectsCount;
 
   const TABS = [
     { id: "SAVED", title: "SAVED", icon: "heart", badge: savedCount.toString().padStart(2, '0'), count: savedCount },
