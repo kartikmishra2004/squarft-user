@@ -35,26 +35,29 @@ export default function BookVisitModal({ visible, onClose, project }) {
     const router = useRouter();
     const visitOptions = project?.floorPlans?.length ? project.floorPlans : (project?.variants || []);
 
-    const toggle = (type) => {
+    const toggle = (index) => {
         setSelected((prev) =>
-            prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+            prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
         );
     };
 
     const handleContinue = () => {
         if (selected.length === 0) return;
-        
+
+        const selectedOptions = selected.map((index) => visitOptions[index]).filter(Boolean);
+
         // Extract property IDs from selected floor plans
-        const propertyIds = visitOptions
-            .filter(fp => selected.includes(fp.type || fp.title))
+        const propertyIds = selectedOptions
             .map(fp => fp.id)
             .filter(Boolean); // Remove any undefined/null values
-        
+
+        const selectedUnits = selectedOptions.map(fp => fp.type || fp.title);
+
         console.log('📋 Selected property IDs:', propertyIds);
-        
+
         dispatch(addSiteVisit({
             ...project,
-            selectedUnits: selected,
+            selectedUnits,
             projectId: project.id,
             propertyIds: propertyIds, // Pass property IDs
             id: project.id + Date.now().toString(),
@@ -90,13 +93,13 @@ export default function BookVisitModal({ visible, onClose, project }) {
             {/* Scrollable variants */}
             <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
                 {visitOptions.map((v, i) => {
-                    const isSelected = selected.includes(v.type || v.title);
+                    const isSelected = selected.includes(i);
                     const priceText = v.priceRange || formatCompactPrice(v.price ?? v.base_price ?? v.price_from) || '\u2014';
                     const areaText = v.area || (v.area_sqft ? `${v.area_sqft} SQ.FT.` : (project.areaSqft ? `${project.areaSqft} SQ.FT.` : '\u2014'));
                     return (
                         <TouchableOpacity
                             key={i}
-                            onPress={() => toggle(v.type || v.title)}
+                            onPress={() => toggle(i)}
                             className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-3 mb-3"
                         >
                             <View className="w-24 h-24 rounded-xl bg-gray-100 mr-3 overflow-hidden">

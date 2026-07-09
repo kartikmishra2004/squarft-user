@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -9,6 +9,7 @@ import {
     useWindowDimensions,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import RangeSliderLib from "react-native-fast-range-slider";
@@ -64,6 +65,52 @@ function RangeSlider({ min, max, values, onChange, onLiveChange }) {
     );
 }
 
+const BudgetRangeSection = memo(function BudgetRangeSection({ budgetRange, onChange }) {
+    const [liveBudget, setLiveBudget] = useState(budgetRange);
+
+    useEffect(() => {
+        setLiveBudget(budgetRange);
+    }, [budgetRange]);
+
+    const budgetLabel = `${formatBudget(liveBudget[0])} - ${formatBudget(liveBudget[1])}${liveBudget[1] >= BUDGET_MAX ? '+' : ''}`;
+
+    return (
+        <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Budget Range</Text>
+                <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{budgetLabel}</Text>
+            </View>
+            <RangeSlider min={BUDGET_MIN} max={BUDGET_MAX} values={budgetRange} onChange={onChange} onLiveChange={setLiveBudget} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
+                {['20L', '1Cr', '2Cr', '3Cr', '5Cr+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
+            </View>
+        </>
+    );
+});
+
+const AreaRangeSection = memo(function AreaRangeSection({ areaRange, onChange }) {
+    const [liveArea, setLiveArea] = useState(areaRange);
+
+    useEffect(() => {
+        setLiveArea(areaRange);
+    }, [areaRange]);
+
+    const areaLabel = `${liveArea[0]} - ${liveArea[1]}${liveArea[1] >= AREA_MAX ? '+' : ''}`;
+
+    return (
+        <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Build-up Area in sq.ft.</Text>
+                <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{areaLabel}</Text>
+            </View>
+            <RangeSlider min={AREA_MIN} max={AREA_MAX} values={areaRange} onChange={onChange} onLiveChange={setLiveArea} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
+                {['0', '1667', '3333', '5000+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
+            </View>
+        </>
+    );
+});
+
 function ChipButton({ label, selected, onPress }) {
     return (
         <TouchableOpacity onPress={onPress} style={{ borderWidth: 1, borderColor: selected ? '#4A43EC' : '#E5E7EB', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8, backgroundColor: '#fff' }}>
@@ -85,20 +132,14 @@ function CheckBox({ label, checked, onPress }) {
 
 export default function FilterModal() {
     const dispatch = useDispatch();
+    const insets = useSafeAreaInsets();
     const { isOpen, address, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
     const [localAddress, setLocalAddress] = useState(address);
-    const [liveBudget, setLiveBudget] = useState(budgetRange);
-    const [liveArea, setLiveArea] = useState(areaRange);
 
     useEffect(() => {
         if (!isOpen) return;
         setLocalAddress(address);
-        setLiveBudget(budgetRange);
-        setLiveArea(areaRange);
-    }, [address, areaRange, budgetRange, isOpen]);
-
-    const budgetLabel = `${formatBudget(liveBudget[0])} - ${formatBudget(liveBudget[1])}${liveBudget[1] >= BUDGET_MAX ? '+' : ''}`;
-    const areaLabel = `${liveArea[0]} - ${liveArea[1]}${liveArea[1] >= AREA_MAX ? '+' : ''}`;
+    }, [address, isOpen]);
 
     return (
         <Modal
@@ -164,24 +205,10 @@ export default function FilterModal() {
                         </View>
 
                         {/* Budget Range */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 6 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Budget Range</Text>
-                            <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{budgetLabel}</Text>
-                        </View>
-                        <RangeSlider min={BUDGET_MIN} max={BUDGET_MAX} values={budgetRange} onChange={(v) => dispatch(setBudgetRange(v))} onLiveChange={setLiveBudget} />
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
-                            {['20L', '1Cr', '2Cr', '3Cr', '5Cr+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
-                        </View>
+                        <BudgetRangeSection budgetRange={budgetRange} onChange={(v) => dispatch(setBudgetRange(v))} />
 
                         {/* Area Range */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Build-up Area in sq.ft.</Text>
-                            <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{areaLabel}</Text>
-                        </View>
-                        <RangeSlider min={AREA_MIN} max={AREA_MAX} values={areaRange} onChange={(v) => dispatch(setAreaRange(v))} onLiveChange={setLiveArea} />
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
-                            {['0', '1667', '3333', '5000+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
-                        </View>
+                        <AreaRangeSection areaRange={areaRange} onChange={(v) => dispatch(setAreaRange(v))} />
 
                         {/* Possession Status */}
                         <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
@@ -197,12 +224,13 @@ export default function FilterModal() {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         paddingHorizontal: 20,
-                        paddingVertical: 14,
+                        paddingTop: 14,
+                        paddingBottom: insets.bottom + 14,
                         borderTopWidth: 1,
                         borderTopColor: '#F3F4F6',
                         backgroundColor: '#fff',
                     }}>
-                        <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); setLiveBudget([BUDGET_MIN, BUDGET_MAX]); setLiveArea([AREA_MIN, AREA_MAX]); }}>
+                        <TouchableOpacity onPress={() => { dispatch(clearFilters()); setLocalAddress(''); }}>
                             <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                         </TouchableOpacity>
                         <TouchableOpacity

@@ -1,14 +1,15 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useState } from "react";
 import {
     View,
     Text,
     Image,
     TouchableOpacity,
     Dimensions,
+    ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import SimpleBottomSheet from "../SimpleBottomSheet";
 import { useDispatch, useSelector } from "react-redux";
 import {
     addSiteVisit,
@@ -94,34 +95,10 @@ export default function PropertyDetailModal({
     
     const [floorPlanVisible, setFloorPlanVisible] = useState(false);
     const [zoomVisible, setZoomVisible] = useState(false);
-    
-    const sheetRef = useRef(null);
-    const snapPoints = ['88%'];
 
-    useEffect(() => {
-        const sheet = sheetRef.current;
-        if (visible && project && variant) sheetRef.current?.present();
-        else sheetRef.current?.dismiss();
-
-        return () => {
-            sheet?.dismiss();
-        };
-    }, [visible, project, variant]);
-
-    const handleClose = useCallback(() => {
-        sheetRef.current?.dismiss();
+    const handleClose = () => {
         onClose?.();
-    }, [onClose]);
-
-    const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            pressBehavior="close"
-            onPress={handleClose}
-        />
-    ), [handleClose]);
+    };
 
     if (!project || !variant) return null;
 
@@ -183,16 +160,7 @@ export default function PropertyDetailModal({
 
     return (
         <>
-            <BottomSheetModal
-                ref={sheetRef}
-                index={0}
-                snapPoints={snapPoints}
-                enablePanDownToClose
-                onDismiss={onClose}
-                backdropComponent={renderBackdrop}
-                handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40 }}
-                backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
-            >
+            <SimpleBottomSheet visible={visible} onClose={handleClose} maxHeightPercent="88%">
                 {/* Header Section mimicking original layout handle style */}
                 <View className="flex-row items-center justify-between px-5 pt-2 pb-4">
                     <TouchableOpacity onPress={handleClose}>
@@ -203,7 +171,7 @@ export default function PropertyDetailModal({
                 </View>
 
     
-                <BottomSheetScrollView 
+                <ScrollView
                     showsVerticalScrollIndicator={false}
                     className="mx-5 rounded-2xl mb-4 border border-gray-300"
                     contentContainerStyle={{ paddingBottom: 16 }}
@@ -397,7 +365,7 @@ export default function PropertyDetailModal({
                             <Text className="text-[13px] font-manrope-regular text-gray-500">No amenities listed for this unit yet.</Text>
                         )}
                     </View>
-                </BottomSheetScrollView>
+                </ScrollView>
 
                 {!readOnly && (
                 <View className="px-5 pt-3 border-t border-gray-100" style={{ paddingBottom: insets.bottom || 2, backgroundColor: '#fff' }}>
@@ -448,7 +416,7 @@ export default function PropertyDetailModal({
                     </TouchableOpacity>
                 </View>
                 )}
-            </BottomSheetModal>
+            </SimpleBottomSheet>
 
             {/* Maintained Portal Modal for full-resolution architectural maps */}
             <ZoomableImage

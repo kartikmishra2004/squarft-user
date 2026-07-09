@@ -1,6 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
-import { BottomSheetModal, BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchBuilderDetailsThunk, clearBuilder } from "../../store/slices/builderSlice";
@@ -8,6 +7,7 @@ import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { allProjects } from "../../data/projects";
 import DetailFooter from "./DetailFooter";
 import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
+import SimpleBottomSheet from "../SimpleBottomSheet";
 
 const POSSESSION_FILTERS = ["All", "In 3 yrs", "Ready To Move", "Under Construction"];
 
@@ -196,9 +196,7 @@ export default function BuilderModal({ visible, onClose, project }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const [activeFilter, setActiveFilter] = useState("All");
-    const sheetRef = useRef(null);
-    const snapPoints = ['92%'];
-    
+
     const { currentBuilder, builderProjects: apiProjects, totalProjects, loading, error } = useSelector((state) => state.builder);
     const { list: projectList } = useSelector((state) => state.project);
     
@@ -235,31 +233,6 @@ export default function BuilderModal({ visible, onClose, project }) {
             setApiAttempted(false);
         }
     }, [visible, dispatch]);
-
-    useEffect(() => {
-        const sheet = sheetRef.current;
-        if (visible && project) sheetRef.current?.present();
-        else sheetRef.current?.dismiss();
-
-        return () => {
-            sheet?.dismiss();
-        };
-    }, [visible, project]);
-
-    const handleClose = useCallback(() => {
-        sheetRef.current?.dismiss();
-        onClose?.();
-    }, [onClose]);
-
-    const renderBackdrop = useCallback((props) => (
-        <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            pressBehavior="close"
-            onPress={handleClose}
-        />
-    ), [handleClose]);
 
     const builderName = currentBuilder?.name || project?.builder || "";
     const organizationProjects = (projectList || []).filter((p) => {
@@ -308,22 +281,8 @@ export default function BuilderModal({ visible, onClose, project }) {
     if (!project) return null;
 
     return (
-        <BottomSheetModal
-            ref={sheetRef}
-            index={0}
-            snapPoints={snapPoints}
-            enablePanDownToClose
-            onDismiss={onClose}
-            backdropComponent={renderBackdrop}
-            enableDynamicSizing={false}
-            handleIndicatorStyle={{ backgroundColor: '#D1D5DB', width: 40, marginTop: 10 }}
-            backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
-        >
-       
-            <View style={{ height: 16 }} />
-
-          
-            <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+        <SimpleBottomSheet visible={visible} onClose={onClose} maxHeightPercent="92%">
+            <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="flex-row items-start justify-between px-5 mb-3">
                     <View className="flex-1 pr-4 ">
                         <Text className="text-[17px] mb-2 pr-6 font-manrope-semibold text-gray-900 leading-7">{builderName}</Text>
@@ -345,7 +304,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                 <Text className="text-[15px] mt-1 font-manrope-semibold text-gray-900 px-5 mb-4">Possession</Text>
                 
                 {/* Embedded inner horizontal listings are safely retained inside the parent wrapper container */}
-                <BottomSheetScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 6 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 6 }}>
                     {POSSESSION_FILTERS.map((f) => (
                         <TouchableOpacity
                             key={f}
@@ -355,7 +314,7 @@ export default function BuilderModal({ visible, onClose, project }) {
                             <Text className={`text-[13px] font-manrope-semibold ${activeFilter === f ? "text-[#4A43EC]" : "text-gray-500"}`}>{f}</Text>
                         </TouchableOpacity>
                     ))}
-                </BottomSheetScrollView>
+                </ScrollView>
 
                 {/* Projects list */}
                 <View className="px-5 mt-4 mb-4">
@@ -405,12 +364,12 @@ export default function BuilderModal({ visible, onClose, project }) {
                         );})
                     )}
                 </View>
-            </BottomSheetScrollView>
+            </ScrollView>
 
-            {/* Footer attached persistently to lower window terminal zones outside scrolling canvas layout constraints */}
+            {/* Footer */}
             <View className="px-5 pt-3 border-t border-gray-100" style={{ paddingBottom: insets.bottom || 14, backgroundColor: '#fff' }}>
                 <DetailFooter />
             </View>
-        </BottomSheetModal>
+        </SimpleBottomSheet>
     );
 }

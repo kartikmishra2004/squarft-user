@@ -1,5 +1,6 @@
 import { Modal, Pressable, Switch, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { togglePossession, toggleReraOnly } from "../store/slices/filterSlice";
 
@@ -22,6 +23,7 @@ const POSSESSION_OPTIONS = [
 
 export default function PossessionFilterModal({ visible, onClose }) {
     const dispatch = useDispatch();
+    const insets = useSafeAreaInsets();
     const possessionStatus = useSelector((s) => s.filter.possessionStatus);
     const reraOnly = useSelector((s) => s.filter.reraOnly);
 
@@ -38,7 +40,7 @@ export default function PossessionFilterModal({ visible, onClose }) {
                     onPress={onClose}
                     style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
                 />
-                <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24 }}>
+                <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 24 }}>
                     <View style={{ alignItems: "center", marginBottom: 14 }}>
                         <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: "#D1D5DB" }} />
                     </View>
