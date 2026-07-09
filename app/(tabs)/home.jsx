@@ -77,6 +77,16 @@ const formatUnitCount = (value, singular, plural = `${singular}s`) => {
   return text;
 };
 
+const formatJoinedDate = (value, fallback) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return fallback;
+  return `Joined ${date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })}`;
+};
+
 function RecommendedCard({ item, onToggleFav, onToggleSeen, onToggleContacted, onToggleRecent, onPress }) {
   return (
     <TouchableOpacity
@@ -242,6 +252,14 @@ export default function Home() {
 
   const profileUser = profile?.user || profile;
   const displayAvatar = profileUser?.avatar_url || profileUser?.avatarUrl || user?.avatar_url || user?.avatarUrl || null;
+  const displayJoinedDate = formatJoinedDate(
+    profileUser?.created_at
+      || profileUser?.createdAt
+      || profileUser?.created_date
+      || user?.created_at
+      || user?.createdAt,
+    currentUser.joinedDate,
+  );
 
   const featuredProjects = useMemo(() => {
     return (apiFeatured || []).map(project => ({
@@ -369,9 +387,8 @@ export default function Home() {
   });
 
   // Use API data if available, fallback to static data
-  const displayHighGrowthProjects = useMemo(() => {
-    if (highGrowthProjects && highGrowthProjects.length > 0) {
-      return highGrowthProjects.map(project => ({
+  const displayHighGrowthProjects = (highGrowthProjects && highGrowthProjects.length > 0)
+    ? highGrowthProjects.map(project => ({
         ...project,
         title: project.name || 'Project',
         location: project.location || '',
@@ -380,10 +397,8 @@ export default function Home() {
         possession: project.possession || '',
         image: project.cover_image ? { uri: project.cover_image } : null,
         isFavourite: favouriteProjects.includes(project.id),
-      }));
-    }
-    return highGrowthLocalities.map(p => ({ ...p, isFavourite: favouriteProjects.includes(p.id) }));
-  }, [highGrowthProjects, highGrowthLocalities, favouriteProjects]);
+      }))
+    : highGrowthLocalities.map(p => ({ ...p, isFavourite: favouriteProjects.includes(p.id) }));
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
@@ -437,7 +452,7 @@ export default function Home() {
                   <MaterialIcons name="verified" size={20} color="#3AFF08" />
                 </View>
                 <Text className="text-[10px] font-lato-regular text-gray-400 mt-1">
-                  {currentUser.joinedDate}
+                  {displayJoinedDate}
                 </Text>
               </View>
             </View>

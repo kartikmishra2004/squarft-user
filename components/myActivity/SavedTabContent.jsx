@@ -26,10 +26,8 @@ const SavedTabContent = () => {
   const { list: projectList } = useSelector((state) => state.project);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
 
-  // Fetch saved properties when component mounts
   useEffect(() => {
     if (isLoggedIn && token) {
-      console.log('📥 Fetching saved properties...');
       dispatch(fetchSavedPropertiesThunk());
       dispatch(fetchProjectListThunk());
     }
@@ -38,7 +36,7 @@ const SavedTabContent = () => {
   if (loading) {
     return (
       <View className="flex-1 bg-white pt-10 px-4">
-        {[1, 2, 3].map(i => <PropertyCardSkeleton key={i} />)}
+        {[1, 2, 3].map((i) => <PropertyCardSkeleton key={i} />)}
       </View>
     );
   }
@@ -49,10 +47,7 @@ const SavedTabContent = () => {
         <Feather name="log-in" size={48} color="#D1D5DB" />
         <Text className="text-gray-900 text-lg font-bold mt-4">Login Required</Text>
         <Text className="text-gray-500 text-center mt-2">Please login to view your saved properties</Text>
-        <Pressable
-          onPress={() => router.push('/(auth)/login')}
-          className="mt-6 bg-[#4A43EC] px-6 py-3 rounded-xl"
-        >
+        <Pressable onPress={() => router.push("/(auth)/login")} className="mt-6 bg-[#4A43EC] px-6 py-3 rounded-xl">
           <Text className="text-white font-bold">Login Now</Text>
         </Pressable>
       </View>
@@ -68,26 +63,23 @@ const SavedTabContent = () => {
       <StatusBar style="dark" />
       <View className="mt-10 px-4 mb-6">
         {savedProperties.map((item, index) => {
-          // ✅ FIXED: Unpack the nested data layer safely to look up fields cleanly
           const itemType = getSavedItemType(item);
-          const isPropertyType = itemType === 'property';
-          const propertyDetails = getSavedItemDetails(item, projectList);
+          const isPropertyType = itemType === "property";
+          const details = getSavedItemDetails(item, projectList);
           const itemId = getSavedItemId(item);
-          
-          // Fallback parsing blocks for cover images arrays
-          const coverImage = getSavedPrimaryImage(propertyDetails);
-          const secondaryImage = getSavedSecondaryImage(propertyDetails);
-          const imageCount = propertyDetails.total_images || propertyDetails.images?.length || (coverImage ? 1 : 0);
-          const location = getSavedLocation(propertyDetails);
-          const price = getSavedPrice(propertyDetails);
-          const summaryText = getSavedSummary(propertyDetails, !isPropertyType);
+          const primaryImage = getSavedPrimaryImage(details);
+          const secondaryImage = getSavedSecondaryImage(details);
+          const imageCount = details.total_images || details.images?.length || (primaryImage ? 1 : 0);
+          const location = getSavedLocation(details);
+          const price = getSavedPrice(details);
+          const summaryText = getSavedSummary(details, !isPropertyType);
 
           return (
-            <View key={(itemId || index) + index} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
+            <View key={`${itemId || index}-${index}`} className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
               <View className="flex-row h-36 w-full">
                 <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                  {coverImage ? (
-                    <Image source={{ uri: coverImage }} className="w-full h-full" resizeMode="cover" />
+                  {primaryImage ? (
+                    <Image source={{ uri: primaryImage }} className="w-full h-full" resizeMode="cover" />
                   ) : (
                     <View className="w-full h-full bg-gray-200 items-center justify-center">
                       <Feather name="image" size={32} color="#9CA3AF" />
@@ -95,7 +87,7 @@ const SavedTabContent = () => {
                   )}
                   <View className="absolute top-2 left-2 bg-black/60 px-2 py-1 rounded">
                     <Text className="text-white text-[10px] font-manrope">
-                      {isPropertyType ? (propertyDetails.type || 'Property') : 'Project'}
+                      {isPropertyType ? (details.type || "Property") : "Project"}
                     </Text>
                   </View>
                 </View>
@@ -112,37 +104,36 @@ const SavedTabContent = () => {
                   </View>
                 </View>
               </View>
+
               <View className="px-3 pt-3 pb-2">
-                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]">
-                  {propertyDetails.area || 'N/A'}, {propertyDetails.city || 'N/A'} {isPropertyType ? ` •  ${propertyDetails.bedrooms || 0} BHK` : ''}
+                <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]" numberOfLines={1}>
+                  {location}{isPropertyType && details.bedrooms ? ` - ${details.bedrooms} BHK` : ""}
                 </Text>
                 <View className="flex-row items-center mb-1">
                   <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>
-                    {propertyDetails.title || propertyDetails.name || 'Unnamed Asset'}
+                    {details.title || details.name || "Unnamed Asset"}
                   </Text>
-                  <ReraStatusBadge approved={isReraApproved(propertyDetails)} className="ml-2" />
+                  <ReraStatusBadge approved={isReraApproved(details)} className="ml-2" />
                 </View>
-                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{propertyDetails.pincode || ''}</Text>
+                <Text className="text-[11px] text-[#9CA3AF] font-manrope">{details.pincode || ""}</Text>
               </View>
-              <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
+
+              <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: "dashed", borderColor: "#E5E7EB" }} />
               <View className="flex-row justify-between px-3 pb-3">
                 <View>
                   <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase tracking-wide">
-                    {isPropertyType ? `${propertyDetails.bedrooms || 0} BHK • ${propertyDetails.total_area_sqft || 0} sqft` : 'Upcoming Core Project'}
+                    {summaryText}
                   </Text>
                   <Text className="text-[14px] font-manrope-extrabold text-[#111827] mt-1">
-                    {propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from ? 
-                      `₹${((propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from) / 100000).toFixed(1)}L` 
-                      : 'Price on request'}
+                    {price}
                   </Text>
                 </View>
               </View>
               <View className="px-3 pb-3">
                 <Pressable
-                  // ✅ FIXED: Explicitly maps incoming route payload references from inside the nested propertyDetails stack tree structure
-                  onPress={() => router.push({ 
-                    pathname: isPropertyType ? "/(screens)/property-type" : "/(screens)/project-detail", 
-                    params: { id: itemId, slug: propertyDetails.slug || 'none' } 
+                  onPress={() => router.push({
+                    pathname: isPropertyType ? "/(screens)/property-type" : "/(screens)/project-detail",
+                    params: { id: itemId, slug: details.slug || "none" },
                   })}
                   className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
                 >
@@ -153,6 +144,7 @@ const SavedTabContent = () => {
           );
         })}
       </View>
+
       <View className="px-4">
         <View className="flex-row justify-between items-center mb-3">
           <Text className="text-[15px] font-manrope-extrabold text-[#111827]">{savedProperties.length} Saved Properties</Text>

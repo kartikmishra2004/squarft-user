@@ -10,6 +10,7 @@ import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openFilter, openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
+import { fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
 import { isReraApproved } from "../../components/ReraStatusBadge";
 
@@ -369,10 +370,12 @@ export default function PropertyListing() {
     const dispatch = useDispatch();
     const filter = useSelector((state) => state.filter);
     const { list: apiProjects, featured, nearby, loading: projectsLoading, featuredLoading, nearbyLoading } = useSelector((state) => state.project);
-    const { category, focus, featured: featuredParam, recommended, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
+    const { highGrowthProjects, highGrowthLocalities, highGrowthLoading, highGrowthCity } = useSelector((state) => state.properties);
+    const { category, focus, featured: featuredParam, recommended, highGrowth, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
     const isFocusMode = focus === '1';
     const isFeaturedMode = featuredParam === '1';
     const isRecommendedMode = recommended === '1';
+    const isHighGrowthMode = highGrowth === '1';
     const isNearbyMode = nearbyParam === '1';
     const nearbyLocationName = Array.isArray(locationName) ? locationName[0] : locationName;
     const [localQuery, setLocalQuery] = useState(isNearbyMode ? (nearbyLocationName || filter.searchQuery || '') : (filter.searchQuery || ''));
@@ -391,6 +394,12 @@ export default function PropertyListing() {
             dispatch(fetchFeaturedProjectsThunk());
         }
     }, [dispatch, isFocusMode, isFeaturedMode]);
+
+    useEffect(() => {
+        if (isHighGrowthMode) {
+            dispatch(fetchHighGrowthProjectsThunk());
+        }
+    }, [dispatch, isHighGrowthMode]);
 
     useEffect(() => {
         if (!isNearbyMode || !latitude || !longitude) return;
@@ -418,8 +427,24 @@ export default function PropertyListing() {
         dispatch(setSearchQuery(text));
     };
 
-    const projects = (isFocusMode || isFeaturedMode) ? featured : (isNearbyMode ? nearby : apiProjects);
-    const effectiveFilter = (isFocusMode || isFeaturedMode || isRecommendedMode)
+    const highGrowthSource = highGrowthProjects?.length > 0 ? highGrowthProjects : highGrowthLocalities;
+    const highGrowthList = (highGrowthSource || []).map((project) => ({
+        ...project,
+        title: project.name || project.title || 'Project',
+        location: project.location || buildProjectAddress(project),
+        display_price: project.price_range || project.display_price || buildProjectPrice(project),
+        priceRange: project.price_range || project.priceRange,
+        priceINR: project.price_range || project.priceINR,
+        image: project.cover_image || project.cover_image_url || project.image,
+        cover_image_url: project.cover_image || project.cover_image_url || project.image,
+        bhk: project.bhk_config || project.bhk,
+        possessionStatus: project.possession || project.possessionStatus,
+    }));
+
+    const projects = (isFocusMode || isFeaturedMode)
+        ? featured
+        : (isHighGrowthMode ? highGrowthList : (isNearbyMode ? nearby : apiProjects));
+    const effectiveFilter = (isFocusMode || isFeaturedMode || isRecommendedMode || isHighGrowthMode)
         ? {
             ...filter,
             propertyTypes: [],
@@ -454,7 +479,9 @@ export default function PropertyListing() {
             ? 'Featured Projects'
             : (isRecommendedMode
                 ? 'Recommended Projects'
-                : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page')));
+                : (isHighGrowthMode
+                    ? `High Growth Projects${highGrowthCity ? ` in ${highGrowthCity}` : ''}`
+                    : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page'))));
         router.push({
             pathname: "/(screens)/map-view",
             params: {
@@ -467,7 +494,13 @@ export default function PropertyListing() {
         ? 'Featured Projects'
         : (isRecommendedMode
             ? 'Recommended Projects'
-            : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page')));
+            : (isHighGrowthMode
+                ? `High Growth Projects${highGrowthCity ? ` in ${highGrowthCity}` : ''}`
+                : (isFocusMode ? 'Project in Focus' : (isNearbyMode ? 'Nearby Projects' : 'Project Page'))));
+
+    const listLoading = isHighGrowthMode
+        ? highGrowthLoading
+        : ((isFocusMode || isFeaturedMode) ? featuredLoading : (isNearbyMode ? nearbyLoading : projectsLoading));
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
@@ -570,7 +603,7 @@ export default function PropertyListing() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
-                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{isFeaturedMode ? ' Featured Projects' : (isRecommendedMode ? ' Recommended Projects' : (isFocusMode ? ' Projects in Focus' : (category ? ` ${category}s` : ' Premium Projects')))}
+                    <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{isFeaturedMode ? ' Featured Projects' : (isRecommendedMode ? ' Recommended Projects' : (isHighGrowthMode ? ' High Growth Projects' : (isFocusMode ? ' Projects in Focus' : (category ? ` ${category}s` : ' Premium Projects'))))}
                 </Text>
                 <TouchableOpacity onPress={() => setSortOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ fontSize: 12, color: '#4A43EC', fontWeight: '600' }}>SORT BY: {activeSortLabel.toUpperCase()}</Text>
@@ -616,10 +649,10 @@ export default function PropertyListing() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100, paddingTop: 8 }}
                 ListEmptyComponent={
-                    ((isFocusMode || isFeaturedMode) ? featuredLoading : (isNearbyMode ? nearbyLoading : projectsLoading)) ? (
+                    listLoading ? (
                         <View style={{ alignItems: 'center', marginTop: 60 }}>
                             <Text style={{ fontSize: 15, color: '#9CA3AF' }}>
-                                {isFeaturedMode ? 'Loading featured projects...' : (isFocusMode ? 'Loading projects in focus...' : (isNearbyMode ? 'Finding nearby projects...' : 'Loading projects...'))}
+                                {isFeaturedMode ? 'Loading featured projects...' : (isHighGrowthMode ? 'Loading high growth projects...' : (isFocusMode ? 'Loading projects in focus...' : (isNearbyMode ? 'Finding nearby projects...' : 'Loading projects...')))}
                             </Text>
                         </View>
                     ) : (

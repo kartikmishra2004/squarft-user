@@ -23,7 +23,9 @@ async function request(path, token = null, options = {}) {
         try {
             data = JSON.parse(text);
         } catch (e) {
-            
+            if (!res.ok) {
+                throw new Error(`Request failed with status ${res.status}`);
+            }
             throw new Error(`Invalid JSON response: ${e.message}`);
         }
         

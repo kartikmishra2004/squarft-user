@@ -4,46 +4,31 @@ import { Feather } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
 import { router } from "expo-router";
 import { fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
+import { fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { PropertyCardSkeleton } from "../../components/SkeletonLoader";
 import ReraStatusBadge, { isReraApproved } from "../../components/ReraStatusBadge";
-
-function compactPrice(value) {
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-
-  if (amount >= 10000000) {
-    const crores = amount / 10000000;
-    return `\u20B9${Number.isInteger(crores) ? crores.toFixed(0) : crores.toFixed(1)}Cr`;
-  }
-
-  if (amount >= 100000) {
-    const lakhs = amount / 100000;
-    return `\u20B9${Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
-  }
-
-  return `\u20B9${amount.toLocaleString('en-IN')}`;
-}
-
-function imageUrl(value) {
-  if (!value) return null;
-  if (typeof value === 'string') return value;
-  return value.url || value.thumbnail_url || null;
-}
-
-function joinParts(parts, fallback = '') {
-  const text = parts.filter(Boolean).join(', ');
-  return text || fallback;
-}
+import {
+  getSavedItemDetails,
+  getSavedItemId,
+  getSavedItemType,
+  getSavedLocation,
+  getSavedPrice,
+  getSavedPrimaryImage,
+  getSavedSecondaryImage,
+  getSavedSummary,
+} from "../../services/savedItemDisplay";
 
 export default function SavedProperties() {
   const dispatch = useDispatch();
   const navigatingRef = useRef(false);
   const { savedProperties, loading } = useSelector((state) => state.properties);
+  const { list: projectList } = useSelector((state) => state.project);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (isLoggedIn && token) {
       dispatch(fetchSavedPropertiesThunk());
+      dispatch(fetchProjectListThunk());
     }
   }, [isLoggedIn, token, dispatch]);
 
@@ -91,19 +76,18 @@ export default function SavedProperties() {
             </View>
           ) : (
             savedProperties.map((property, index) => {
-              const propertyDetails = property.data || property;
-              const itemType = property.type || property.item_type || propertyDetails.item_type || 'property';
+              const itemType = getSavedItemType(property);
               const isProject = itemType === 'project';
-              const itemId = property.item_id || propertyDetails.id || property.id;
+              const propertyDetails = getSavedItemDetails(property, projectList);
+              const itemId = getSavedItemId(property);
               const title = propertyDetails.name || propertyDetails.title || 'Unnamed Property';
-              const location = joinParts([propertyDetails.area, propertyDetails.city], 'Location on request');
-              const primaryImage = imageUrl(propertyDetails.cover_image_url || propertyDetails.cover_image || propertyDetails.image || propertyDetails.images?.[0]);
-              const secondaryImage = imageUrl(propertyDetails.images?.[1]);
+              const location = getSavedLocation(propertyDetails);
+              const primaryImage = getSavedPrimaryImage(propertyDetails);
+              const secondaryImage = getSavedSecondaryImage(propertyDetails);
               const imageCount = propertyDetails.total_images || propertyDetails.images?.length || (primaryImage ? 1 : 0);
               const bhkText = !isProject && propertyDetails.bedrooms ? `${propertyDetails.bedrooms} BHK` : null;
-              const areaText = propertyDetails.total_area_sqft ? `${propertyDetails.total_area_sqft} sqft` : null;
-              const summaryText = [bhkText, areaText].filter(Boolean).join(' \u2022 ') || (isProject ? 'Project' : 'Property');
-              const price = compactPrice(propertyDetails.min_price || propertyDetails.base_price || propertyDetails.price_from);
+              const summaryText = getSavedSummary(propertyDetails, isProject);
+              const price = getSavedPrice(propertyDetails);
 
               const openDetails = () => {
                 if (navigatingRef.current) return;
