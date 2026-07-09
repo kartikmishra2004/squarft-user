@@ -3,6 +3,7 @@ import { properties, projectsInFocus, missedProperties, highGrowthLocalities } f
 import { propertyApi } from '../../services/propertyApi';
 import { addNotification } from './notificationSlice';
 import { NOTIFICATION_EVENTS } from '../../constants/notificationTypes';
+import { buildProjectAddress, buildProjectPrice, normalizeProject } from '../../services/projectDisplay';
 
 // Fetch saved properties from API
 export const fetchSavedPropertiesThunk = createAsyncThunk(
@@ -151,23 +152,30 @@ const getMediaUrl = (media) => {
 const normalizeContactedProperties = (payload) => {
     const list = Array.isArray(payload) ? payload : (payload?.data || []);
 
-    return list.map((project) => {
+    return list.map((project, index) => {
+        const normalized = normalizeProject(project, index, 'contacted');
         const images = Array.isArray(project.images) ? project.images : [];
-        const coverImage = project.cover_image_url || getMediaUrl(images.find((image) => image?.is_cover)) || getMediaUrl(images[0]);
-        const minPrice = project.price_from ?? project.min_price;
-        const maxPrice = project.price_to ?? project.max_price;
+        const coverImage = normalized.cover_image_url || getMediaUrl(images.find((image) => image?.is_cover)) || getMediaUrl(images[0]);
+        const minPrice = normalized.price_from ?? project.min_price;
+        const maxPrice = normalized.price_to ?? project.max_price;
+        const displayLocation = normalized.display_location || buildProjectAddress(normalized);
+        const displayPrice = normalized.display_price || buildProjectPrice(normalized);
 
         return {
-            ...project,
-            title: project.name || project.title || 'Project',
+            ...normalized,
+            title: normalized.name || normalized.title || 'Project',
             type: 'Project',
             cover_image: coverImage,
-            cover_image_url: project.cover_image_url || coverImage,
+            cover_image_url: coverImage,
             min_price: minPrice,
             max_price: maxPrice,
+            price_from: minPrice,
+            price_to: maxPrice,
+            display_price: displayPrice,
             booking_status: project.visit_status || project.booking_status || 'contacted',
             contacted_at: project.contacted_at,
-            location: project.location || [project.area, project.city].filter(Boolean).join(', '),
+            location: displayLocation || normalized.location,
+            display_location: displayLocation || normalized.display_location,
             images,
         };
     });

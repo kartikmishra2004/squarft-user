@@ -8,6 +8,7 @@ import EmptyState from "./EmptyState";
 import { fetchContactedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { PropertyCardSkeleton } from "../SkeletonLoader";
 import ReraStatusBadge, { isReraApproved } from "../ReraStatusBadge";
+import { buildProjectPrice } from "../../services/projectDisplay";
 
 const STATUS_COLORS = {
   pending: { bg: "#FEF3C7", text: "#92400E" },
@@ -27,14 +28,6 @@ const getImageUrl = (image) => {
   if (!image) return null;
   if (typeof image === "string") return image;
   return image.url || image.thumbnail_url || null;
-};
-
-const formatPrice = (value) => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return "Price on request";
-  if (amount >= 10000000) return `Rs. ${(amount / 10000000).toFixed(1)}Cr`;
-  if (amount >= 100000) return `Rs. ${(amount / 100000).toFixed(1)}L`;
-  return `Rs. ${amount.toLocaleString("en-IN")}`;
 };
 
 const ContactedTabContent = () => {
@@ -88,7 +81,7 @@ const ContactedTabContent = () => {
           const secondImage = getImageUrl(images[1]);
           const title = property.name || property.title || "Project";
           const location = property.location || [property.area, property.city].filter(Boolean).join(", ");
-          const priceText = formatPrice(property.price_from ?? property.min_price);
+          const priceText = property.display_price || buildProjectPrice(property) || "Price on request";
           const contactedDate = property.contacted_at
             ? new Date(property.contacted_at).toLocaleDateString("en-IN")
             : null;

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    FlatList, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image, Keyboard,
+    FlatList, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image, Keyboard, Linking,
 } from "react-native";
 import Animated, {
     useSharedValue, useAnimatedStyle,
@@ -72,6 +72,40 @@ const loadExpoLocation = () => {
     } catch (error) {
         return { module: null, error };
     }
+};
+
+const promptToEnableLocationServices = async (Location) => {
+    if (Platform.OS === 'android' && typeof Location.enableNetworkProviderAsync === 'function') {
+        try {
+            await Location.enableNetworkProviderAsync();
+            return Location.hasServicesEnabledAsync();
+        } catch (error) {
+            console.log('Location services prompt dismissed:', error.message);
+            return false;
+        }
+    }
+
+    await new Promise((resolve) => {
+        Alert.alert(
+            'Turn on location services',
+            'Location services are turned off. Open settings, turn on location, then return to SquarFT.',
+            [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                {
+                    text: 'Open settings',
+                    onPress: async () => {
+                        try {
+                            await Linking.openSettings();
+                        } finally {
+                            resolve(false);
+                        }
+                    },
+                },
+            ],
+        );
+    });
+
+    return false;
 };
 
 const formatLocationName = (place) => {
@@ -403,9 +437,12 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
             setLocationStatus('Finding your location...');
             const servicesEnabled = await Location.hasServicesEnabledAsync();
             if (!servicesEnabled) {
-                setLocationStatus('');
-                Alert.alert('Turn on location services', 'Please enable GPS/location services and try again.');
-                return;
+                setLocationStatus('Turning on location services...');
+                const servicesEnabledAfterPrompt = await promptToEnableLocationServices(Location);
+                if (!servicesEnabledAfterPrompt) {
+                    setLocationStatus('');
+                    return;
+                }
             }
 
             let position = await Location.getLastKnownPositionAsync({
