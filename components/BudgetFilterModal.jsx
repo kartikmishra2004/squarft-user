@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RangeSliderLib from "react-native-fast-range-slider";
 import { useDispatch, useSelector } from "react-redux";
 import { closeBudgetFilter, setBudgetRange } from "../store/slices/filterSlice";
@@ -15,6 +16,7 @@ function formatBudget(val) {
 
 export default function BudgetFilterModal() {
     const dispatch = useDispatch();
+    const insets = useSafeAreaInsets();
     const { budgetFilterOpen, budgetRange } = useSelector((s) => s.filter);
     const { width } = useWindowDimensions();
 
@@ -53,7 +55,7 @@ export default function BudgetFilterModal() {
                     onPress={() => dispatch(closeBudgetFilter())}
                     style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
                 />
-                <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
+                <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 28 }}>
                     <View style={{ alignItems: "center", marginBottom: 16 }}>
                         <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: "#D1D5DB" }} />
                     </View>
@@ -68,7 +70,7 @@ export default function BudgetFilterModal() {
                     </View>
 
                     <RangeSliderLib
-                        key={`${liveBudget[0]}-${liveBudget[1]}`}
+                        key={`${budgetRange[0]}-${budgetRange[1]}`}
                         min={BUDGET_MIN}
                         max={BUDGET_MAX}
                         initialMinValue={liveBudget[0]}

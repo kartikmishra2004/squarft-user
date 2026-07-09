@@ -265,11 +265,10 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
             <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 20, gap: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Image
-        source={require('../assets/icons/squarlogo.png')} 
-        style={{ width: 24, height: 24 }}
+        source={require('../assets/icons/app-icon.png')}
+        style={{ width: 56, height: 56, borderRadius: 12 }}
         resizeMode="contain"
       />
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 }}>SquarFT</Text>
                 </View>
                 <Text style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: 2 }}>PREMIUM REAL ESTATE ENGINE</Text>
             </View>

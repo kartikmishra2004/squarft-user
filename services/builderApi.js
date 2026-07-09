@@ -18,8 +18,9 @@ export const builderApi = {
 
             const headers = {
                 'Content-Type': 'application/json',
+                'Cache-Control': 'no-store',
             };
-            
+
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -52,6 +53,10 @@ export const builderApi = {
 
             console.log(`📊 Response status: ${response.status}`);
             console.log(`📊 Response content-type: ${response.headers.get('content-type')}`);
+
+            if (response.status === 304) {
+                throw new Error('Builder details not modified but no cached data available. Please retry.');
+            }
 
             // Check if response is JSON before parsing
             const contentType = response.headers.get('content-type');
