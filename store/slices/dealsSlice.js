@@ -21,9 +21,13 @@ const toNumber = (value, fallback = 0) => {
     return Number.isFinite(num) ? num : fallback;
 };
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Deal identifiers come from the API and are UUID-shaped, but legacy/test
+// records are not guaranteed to use RFC 4122 version/variant bits (for example
+// `11111111-1111-1111-1111-111111111111`). Validate the transport shape here
+// instead of rejecting an identifier that the deals API itself returned.
+const UUID_REGEX = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
-const isUuid = (value) => UUID_REGEX.test(String(value || '').trim());
+export const isDealApiId = (value) => UUID_REGEX.test(String(value || '').trim());
 
 const normalizeDealKey = (value) => String(value || '').trim().replace(/^#/, '');
 
@@ -59,7 +63,7 @@ const getDealApiId = (deal = {}) => {
         deal.id,
     ];
 
-    return candidates.find(isUuid) || null;
+    return candidates.find(isDealApiId) || null;
 };
 
 const cleanText = (value) => {
@@ -151,7 +155,7 @@ const normalizeDeal = (deal = {}) => {
 };
 
 const findDealApiId = (dealId, state) => {
-    if (isUuid(dealId)) {
+    if (isDealApiId(dealId)) {
         const apiDealId = String(dealId).trim();
         logDealUploadDebug('route id is already a UUID', { dealId: apiDealId });
         return apiDealId;

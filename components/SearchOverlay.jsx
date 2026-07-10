@@ -11,7 +11,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
-import { getTrendingSearchesThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../store/slices/searchSlice";
+import { getTrendingSearchesThunk, getTrendingLocationsThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../store/slices/searchSlice";
 import { fetchNearbyProjectsThunk, fetchProjectListThunk } from "../store/slices/projectSlice";
 
 
@@ -28,10 +28,6 @@ const TRENDING_SEARCHES = [
     'Penthouse with Sea View',
     'Villas in Goa',
     'Studio Apartments',
-];
-
-const TRENDING_LOCATIONS = [
-    'Dubai Marina', 'London Zone 1', 'Singapore Orchard', 'Goa Beachfront',
 ];
 
 const ALL_SUGGESTIONS = [
@@ -202,7 +198,7 @@ function SuggestionItem({ item, index, onPress }) {
 }
 
 
-function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHistory, onClearAll }) {
+function HistoryPanel({ onSelect, searchHistory, trendingSearches, trendingLocations, trendingLocationsLoading, onDeleteHistory, onClearAll }) {
     const opacity = useSharedValue(1);
     const translateY = useSharedValue(10);
 
@@ -253,14 +249,23 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, onDeleteHisto
                 </>
             )}
 
-            <SectionLabel text="TRENDING LOCATIONS" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 }}>
-                {TRENDING_LOCATIONS.map((loc) => (
-                    <TouchableOpacity key={loc} onPress={() => onSelect(loc)} style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff' }}>
-                        <Text style={{ fontSize: 13, color: '#374151' }}>{loc}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+            {(trendingLocationsLoading || trendingLocations.length > 0) && (
+                <>
+                    <SectionLabel text="TRENDING LOCATIONS" />
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 }}>
+                        {trendingLocationsLoading ? (
+                            <ActivityIndicator size="small" color="#4A43EC" />
+                        ) : trendingLocations.map((location) => {
+                            const label = location.text || [location.area, location.city].filter(Boolean).join(', ');
+                            return (
+                                <TouchableOpacity key={location.id || label} onPress={() => onSelect(location.area || location.city || label)} style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff' }}>
+                                    <Text style={{ fontSize: 13, color: '#374151' }}>{label}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </>
+            )}
 
             <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 20, gap: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -318,7 +323,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     const [locationStatus, setLocationStatus] = useState('');
     
     // Get data from Redux
-    const { trendingSearches, searchHistory } = useSelector(state => state.search);
+    const { trendingSearches, trendingLocations, trendingLocationsLoading, searchHistory } = useSelector(state => state.search);
     const { isLoggedIn, token } = useSelector(state => state.auth);
     const { list: projectList } = useSelector(state => state.project);
 
@@ -328,6 +333,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     // Fetch trending searches, history and project list on mount
     useEffect(() => {
         dispatch(getTrendingSearchesThunk());
+        dispatch(getTrendingLocationsThunk());
         dispatch(fetchProjectListThunk());
         if (isLoggedIn && token) {
             
@@ -581,7 +587,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 ListHeaderComponent={
                     showSuggestions
                         ? <SuggestionsPanel key="suggestions" suggestions={suggestions} onSelect={handleSelect} />
-                        : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} onDeleteHistory={handleDeleteHistory} onClearAll={handleClearAll} />
+                        : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} trendingLocations={trendingLocations} trendingLocationsLoading={trendingLocationsLoading} onDeleteHistory={handleDeleteHistory} onClearAll={handleClearAll} />
                 }
             />
 

@@ -10,9 +10,10 @@ import {
     ActivityIndicator,
 } from "react-native";
 import * as Location from "expo-location";
+import Constants from "expo-constants";
 import { router, useLocalSearchParams } from "expo-router";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { allProjects } from "../../data/projects";
 import {
@@ -24,6 +25,7 @@ import {
 import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
 import { GeocodingService } from "../../services/geocoding/GeocodingService";
 import { processProjectsForMap } from "../../services/geocoding/processor";
+import { getFallbackCoordinate } from "../../services/geocoding/fallback";
 
 const INDORE_CENTER = { latitude: 22.7196, longitude: 75.8577 };
 const DEFAULT_REGION = {
@@ -60,10 +62,7 @@ const getProjectAddress = (project) => {
 
 const getProjectImage = (project) =>
     project.cover_image_url ||
-    project.cover_image ||
     project.image_url ||
-    project.image ||
-    project.imageMain ||
     null;
 
 const getImageSource = (project) => {
@@ -97,7 +96,7 @@ const getProjectPrice = (project) => {
         return project.priceINR || project.price || project.price_range || project.priceRange;
     }
 
-    const from = formatCompactPrice(project.price_from ?? project.min_price ?? project.budgetMin ?? project.base_price);
+    const from = formatCompactPrice(project.price_from ?? project.min_price ??  project.base_price);
     const to = formatCompactPrice(project.price_to ?? project.max_price ?? project.budgetMax);
     if (from && to && from !== to) return `${from} - ${to}`;
     return from || to || project.avgPricePerSqft || "Price on request";
@@ -144,23 +143,10 @@ const numberFrom = (...values) => {
 const getStoredProjectCoordinate = (project) => {
     const latitude = numberFrom(
         project.latitude,
-        project.lat,
         project.location_latitude,
-        project.project_latitude,
-        project.property_latitude,
-        project.coordinates?.latitude,
-        project.coordinates?.lat
     );
     const longitude = numberFrom(
         project.longitude,
-        project.lng,
-        project.lon,
-        project.location_longitude,
-        project.project_longitude,
-        project.property_longitude,
-        project.coordinates?.longitude,
-        project.coordinates?.lng,
-        project.coordinates?.lon
     );
 
     if (latitude === null || longitude === null) return null;
@@ -189,13 +175,21 @@ const getInitialRegion = (items, userLocation) => {
 
 function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) {
     const mapRef = useRef(null);
+    const fitTimerRef = useRef(null);
+    const [trackMarkerChanges, setTrackMarkerChanges] = useState(true);
     const initialRegion = useMemo(() => getInitialRegion(items, userLocation), [items, userLocation]);
+
+    useEffect(() => {
+        setTrackMarkerChanges(true);
+        const timer = setTimeout(() => setTrackMarkerChanges(false), 900);
+        return () => clearTimeout(timer);
+    }, [items, userLocation]);
 
     useEffect(() => {
         if (!mapRef.current || items.length === 0) return;
 
         const coordinates = items.map((item) => item.coordinate);
-        const timer = setTimeout(() => {
+        fitTimerRef.current = setTimeout(() => {
             if (coordinates.length === 1) {
                 mapRef.current?.animateToRegion(
                     {
@@ -214,12 +208,15 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
             });
         }, 250);
 
-        return () => clearTimeout(timer);
+        return () => clearTimeout(fitTimerRef.current);
     }, [items]);
 
     useEffect(() => {
         const selected = items.find(({ project }) => getProjectId(project) === selectedId);
         if (!selected || !mapRef.current) return;
+
+        // A card/marker selection must win over the initial fit-all animation.
+        clearTimeout(fitTimerRef.current);
 
         mapRef.current.animateToRegion(
             {
@@ -240,36 +237,47 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
             mapType="standard"
             showsCompass
             showsScale
-            showsUserLocation={!!userLocation}
+            showsUserLocation={false}
             showsMyLocationButton={false}
             toolbarEnabled={false}
             rotateEnabled={false}
+            onError={(error) => {
+                console.error('Map failed:', error?.message || error);
+            }}
         >
             {items.map(({ project, coordinate }, index) => {
                 const id = getProjectId(project);
                 const selected = id === selectedId;
+                const title = getProjectTitle(project);
+                const address = getProjectAddress(project);
 
                 return (
                     <Marker
-                        key={`${id || index}-${selected ? "selected" : "idle"}`}
+                        key={id || `project-marker-${index}`}
                         coordinate={coordinate}
                         anchor={{ x: 0.5, y: 1 }}
-                        tracksViewChanges={false}
+                        accessibilityLabel={`${title}, ${address}`}
+                        tracksViewChanges={trackMarkerChanges}
+                        zIndex={selected ? 1000 : index + 1}
                         onPress={() => onSelectProject(project)}
                     >
-                        <View style={{ alignItems: "center" }}>
-                            <View style={{ backgroundColor: selected ? "#4A43EC" : "#fff", borderColor: selected ? "#4A43EC" : "#D1D5DB", borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 6, ...cardShadow }}>
-                                <Text style={{ color: selected ? "#fff" : "#111827", fontSize: 12, fontWeight: "800" }} numberOfLines={1}>
-                                    {getProjectPrice(project)}
-                                </Text>
-                            </View>
-                            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: selected ? "#4A43EC" : "#111827", borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", marginTop: -2 }}>
-                                <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>{index + 1}</Text>
-                            </View>
-                        </View>
+                        <MaterialIcons name="location-on" size={40} color="#E03127" />
                     </Marker>
                 );
             })}
+
+            {!!userLocation && (
+                <Marker
+                    key="user-location-marker"
+                    coordinate={userLocation}
+                    anchor={{ x: 0.5, y: 1 }}
+                    accessibilityLabel="Your current location"
+                    tracksViewChanges={trackMarkerChanges}
+                    zIndex={2000}
+                >
+                    <MaterialIcons name="location-on" size={40} color="#0F9F8F" />
+                </Marker>
+            )}
         </MapView>
     );
 }
@@ -364,10 +372,13 @@ export default function MapViewScreen() {
     const geocodingServiceRef = useRef(null);
     const baseProjects = mapProjects?.length ? mapProjects : allProjects;
 
-    // Get API key from environment - hardcoded from .env for now
-    const GOOGLE_MAPS_API_KEY = "AIzaSyDiYnY4FG1juihWvHEgM-NSz2aEKUsKing";
+    const GOOGLE_MAPS_API_KEY =
+        Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+        process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+        process.env?.GOOGLE_MAPS_API_KEY ||
+        "";
 
-    // Initialize geocoding service
+    // Initialize geocoding service when we have a key
     if (!geocodingServiceRef.current && GOOGLE_MAPS_API_KEY) {
         geocodingServiceRef.current = new GeocodingService({
             apiKey: GOOGLE_MAPS_API_KEY,
@@ -391,7 +402,19 @@ export default function MapViewScreen() {
     // Geocode projects on mount or when visible projects change
     useEffect(() => {
         const geocodeProjects = async () => {
-            if (!geocodingServiceRef.current || visibleProjects.length === 0) {
+            if (visibleProjects.length === 0) {
+                setGeocodedProjects([]);
+                return;
+            }
+
+            if (!geocodingServiceRef.current) {
+                setGeocodingError('Google Maps API key missing. Using approximate locations.');
+                const fallbackResults = visibleProjects.map((project) => ({
+                    project,
+                    coordinate: getFallbackCoordinate(project.city),
+                    source: 'fallback',
+                }));
+                setGeocodedProjects(fallbackResults);
                 return;
             }
 
@@ -404,17 +427,27 @@ export default function MapViewScreen() {
                     visibleProjects,
                     geocodingServiceRef.current
                 );
-                
-                // Check if all projects are fallback (indicates API issue)
-                const allFallback = results.every(r => r.source === 'fallback');
+
+                const sourceBreakdown = results.reduce((acc, r) => {
+                    acc[r.source] = (acc[r.source] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const allFallback = results.every((r) => r.source === 'fallback');
                 if (allFallback && results.length > 0) {
                     setGeocodingError('Geocoding API not enabled. Using approximate locations.');
                 }
-                
+
                 setGeocodedProjects(results);
             } catch (error) {
-                console.error('Geocoding error:', error);
+                console.error('Project geocoding failed:', error?.message || error);
                 setGeocodingError('Geocoding failed. Using approximate locations.');
+                const fallbackResults = visibleProjects.map((project) => ({
+                    project,
+                    coordinate: getFallbackCoordinate(project.city),
+                    source: 'fallback',
+                }));
+                setGeocodedProjects(fallbackResults);
             } finally {
                 setIsGeocoding(false);
             }
@@ -442,8 +475,6 @@ export default function MapViewScreen() {
         ? selectedId
         : getProjectId(projectsWithCoordinates[0]?.project);
 
-    const selectedProject = projectsWithCoordinates.find(({ project }) => getProjectId(project) === activeSelectedId);
-
     useEffect(() => {
         let mounted = true;
 
@@ -463,7 +494,9 @@ export default function MapViewScreen() {
                     return;
                 }
 
-                const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                const current = await Location.getCurrentPositionAsync({ 
+                    accuracy: Location.Accuracy.Balanced 
+                });
                 if (!mounted) return;
 
                 setUserLocation({
@@ -473,8 +506,8 @@ export default function MapViewScreen() {
                 setLocationStatus("");
             } catch (error) {
                 if (!mounted) return;
+                console.error('Location lookup failed:', error?.message || error);
                 setLocationStatus("Could not detect location");
-                console.log("Map location permission failed:", error);
             }
         };
 
@@ -494,11 +527,6 @@ export default function MapViewScreen() {
         } else {
             setMapStatus("");
         }
-    };
-
-    const focusAllProjects = () => {
-        setSelectedId(null);
-        setMapStatus("");
     };
 
     const handleToggleSave = async (project) => {
@@ -544,7 +572,7 @@ export default function MapViewScreen() {
             <View style={{ flex: 1, position: "relative" }}>
                 <NativeProjectMap
                     items={projectsWithCoordinates}
-                    selectedId={activeSelectedId}
+                    selectedId={selectedId}
                     userLocation={userLocation}
                     onSelectProject={focusProject}
                 />
@@ -615,17 +643,6 @@ export default function MapViewScreen() {
                     )}
                 </View>
 
-                {!!selectedProject && (
-                    <View style={{ position: "absolute", top: 154, left: 20, right: 76, backgroundColor: "#4A43EC", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, ...cardShadow }}>
-                        <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }} numberOfLines={1}>
-                            {getProjectTitle(selectedProject.project)}
-                        </Text>
-                        <Text style={{ color: "#DAD7FF", fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-                            {getProjectAddress(selectedProject.project)}
-                        </Text>
-                    </View>
-                )}
-
                 {!!mapStatus && (
                     <View style={{ position: "absolute", top: 154, left: 20, right: 76, backgroundColor: "#111827", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, ...cardShadow }}>
                         <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }} numberOfLines={2}>
@@ -633,12 +650,6 @@ export default function MapViewScreen() {
                         </Text>
                     </View>
                 )}
-
-                <View style={{ position: "absolute", right: 16, top: "40%", gap: 8 }}>
-                    <TouchableOpacity onPress={focusAllProjects} style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", ...cardShadow }}>
-                        <MaterialCommunityIcons name="map-marker-multiple-outline" size={20} color="#374151" />
-                    </TouchableOpacity>
-                </View>
 
                 <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: 22 }}>
                     <ScrollView

@@ -47,6 +47,12 @@ export const searchApi = {
             method: 'GET',
         }),
 
+    // Get popular project locations (no auth required)
+    getTrendingLocations: () =>
+        request('/api/v1/search/trending-locations', {
+            method: 'GET',
+        }),
+
     // Get user's search history (auth required)
     getSearchHistory: (token) =>
         request('/api/v1/search/history', {

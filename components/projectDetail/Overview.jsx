@@ -5,6 +5,7 @@ import { useState } from "react";
 import BuilderModal from "./BuilderModal";
 
 import PropertyDetailModal from "./PropertyDetailModal";
+import { getProjectPropertyCardConfig } from "../../services/propertyConfiguration";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.55;
@@ -73,10 +74,12 @@ function getPropertyImage(item, fallback) {
 }
 
 function getPropertyConfig(item) {
+    const projectDetailConfig = getProjectPropertyCardConfig(item);
+    if (projectDetailConfig) return projectDetailConfig;
     if (item.configs) return item.configs;
     if (item.bedrooms) return `${item.bedrooms} BHK`;
-    if (Array.isArray(item.subTypes) && item.subTypes.length) return `${item.subTypes.join(", ")} BHK`;
-    return item.property_subtype || item.property_type || "";
+    if (Array.isArray(item.subTypes) && item.subTypes.length) return item.subTypes.join(", ");
+    return item.sub_type || item.property_subtype || item.property_type || "";
 }
 
 function buildPropertyVariant(item) {
@@ -201,7 +204,7 @@ export default function Overview({ project }) {
                         />
                         <View className="p-3">
                             <View className="flex-row items-center justify-between mb-1">
-                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.type || v.title}</Text>
+                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.configurationLabel || getPropertyConfig(v) || v.type || v.title}</Text>
                                 <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
                                     {getVariantPrice(v)}
                                 </Text>

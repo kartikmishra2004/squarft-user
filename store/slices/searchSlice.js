@@ -19,6 +19,17 @@ export const getTrendingSearchesThunk = createAsyncThunk(
     }
 );
 
+export const getTrendingLocationsThunk = createAsyncThunk(
+    'search/getTrendingLocations',
+    async (_, { rejectWithValue }) => {
+        try {
+            return await searchApi.getTrendingLocations();
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 // Get search history
 export const getSearchHistoryThunk = createAsyncThunk(
     'search/getHistory',
@@ -106,6 +117,9 @@ const searchSlice = createSlice({
     name: 'search',
     initialState: {
         trendingSearches: [],
+        trendingLocations: [],
+        trendingLocationsLoading: false,
+        trendingLocationsError: null,
         searchHistory: [],
         loading: false,
         error: null,
@@ -129,6 +143,19 @@ const searchSlice = createSlice({
             .addCase(getTrendingSearchesThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
+            })
+            .addCase(getTrendingLocationsThunk.pending, (state) => {
+                state.trendingLocationsLoading = true;
+                state.trendingLocationsError = null;
+            })
+            .addCase(getTrendingLocationsThunk.fulfilled, (state, action) => {
+                state.trendingLocationsLoading = false;
+                state.trendingLocations = Array.isArray(action.payload?.data) ? action.payload.data : [];
+            })
+            .addCase(getTrendingLocationsThunk.rejected, (state, action) => {
+                state.trendingLocationsLoading = false;
+                state.trendingLocationsError = action.payload;
+                state.trendingLocations = [];
             })
             // Get search history
             .addCase(getSearchHistoryThunk.pending, (state) => {

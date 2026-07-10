@@ -27,6 +27,7 @@ import BookVisitModal from "../../components/projectDetail/BookVisitModal";
 import DetailFooter from "../../components/projectDetail/DetailFooter";
 import ReraStatusBadge from "../../components/ReraStatusBadge";
 import BuilderModal from "../../components/projectDetail/BuilderModal";
+import { getProjectPropertyCardConfig } from "../../services/propertyConfiguration";
 
 const frame260 = require("../../assets/images/Frame 26086854.png");
 const frame871 = require("../../assets/images/Frame 26086871.png");
@@ -212,14 +213,23 @@ function normalizeConfigLabel(value) {
 }
 
 function normalizeFloorPlan(plan) {
+  const propertyType = plan.property_type || plan.type;
+  const configurationLabel = getProjectPropertyCardConfig({
+    ...plan,
+    property_type: propertyType,
+  });
   const title = plan.title
-    || (plan.bedrooms ? `${plan.bedrooms} BHK` : formatConfigLabel(plan.property_subtype || plan.sub_type || plan.type) || 'Unit');
+    || configurationLabel
+    || formatConfigLabel(plan.sub_type || plan.property_subtype || propertyType)
+    || 'Unit';
   const areaSqft = plan.area_sqft ?? plan.total_area_sqft ?? plan.areaSqft ?? null;
 
   return {
     ...plan,
     title,
-    type: plan.property_subtype || plan.sub_type || plan.type || title,
+    property_type: propertyType,
+    configurationLabel,
+    type: configurationLabel || formatConfigLabel(plan.sub_type || plan.property_subtype) || propertyType || title,
     area_sqft: areaSqft,
     area: plan.area || (areaSqft ? `${areaSqft} sqft` : null),
     price: plan.price ?? plan.base_price ?? plan.price_from ?? null,
@@ -403,7 +413,12 @@ export default function ProjectDetail() {
     ? floorPlans.floor_plans.map(normalizeFloorPlan)
     : (apiVariants.length > 0 ? apiVariants : (base.variants || []));
   const variantConfig = normalizedVariants
-    .map((variant) => variant.bedrooms || variant.property_subtype || variant.sub_type || variant.type || variant.title)
+    .map((variant) => {
+      const propertyType = cleanText(variant.property_type || variant.type).toLowerCase();
+      if (propertyType === 'residential' && variant.bedrooms) return variant.bedrooms;
+      if (propertyType === 'commercial') return variant.sub_type || variant.property_subtype;
+      return variant.bedrooms || variant.sub_type || variant.property_subtype || variant.type || variant.title;
+    })
     .filter(Boolean);
   const coverImage = activeApiProject?.cover_image
     || activeApiProject?.cover_image_url
