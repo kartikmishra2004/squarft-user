@@ -568,6 +568,24 @@ export default function ProjectDetail() {
     rera_id: project.reraId || activeApiProject?.rera_id || base.rera_id,
   };
 
+  const handleOpenMap = () => {
+    router.push({
+      pathname: "/(screens)/map-view",
+      params: {
+        id: String(projectSaveId ?? ""),
+        slug: resolvedProjectSlug ?? "",
+        name: project.name ?? "",
+        area: project.area ?? "",
+        city: project.city ?? "",
+        pincode: project.pincode ?? "",
+        location: project.location ?? "",
+        latitude: project.latitude != null ? String(project.latitude) : "",
+        longitude: project.longitude != null ? String(project.longitude) : "",
+        cover_image_url: savedProjectData.cover_image_url ?? "",
+      },
+    });
+  };
+
   return (
     <View className="flex-1 bg-[#F8F5FF]">
       <ScrollView
@@ -663,7 +681,11 @@ export default function ProjectDetail() {
             </View>
 
             {/* Right: Location block */}
-            <View className="flex-[2] border border-gray-200 rounded-xl p-3 overflow-hidden">
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleOpenMap}
+              className="flex-[2] border border-gray-200 rounded-xl p-3 overflow-hidden"
+            >
               <View className="flex-1 mr-1.5">
                 <Text
                   className="text-[12px] font-manrope-bold text-indigo-600 mb-1"
@@ -685,7 +707,7 @@ export default function ProjectDetail() {
                 className="absolute right-0 top-0 bottom-0 w-[90px] h-full"
                 resizeMode="cover"
               />
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Builder row */}
