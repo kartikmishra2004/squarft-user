@@ -337,7 +337,7 @@ const openNavigation = (coordinate, userLocation) => {
     });
 };
 
-function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coordinate, onSelect, onToggleSave, onNavigate, isRouting }) {
+function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coordinate, onSelect, onToggleSave, onNavigate, isRouting, isLandmark }) {
     const imageSource = getImageSource(item);
 
     return (
@@ -365,13 +365,15 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coord
                 <View style={{ position: "absolute", top: 8, left: 8, backgroundColor: isSelected ? "#4A43EC" : "#111827", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 4 }}>
                     <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>#{index + 1}</Text>
                 </View>
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={onToggleSave}
-                    style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center" }}
-                >
-                    <Ionicons name={isSaved ? "heart" : "heart-outline"} size={16} color={isSaved ? "#EF4444" : "#6B7280"} />
-                </TouchableOpacity>
+                {!isLandmark && (
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={onToggleSave}
+                        style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center" }}
+                    >
+                        <Ionicons name={isSaved ? "heart" : "heart-outline"} size={16} color={isSaved ? "#EF4444" : "#6B7280"} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             <View style={{ padding: 10 }}>
@@ -379,9 +381,11 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coord
                     <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
                         {getProjectTitle(item)}
                     </Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#4A43EC" }} numberOfLines={1}>
-                        {getProjectPrice(item)}
-                    </Text>
+                    {!isLandmark && (
+                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#4A43EC" }} numberOfLines={1}>
+                            {getProjectPrice(item)}
+                        </Text>
+                    )}
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 }}>
                     <Ionicons name={hasCoordinate ? "location-outline" : "alert-circle-outline"} size={11} color={hasCoordinate ? "#64748B" : "#EF4444"} />
@@ -390,13 +394,15 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coord
                     </Text>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-                        <MaterialCommunityIcons name="bed-outline" size={13} color="#4A43EC" />
-                        <Text style={{ fontSize: 11, color: "#1F2937", fontWeight: "600", flex: 1 }} numberOfLines={1}>
-                            {getBhkText(item)}
-                        </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    {!isLandmark && (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                            <MaterialCommunityIcons name="bed-outline" size={13} color="#4A43EC" />
+                            <Text style={{ fontSize: 11, color: "#1F2937", fontWeight: "600", flex: 1 }} numberOfLines={1}>
+                                {getBhkText(item)}
+                            </Text>
+                        </View>
+                    )}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: isLandmark ? 1 : undefined, justifyContent: isLandmark ? "flex-end" : undefined }}>
                         {hasCoordinate && (
                             <TouchableOpacity
                                 disabled={isRouting}
@@ -411,12 +417,14 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coord
                                 <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>Navigate</Text>
                             </TouchableOpacity>
                         )}
-                        <TouchableOpacity
-                            onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: getProjectId(item), slug: item.slug } })}
-                            style={{ backgroundColor: "#F5F3FF", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 }}
-                        >
-                            <Text style={{ color: "#4A43EC", fontSize: 10, fontWeight: "800" }}>Details</Text>
-                        </TouchableOpacity>
+                        {!isLandmark && (
+                            <TouchableOpacity
+                                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: getProjectId(item), slug: item.slug } })}
+                                style={{ backgroundColor: "#F5F3FF", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 }}
+                            >
+                                <Text style={{ color: "#4A43EC", fontSize: 10, fontWeight: "800" }}>Details</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </View>
@@ -461,8 +469,11 @@ export default function MapViewScreen() {
             latitude: Number.isFinite(latitude) ? latitude : null,
             longitude: Number.isFinite(longitude) ? longitude : null,
             cover_image_url: params.cover_image_url || null,
+            isLandmark: params.isLandmark === "1",
         };
-    }, [params.id, params.slug, params.name, params.area, params.city, params.pincode, params.location, params.latitude, params.longitude, params.cover_image_url]);
+    }, [params.id, params.slug, params.name, params.area, params.city, params.pincode, params.location, params.latitude, params.longitude, params.cover_image_url, params.isLandmark]);
+
+    const isLandmarkView = Boolean(singleProject?.isLandmark);
 
     const baseProjects = useMemo(
         () => (singleProject ? [singleProject] : (mapProjects?.length ? mapProjects : allProjects)),
@@ -867,6 +878,7 @@ export default function MapViewScreen() {
                                     hasCoordinate={hasCoordinate}
                                     coordinate={geocodedItem?.coordinate}
                                     isRouting={routingProjectId === id}
+                                    isLandmark={isLandmarkView}
                                     onSelect={() => focusProject(item)}
                                     onToggleSave={() => handleToggleSave(item)}
                                     onNavigate={(coordinate) => previewRoute(item, coordinate)}
