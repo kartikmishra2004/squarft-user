@@ -1,7 +1,30 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import Constants from "expo-constants";
 import { defaultLandmarks, defaultAmenities } from "../../data/projects";
+import { GeocodingService } from "../../services/geocoding/GeocodingService";
+import { fetchNearbyLandmarks } from "../../services/geocoding/nearbyLandmarks";
+
+const GOOGLE_MAPS_API_KEY =
+    Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    process.env?.GOOGLE_MAPS_API_KEY ||
+    "";
+
+let geocodingServiceInstance = null;
+function getGeocodingService() {
+    if (!GOOGLE_MAPS_API_KEY) return null;
+    if (!geocodingServiceInstance) {
+        geocodingServiceInstance = new GeocodingService({
+            apiKey: GOOGLE_MAPS_API_KEY,
+            maxCacheSize: 200,
+            cacheTTL: 7 * 24 * 60 * 60 * 1000,
+        });
+    }
+    return geocodingServiceInstance;
+}
 
 const VISIBLE_AMENITIES = 5;
 
@@ -44,14 +67,18 @@ function getAmenityIcon(name, category) {
     return AMENITY_ICON_MAP[key] || AMENITY_ICON_MAP.default;
 }
 
-function LandmarkCard({ item }) {
+function LandmarkCard({ item, onPress }) {
     const iconName = item.icon || getLandmarkIcon(item.category);
     return (
-        <View style={{
-            flex: 1, backgroundColor: '#fff', borderRadius: 12,
-            borderWidth: 1, borderColor: '#91919347',
-            padding: 12, margin: 4,
-        }}>
+        <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={onPress}
+            style={{
+                flex: 1, backgroundColor: '#fff', borderRadius: 12,
+                borderWidth: 1, borderColor: '#91919347',
+                padding: 12, margin: 4,
+            }}
+        >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Ionicons name={iconName} size={20} color="#646464" />
                 <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
@@ -61,8 +88,14 @@ function LandmarkCard({ item }) {
             </Text>
             <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6 }}>{item.name}</Text>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>{item.distance}</Text>
-        </View>
+        </TouchableOpacity>
     );
+}
+
+function buildLandmarkAddress(landmark, project) {
+    return [landmark.name || landmark.label, project?.area, project?.city]
+        .filter(Boolean)
+        .join(", ");
 }
 
 function AmenityItem({ item, col, totalInRow, isLastRow }) {
@@ -86,8 +119,50 @@ function AmenityItem({ item, col, totalInRow, isLastRow }) {
 
 export default function Highlights({ project }) {
     const [showAll, setShowAll] = useState(false);
-    const landmarks = project?.landmarks ?? defaultLandmarks;
+    const [googleLandmarks, setGoogleLandmarks] = useState([]);
+    const [isLoadingLandmarks, setIsLoadingLandmarks] = useState(false);
+    const hasBackendLandmarks = Array.isArray(project?.landmarks) && project.landmarks.length > 0;
     const amenities = project?.amenities ?? defaultAmenities;
+
+    useEffect(() => {
+        if (hasBackendLandmarks || !GOOGLE_MAPS_API_KEY) return;
+
+        let cancelled = false;
+
+        const loadNearbyLandmarks = async () => {
+            setIsLoadingLandmarks(true);
+            try {
+                let latitude = project?.latitude;
+                let longitude = project?.longitude;
+
+                if (latitude == null || longitude == null) {
+                    const geocodingService = getGeocodingService();
+                    const address = project?.location || [project?.area, project?.city, project?.pincode].filter(Boolean).join(", ");
+                    const coordinate = geocodingService && address ? await geocodingService.geocodeAddress(address) : null;
+                    latitude = coordinate?.latitude;
+                    longitude = coordinate?.longitude;
+                }
+
+                if (cancelled || latitude == null || longitude == null) return;
+
+                const nearby = await fetchNearbyLandmarks({ latitude, longitude, apiKey: GOOGLE_MAPS_API_KEY });
+                if (!cancelled) setGoogleLandmarks(nearby);
+            } catch (error) {
+                console.error("Failed to load nearby landmarks:", error?.message || error);
+            } finally {
+                if (!cancelled) setIsLoadingLandmarks(false);
+            }
+        };
+
+        loadNearbyLandmarks();
+        return () => {
+            cancelled = true;
+        };
+    }, [hasBackendLandmarks, project?.latitude, project?.longitude, project?.location, project?.area, project?.city, project?.pincode]);
+
+    const landmarks = hasBackendLandmarks
+        ? project.landmarks
+        : (googleLandmarks.length > 0 ? googleLandmarks : defaultLandmarks);
 
     const allItems = showAll ? amenities : amenities.slice(0, VISIBLE_AMENITIES);
     const remaining = amenities.length - VISIBLE_AMENITIES;
@@ -96,17 +171,40 @@ export default function Highlights({ project }) {
     const totalCells = allItems.length + (!showAll && remaining > 0 ? 1 : 0);
     const totalRows = Math.ceil(totalCells / COLS);
 
+    const openLandmarkOnMap = (landmark, index) => {
+        const latitude = landmark.latitude ?? landmark.lat;
+        const longitude = landmark.longitude ?? landmark.lng;
+
+        router.push({
+            pathname: "/(screens)/map-view",
+            params: {
+                id: `landmark-${project?.id || project?.slug || "project"}-${index}`,
+                name: landmark.name || landmark.label || "Landmark",
+                area: project?.area || "",
+                city: project?.city || "",
+                pincode: project?.pincode || "",
+                location: buildLandmarkAddress(landmark, project),
+                latitude: latitude != null ? String(latitude) : "",
+                longitude: longitude != null ? String(longitude) : "",
+                isLandmark: "1",
+            },
+        });
+    };
+
     return (
         <View style={{ paddingBottom: 16 }}>
 
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827', marginHorizontal: 16, marginBottom: 10, marginTop: 4 }}>
-                Nearby landmarks
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 10, marginTop: 4 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>
+                    Nearby landmarks
+                </Text>
+                {isLoadingLandmarks && <ActivityIndicator size="small" color="#4A43EC" />}
+            </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 12 }}>
-                {landmarks.map((item) => (
-                    <View key={item.id} style={{ width: '50%' }}>
-                        <LandmarkCard item={item} />
+                {landmarks.slice(0, 3).map((item, index) => (
+                    <View key={item.id || index} style={{ width: '50%' }}>
+                        <LandmarkCard item={item} onPress={() => openLandmarkOnMap(item, index)} />
                     </View>
                 ))}
             </View>

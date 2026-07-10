@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Image,
-    SafeAreaView,
+    Linking,
+    Platform,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
     ActivityIndicator,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import { router, useLocalSearchParams } from "expo-router";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { allProjects } from "../../data/projects";
@@ -174,11 +175,20 @@ const getInitialRegion = (items, userLocation) => {
     return DEFAULT_REGION;
 };
 
-function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) {
+function NativeProjectMap({ items, selectedId, userLocation, onSelectProject, routeCoordinates }) {
     const mapRef = useRef(null);
     const fitTimerRef = useRef(null);
     const [trackMarkerChanges, setTrackMarkerChanges] = useState(true);
     const initialRegion = useMemo(() => getInitialRegion(items, userLocation), [items, userLocation]);
+
+    useEffect(() => {
+        if (!mapRef.current || !routeCoordinates?.length) return;
+        clearTimeout(fitTimerRef.current);
+        mapRef.current.fitToCoordinates(routeCoordinates, {
+            edgePadding: { top: 160, right: 70, bottom: 280, left: 70 },
+            animated: true,
+        });
+    }, [routeCoordinates]);
 
     useEffect(() => {
         setTrackMarkerChanges(true);
@@ -238,14 +248,24 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
             mapType="standard"
             showsCompass
             showsScale
-            showsUserLocation={false}
+            showsUserLocation
             showsMyLocationButton={false}
+            followsUserLocation={false}
             toolbarEnabled={false}
             rotateEnabled={false}
             onError={(error) => {
                 console.error('Map failed:', error?.message || error);
             }}
         >
+            {!!routeCoordinates?.length && (
+                <Polyline
+                    coordinates={routeCoordinates}
+                    strokeColor="#4A43EC"
+                    strokeWidth={4}
+                    zIndex={500}
+                />
+            )}
+
             {items.map(({ project, coordinate }, index) => {
                 const id = getProjectId(project);
                 const selected = id === selectedId;
@@ -266,24 +286,59 @@ function NativeProjectMap({ items, selectedId, userLocation, onSelectProject }) 
                     </Marker>
                 );
             })}
-
-            {!!userLocation && (
-                <Marker
-                    key="user-location-marker"
-                    coordinate={userLocation}
-                    anchor={{ x: 0.5, y: 1 }}
-                    accessibilityLabel="Your current location"
-                    tracksViewChanges={trackMarkerChanges}
-                    zIndex={2000}
-                >
-                    <MaterialIcons name="location-on" size={40} color="#0F9F8F" />
-                </Marker>
-            )}
         </MapView>
     );
 }
 
-function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, onSelect, onToggleSave }) {
+const decodePolyline = (encoded) => {
+    const points = [];
+    let index = 0, lat = 0, lng = 0;
+
+    while (index < encoded.length) {
+        let shift = 0, result = 0, byte;
+        do {
+            byte = encoded.charCodeAt(index++) - 63;
+            result |= (byte & 0x1f) << shift;
+            shift += 5;
+        } while (byte >= 0x20);
+        lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+        shift = 0;
+        result = 0;
+        do {
+            byte = encoded.charCodeAt(index++) - 63;
+            result |= (byte & 0x1f) << shift;
+            shift += 5;
+        } while (byte >= 0x20);
+        lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+        points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+    }
+
+    return points;
+};
+
+const openNavigation = (coordinate, userLocation) => {
+    if (!coordinate) return;
+    const { latitude, longitude } = coordinate;
+    const destination = `${latitude},${longitude}`;
+    const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : "";
+
+    const appUrl = Platform.select({
+        ios: `maps://app?daddr=${destination}${origin ? `&saddr=${origin}` : ""}`,
+        android: `google.navigation:q=${destination}`,
+    });
+
+    const webUrl = `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ""}&destination=${destination}&travelmode=driving`;
+
+    Linking.openURL(appUrl).catch(() => {
+        Linking.openURL(webUrl).catch((error) => {
+            console.error("Failed to open navigation:", error?.message || error);
+        });
+    });
+};
+
+function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, coordinate, onSelect, onToggleSave, onNavigate, isRouting, isLandmark }) {
     const imageSource = getImageSource(item);
 
     return (
@@ -291,64 +346,87 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, onSel
             activeOpacity={0.92}
             onPress={onSelect}
             style={{
-                width: 286,
+                width: 240,
                 backgroundColor: "#fff",
-                borderRadius: 18,
+                borderRadius: 16,
                 overflow: "hidden",
                 marginLeft: index === 0 ? 20 : 12,
                 borderWidth: isSelected ? 1.5 : 1,
                 borderColor: isSelected ? "#4A43EC" : "#EEF2F7",
-                ...cardShadow,
             }}
         >
-            <View style={{ position: "relative", height: 132, backgroundColor: "#E5E7EB" }}>
+            <View style={{ position: "relative", height: 104, backgroundColor: "#E5E7EB" }}>
                 {imageSource ? (
                     <Image source={imageSource} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                 ) : (
                     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                        <MaterialCommunityIcons name="office-building-outline" size={34} color="#9CA3AF" />
+                        <MaterialCommunityIcons name="office-building-outline" size={28} color="#9CA3AF" />
                     </View>
                 )}
-                <View style={{ position: "absolute", top: 12, left: 12, backgroundColor: isSelected ? "#4A43EC" : "#111827", borderRadius: 18, paddingHorizontal: 10, paddingVertical: 5 }}>
-                    <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>#{index + 1}</Text>
+                <View style={{ position: "absolute", top: 8, left: 8, backgroundColor: isSelected ? "#4A43EC" : "#111827", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>#{index + 1}</Text>
                 </View>
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={onToggleSave}
-                    style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center" }}
-                >
-                    <Ionicons name={isSaved ? "heart" : "heart-outline"} size={19} color={isSaved ? "#EF4444" : "#6B7280"} />
-                </TouchableOpacity>
+                {!isLandmark && (
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={onToggleSave}
+                        style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center" }}
+                    >
+                        <Ionicons name={isSaved ? "heart" : "heart-outline"} size={16} color={isSaved ? "#EF4444" : "#6B7280"} />
+                    </TouchableOpacity>
+                )}
             </View>
 
-            <View style={{ padding: 14 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                    <Text style={{ flex: 1, fontSize: 15, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
+            <View style={{ padding: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
                         {getProjectTitle(item)}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#4A43EC" }} numberOfLines={1}>
-                        {getProjectPrice(item)}
-                    </Text>
+                    {!isLandmark && (
+                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#4A43EC" }} numberOfLines={1}>
+                            {getProjectPrice(item)}
+                        </Text>
+                    )}
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 10 }}>
-                    <Ionicons name={hasCoordinate ? "location-outline" : "alert-circle-outline"} size={13} color={hasCoordinate ? "#64748B" : "#EF4444"} />
-                    <Text style={{ flex: 1, fontSize: 12, color: hasCoordinate ? "#64748B" : "#EF4444" }} numberOfLines={1}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 }}>
+                    <Ionicons name={hasCoordinate ? "location-outline" : "alert-circle-outline"} size={11} color={hasCoordinate ? "#64748B" : "#EF4444"} />
+                    <Text style={{ flex: 1, fontSize: 11, color: hasCoordinate ? "#64748B" : "#EF4444" }} numberOfLines={1}>
                         {hasCoordinate ? getProjectAddress(item) : "Exact map location missing"}
                     </Text>
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, flex: 1 }}>
-                        <MaterialCommunityIcons name="bed-outline" size={15} color="#4A43EC" />
-                        <Text style={{ fontSize: 12, color: "#1F2937", fontWeight: "600", flex: 1 }} numberOfLines={1}>
-                            {getBhkText(item)}
-                        </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    {!isLandmark && (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                            <MaterialCommunityIcons name="bed-outline" size={13} color="#4A43EC" />
+                            <Text style={{ fontSize: 11, color: "#1F2937", fontWeight: "600", flex: 1 }} numberOfLines={1}>
+                                {getBhkText(item)}
+                            </Text>
+                        </View>
+                    )}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: isLandmark ? 1 : undefined, justifyContent: isLandmark ? "flex-end" : undefined }}>
+                        {hasCoordinate && (
+                            <TouchableOpacity
+                                disabled={isRouting}
+                                onPress={() => onNavigate?.(coordinate)}
+                                style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#111827", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, opacity: isRouting ? 0.7 : 1 }}
+                            >
+                                {isRouting ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Ionicons name="navigate" size={11} color="#fff" />
+                                )}
+                                <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>Navigate</Text>
+                            </TouchableOpacity>
+                        )}
+                        {!isLandmark && (
+                            <TouchableOpacity
+                                onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: getProjectId(item), slug: item.slug } })}
+                                style={{ backgroundColor: "#F5F3FF", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 }}
+                            >
+                                <Text style={{ color: "#4A43EC", fontSize: 10, fontWeight: "800" }}>Details</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
-                    <TouchableOpacity
-                        onPress={() => router.push({ pathname: "/(screens)/project-detail", params: { id: getProjectId(item), slug: item.slug } })}
-                        style={{ backgroundColor: "#F5F3FF", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}
-                    >
-                        <Text style={{ color: "#4A43EC", fontSize: 11, fontWeight: "800" }}>Details</Text>
-                    </TouchableOpacity>
                 </View>
             </View>
         </TouchableOpacity>
@@ -357,11 +435,11 @@ function MapProjectCard({ item, index, isSelected, isSaved, hasCoordinate, onSel
 
 export default function MapViewScreen() {
     const dispatch = useDispatch();
-    const { title } = useLocalSearchParams();
+    const insets = useSafeAreaInsets();
+    const params = useLocalSearchParams();
     const mapProjects = useSelector((state) => state.project.mapProjects);
     const savedProjects = useSelector((state) => state.properties.favouriteProjects);
     const { isLoggedIn, token } = useSelector((state) => state.auth);
-    const [search, setSearch] = useState("");
     const [selectedId, setSelectedId] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState("Finding your location...");
@@ -370,8 +448,38 @@ export default function MapViewScreen() {
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [geocodingProgress, setGeocodingProgress] = useState({ completed: 0, total: 0 });
     const [geocodingError, setGeocodingError] = useState(null);
+    const [routeCoordinates, setRouteCoordinates] = useState([]);
+    const [routeInfo, setRouteInfo] = useState(null);
+    const [routingProjectId, setRoutingProjectId] = useState(null);
+    const [routeError, setRouteError] = useState(null);
     const geocodingServiceRef = useRef(null);
-    const baseProjects = mapProjects?.length ? mapProjects : allProjects;
+
+    const singleProject = useMemo(() => {
+        if (!params?.id) return null;
+        const latitude = params.latitude ? Number(params.latitude) : null;
+        const longitude = params.longitude ? Number(params.longitude) : null;
+        return {
+            id: params.id,
+            slug: params.slug || undefined,
+            name: params.name || "Project",
+            area: params.area || "",
+            city: params.city || "",
+            pincode: params.pincode || "",
+            location: params.location || "",
+            display_location: params.location || "",
+            latitude: Number.isFinite(latitude) ? latitude : null,
+            longitude: Number.isFinite(longitude) ? longitude : null,
+            cover_image_url: params.cover_image_url || null,
+            isLandmark: params.isLandmark === "1",
+        };
+    }, [params.id, params.slug, params.name, params.area, params.city, params.pincode, params.location, params.latitude, params.longitude, params.cover_image_url, params.isLandmark]);
+
+    const isLandmarkView = Boolean(singleProject?.isLandmark);
+
+    const baseProjects = useMemo(
+        () => (singleProject ? [singleProject] : (mapProjects?.length ? mapProjects : allProjects)),
+        [singleProject, mapProjects]
+    );
 
     const geocodingApiKey = GOOGLE_MAPS_API_KEY
         || Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -386,17 +494,7 @@ export default function MapViewScreen() {
         });
     }
 
-    const visibleProjects = useMemo(() => {
-        const query = search.trim().toLowerCase();
-        if (!query) return baseProjects;
-        return baseProjects.filter((project) =>
-            [getProjectTitle(project), getProjectAddress(project), project.propertyType, project.property_type]
-                .filter(Boolean)
-                .join(" ")
-                .toLowerCase()
-                .includes(query)
-        );
-    }, [baseProjects, search]);
+    const visibleProjects = baseProjects;
 
     // Geocode projects on mount or when visible projects change
     useEffect(() => {
@@ -476,8 +574,9 @@ export default function MapViewScreen() {
 
     useEffect(() => {
         let mounted = true;
+        let locationSubscription = null;
 
-        const requestLocation = async () => {
+        const startWatchingLocation = async () => {
             try {
                 const { status } = await Location.requestForegroundPermissionsAsync();
                 if (!mounted) return;
@@ -493,8 +592,8 @@ export default function MapViewScreen() {
                     return;
                 }
 
-                const current = await Location.getCurrentPositionAsync({ 
-                    accuracy: Location.Accuracy.Balanced 
+                const current = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
                 });
                 if (!mounted) return;
 
@@ -503,6 +602,21 @@ export default function MapViewScreen() {
                     longitude: current.coords.longitude,
                 });
                 setLocationStatus("");
+
+                locationSubscription = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.Balanced,
+                        timeInterval: 3000,
+                        distanceInterval: 8,
+                    },
+                    (update) => {
+                        if (!mounted) return;
+                        setUserLocation({
+                            latitude: update.coords.latitude,
+                            longitude: update.coords.longitude,
+                        });
+                    }
+                );
             } catch (error) {
                 if (!mounted) return;
                 console.error('Location lookup failed:', error?.message || error);
@@ -510,9 +624,10 @@ export default function MapViewScreen() {
             }
         };
 
-        requestLocation();
+        startWatchingLocation();
         return () => {
             mounted = false;
+            locationSubscription?.remove();
         };
     }, []);
 
@@ -525,6 +640,61 @@ export default function MapViewScreen() {
             setMapStatus("This project needs latitude and longitude before it can be pinned accurately.");
         } else {
             setMapStatus("");
+        }
+    };
+
+    const clearRoute = () => {
+        setRouteCoordinates([]);
+        setRouteInfo(null);
+        setRoutingProjectId(null);
+        setRouteError(null);
+    };
+
+    const previewRoute = async (project, coordinate) => {
+        const id = getProjectId(project);
+        if (!coordinate) return;
+
+        if (!userLocation) {
+            setRouteError("Enable location access to preview the route.");
+            return;
+        }
+
+        if (!GOOGLE_MAPS_API_KEY) {
+            openNavigation(coordinate, userLocation);
+            return;
+        }
+
+        setRoutingProjectId(id);
+        setRouteError(null);
+
+        try {
+            const origin = `${userLocation.latitude},${userLocation.longitude}`;
+            const destination = `${coordinate.latitude},${coordinate.longitude}`;
+            const response = await fetch(
+                `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`
+            );
+            const data = await response.json();
+
+            if (data.status !== "OK" || !data.routes?.length) {
+                throw new Error(data.error_message || data.status || "No route found");
+            }
+
+            const route = data.routes[0];
+            const leg = route.legs?.[0];
+            setRouteCoordinates(decodePolyline(route.overview_polyline.points));
+            setRouteInfo({
+                projectId: id,
+                project,
+                coordinate,
+                distance: leg?.distance?.text,
+                duration: leg?.duration?.text,
+            });
+        } catch (error) {
+            console.error("Route preview failed:", error?.message || error);
+            setRouteError("Couldn't load route preview. Opening Maps instead.");
+            openNavigation(coordinate, userLocation);
+        } finally {
+            setRoutingProjectId(null);
         }
     };
 
@@ -567,13 +737,14 @@ export default function MapViewScreen() {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+        <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
             <View style={{ flex: 1, position: "relative" }}>
                 <NativeProjectMap
                     items={projectsWithCoordinates}
                     selectedId={selectedId}
                     userLocation={userLocation}
                     onSelectProject={focusProject}
+                    routeCoordinates={routeCoordinates}
                 />
 
                 <View style={{ position: "absolute", top: 42, left: 16, right: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -581,23 +752,6 @@ export default function MapViewScreen() {
                         <Ionicons name="chevron-back" size={22} color="#111827" />
                     </TouchableOpacity>
 
-                    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 14, paddingHorizontal: 14, height: 42, gap: 8, ...cardShadow }}>
-                        <Ionicons name="search-outline" size={16} color="#9CA3AF" />
-                        <TextInput
-                            value={search}
-                            onChangeText={setSearch}
-                            placeholder={`Search ${String(title || "projects").toLowerCase()}`}
-                            placeholderTextColor="#9CA3AF"
-                            style={{ flex: 1, fontSize: 14, color: "#111827" }}
-                        />
-                    </View>
-
-                    <TouchableOpacity onPress={() => router.back()} style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: "#111827", alignItems: "center", justifyContent: "center", ...cardShadow }}>
-                        <MaterialCommunityIcons name="view-list-outline" size={20} color="#fff" />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={{ position: "absolute", top: 98, left: 20, right: 20, flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
                     {geocodingError && (
                         <View style={{ flex: 1, backgroundColor: "rgba(251, 146, 60, 0.96)", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, ...cardShadow }}>
                             <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }} numberOfLines={2}>
@@ -643,20 +797,71 @@ export default function MapViewScreen() {
                 </View>
 
                 {!!mapStatus && (
-                    <View style={{ position: "absolute", top: 154, left: 20, right: 76, backgroundColor: "#111827", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, ...cardShadow }}>
+                    <View style={{ position: "absolute", top: 108, left: 20, right: 76, backgroundColor: "#111827", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, ...cardShadow }}>
                         <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }} numberOfLines={2}>
                             {mapStatus}
                         </Text>
                     </View>
                 )}
 
-                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: 22 }}>
+                {!!routeError && !routeInfo && (
+                    <View style={{ position: "absolute", top: 108, left: 20, right: 20, backgroundColor: "#111827", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, ...cardShadow }}>
+                        <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }} numberOfLines={2}>
+                            {routeError}
+                        </Text>
+                    </View>
+                )}
+
+                {!!routeInfo && (
+                    <View
+                        style={{
+                            position: "absolute",
+                            bottom: 240 + insets.bottom,
+                            left: 20,
+                            right: 20,
+                            backgroundColor: "#fff",
+                            borderRadius: 18,
+                            paddingHorizontal: 14,
+                            paddingVertical: 12,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 10,
+                            ...cardShadow,
+                        }}
+                    >
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                            <Ionicons name="navigate" size={18} color="#4A43EC" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, fontWeight: "800", color: "#111827" }} numberOfLines={1}>
+                                {routeInfo.duration || "Route"} {routeInfo.distance ? `· ${routeInfo.distance}` : ""}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: "#6B7280" }} numberOfLines={1}>
+                                To {getProjectTitle(routeInfo.project)}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => openNavigation(routeInfo.coordinate, userLocation)}
+                            style={{ backgroundColor: "#4A43EC", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}
+                        >
+                            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>Start</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={clearRoute}
+                            style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" }}
+                        >
+                            <Ionicons name="close" size={16} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: 22 + insets.bottom }}>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={{ paddingRight: 20 }}
                         decelerationRate="fast"
-                        snapToInterval={298}
+                        snapToInterval={252}
                     >
                         {visibleProjects.map((item, index) => {
                             const id = getProjectId(item);
@@ -670,8 +875,12 @@ export default function MapViewScreen() {
                                     isSelected={id === activeSelectedId || id === selectedId}
                                     isSaved={savedProjects.includes(id)}
                                     hasCoordinate={hasCoordinate}
+                                    coordinate={geocodedItem?.coordinate}
+                                    isRouting={routingProjectId === id}
+                                    isLandmark={isLandmarkView}
                                     onSelect={() => focusProject(item)}
                                     onToggleSave={() => handleToggleSave(item)}
+                                    onNavigate={(coordinate) => previewRoute(item, coordinate)}
                                 />
                             );
                         })}
