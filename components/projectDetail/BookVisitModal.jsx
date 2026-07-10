@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View, Text, Image, TouchableOpacity } from "react-native";
+import { ScrollView, StyleSheet, View, Text, Image, TouchableOpacity } from "react-native";
+import { SettledBackdrop, SettledModal } from "../SettledModal";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
@@ -67,14 +68,14 @@ export default function BookVisitModal({ visible, onClose, project }) {
     };
 
     return (
-        <Modal
+        <SettledModal
             visible={visible}
             transparent
             animationType="slide"
             onRequestClose={onClose}
         >
             <View className="flex-1 justify-end">
-                <Pressable style={styles.backdrop} onPress={onClose} />
+                <SettledBackdrop style={styles.backdrop} onPress={onClose} />
                 <View className="bg-white rounded-t-[24px] overflow-hidden" style={{ maxHeight: "75%" }}>
                     <View className="items-center pt-3 pb-1">
                         <View className="w-10 h-1 rounded-full bg-gray-300" />
@@ -149,7 +150,7 @@ export default function BookVisitModal({ visible, onClose, project }) {
             </View>
                 </View>
             </View>
-        </Modal>
+        </SettledModal>
     );
 }
 

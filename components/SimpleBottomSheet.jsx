@@ -1,8 +1,9 @@
-import { Modal, Pressable, View, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { SettledBackdrop, SettledModal } from "./SettledModal";
 
 export default function SimpleBottomSheet({ visible, onClose, maxHeightPercent = "90%", children }) {
     return (
-        <Modal
+        <SettledModal
             visible={visible}
             transparent
             animationType="slide"
@@ -10,7 +11,7 @@ export default function SimpleBottomSheet({ visible, onClose, maxHeightPercent =
             onRequestClose={onClose}
         >
             <View style={styles.container}>
-                <Pressable style={styles.backdrop} onPress={onClose} />
+                <SettledBackdrop style={styles.backdrop} onPress={onClose} />
                 <View style={[styles.sheet, { maxHeight: maxHeightPercent }]}>
                     <View style={styles.handleRow}>
                         <View style={styles.handle} />
@@ -18,7 +19,7 @@ export default function SimpleBottomSheet({ visible, onClose, maxHeightPercent =
                     {children}
                 </View>
             </View>
-        </Modal>
+        </SettledModal>
     );
 }
 

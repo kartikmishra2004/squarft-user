@@ -11,6 +11,7 @@ import visitSlice from './slices/visitSlice';
 import builderSlice from './slices/builderSlice';
 import projectViewTrackingSlice from './slices/projectViewTrackingSlice';
 import recentProjectsSlice from './slices/recentProjectsSlice';
+import locationSlice from './slices/locationSlice';
 
 
 export const store = configureStore({
@@ -27,6 +28,7 @@ export const store = configureStore({
                 builder: builderSlice,
                 projectViewTracking: projectViewTrackingSlice,
                 recentProjects: recentProjectsSlice,
+                location: locationSlice,
 
         },
 });

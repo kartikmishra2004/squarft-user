@@ -10,9 +10,9 @@ const getSearchHistoryId = (itemOrId) => {
 // Get trending searches
 export const getTrendingSearchesThunk = createAsyncThunk(
     'search/getTrending',
-    async (_, { rejectWithValue }) => {
+    async (location = {}, { getState, rejectWithValue }) => {
         try {
-            return await searchApi.getTrendingSearches();
+            return await searchApi.getTrendingSearches({ ...location, token: getState().auth.token });
         } catch (e) {
             return rejectWithValue(e.message);
         }
@@ -28,6 +28,17 @@ export const getTrendingLocationsThunk = createAsyncThunk(
             return rejectWithValue(e.message);
         }
     }
+);
+
+export const searchPropertiesAndProjectsThunk = createAsyncThunk(
+    'search/searchPropertiesAndProjects',
+    async ({ query, latitude, longitude, limit = 20 }, { getState, rejectWithValue }) => {
+        try {
+            return await searchApi.searchPropertiesAndProjects({ query, latitude, longitude, limit, token: getState().auth.token });
+        } catch (error) {
+            return rejectWithValue(error.message || 'Unable to load search suggestions');
+        }
+    },
 );
 
 // Get search history
@@ -121,6 +132,11 @@ const searchSlice = createSlice({
         trendingLocationsLoading: false,
         trendingLocationsError: null,
         searchHistory: [],
+        suggestions: [],
+        suggestionResultCount: 0,
+        suggestionsLoading: false,
+        suggestionsError: null,
+        suggestionsRequestId: null,
         loading: false,
         error: null,
     },
@@ -131,6 +147,34 @@ const searchSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            .addCase(searchPropertiesAndProjectsThunk.pending, (state, action) => {
+                state.suggestionsLoading = true;
+                state.suggestionsError = null;
+                state.suggestions = [];
+                state.suggestionResultCount = 0;
+                state.suggestionsRequestId = action.meta.requestId;
+            })
+            .addCase(searchPropertiesAndProjectsThunk.fulfilled, (state, action) => {
+                if (state.suggestionsRequestId !== action.meta.requestId) return;
+                state.suggestionsLoading = false;
+                state.suggestions = Array.isArray(action.payload?.data?.results) ? action.payload.data.results : [];
+                state.suggestionResultCount = Number(
+                    action.payload?.data?.count
+                    ?? action.payload?.data?.total
+                    ?? action.payload?.data?.pagination?.total
+                    ?? action.payload?.pagination?.total
+                    ?? state.suggestions.length
+                ) || state.suggestions.length;
+                state.suggestionsRequestId = null;
+            })
+            .addCase(searchPropertiesAndProjectsThunk.rejected, (state, action) => {
+                if (state.suggestionsRequestId !== action.meta.requestId) return;
+                state.suggestionsLoading = false;
+                state.suggestionsError = action.payload || 'Unable to load search suggestions';
+                state.suggestions = [];
+                state.suggestionResultCount = 0;
+                state.suggestionsRequestId = null;
+            })
             // Get trending searches
             .addCase(getTrendingSearchesThunk.pending, (state) => {
                 state.loading = true;

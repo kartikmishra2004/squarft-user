@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { SettledBackdrop, SettledModal } from "./SettledModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RangeSliderLib from "react-native-fast-range-slider";
 import { useDispatch, useSelector } from "react-redux";
@@ -43,7 +44,7 @@ export default function BudgetFilterModal() {
     }`;
 
     return (
-        <Modal
+        <SettledModal
             visible={budgetFilterOpen}
             transparent
             animationType="slide"
@@ -51,7 +52,7 @@ export default function BudgetFilterModal() {
             onRequestClose={() => dispatch(closeBudgetFilter())}
         >
             <View style={{ flex: 1, justifyContent: "flex-end" }}>
-                <Pressable
+                <SettledBackdrop
                     onPress={() => dispatch(closeBudgetFilter())}
                     style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
                 />
@@ -116,6 +117,6 @@ export default function BudgetFilterModal() {
                     </View>
                 </View>
             </View>
-        </Modal>
+        </SettledModal>
     );
 }

@@ -1,11 +1,35 @@
-import { View, Text, TouchableOpacity, Image, useWindowDimensions, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, useWindowDimensions } from "react-native";
 import { useState, useEffect, useMemo } from "react";
 import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { propertyApi } from "../../services/propertyApi";
+import { Shimmer } from "../SkeletonLoader";
 
 const PERIODS = ["1Y", "3Y", "5Y"];
+
+function PropertyTourSkeleton() {
+    return (
+        <View style={{ paddingBottom: 16 }}>
+            <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18 }}>
+                    <View><Shimmer style={{ width: 140, height: 20, marginBottom: 8 }} /><Shimmer style={{ width: 110, height: 10 }} /></View>
+                    <View style={{ alignItems: 'flex-end' }}><Shimmer style={{ width: 95, height: 20, marginBottom: 8 }} /><Shimmer style={{ width: 58, height: 24, borderRadius: 12 }} /></View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>{PERIODS.map((item) => <Shimmer key={item} style={{ width: 50, height: 32, borderRadius: 8 }} />)}</View>
+            </View>
+            <View style={{ marginHorizontal: 30, borderRadius: 20, padding: 20, backgroundColor: '#fff', marginBottom: 25 }}>
+                <Shimmer style={{ width: 100, height: 12, marginBottom: 8 }} />
+                <Shimmer style={{ width: 145, height: 16, marginBottom: 32 }} />
+                <Shimmer style={{ width: '100%', height: 120, borderRadius: 12 }} />
+            </View>
+            <Shimmer style={{ width: 160, height: 18, marginLeft: 16, marginBottom: 20 }} />
+            <View style={{ marginHorizontal: 24 }}>
+                {[0, 1].map((item) => <Shimmer key={item} style={{ width: '100%', height: 76, borderRadius: 16, marginBottom: 15 }} />)}
+            </View>
+        </View>
+    );
+}
 
 // Generate X labels dynamically based on data or fallback
 const generateXLabels = (chartData, period) => {
@@ -203,6 +227,8 @@ export default function PropertyTour({ project }) {
         return '#DC2626'; // Red for "Under Pressure"
     };
 
+    if (loading) return <PropertyTourSkeleton />;
+
     return (
         <View style={{ paddingBottom: 16 }}>
 
@@ -222,10 +248,7 @@ export default function PropertyTour({ project }) {
                     </View>
 
                     <View style={{ alignItems: 'flex-end' }}>
-                        {loading ? (
-                            <ActivityIndicator size="small" color="#5308E7" />
-                        ) : (
-                            <>
+                        <>
                                 <Text style={{ fontSize: 18, fontWeight: '700', color: '#5308E7' }}>
                                     {currentPriceFormatted.split('/')[0]} <Text style={{ fontSize: 12, color: 'black', fontWeight: '400' }}>/sq.ft.</Text>
                                 </Text>
@@ -233,8 +256,7 @@ export default function PropertyTour({ project }) {
                                 <View style={{ backgroundColor: '#FFDBCC', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginTop: 6 }}>
                                     <Text style={{ fontSize: 14, color: '#873600', fontWeight: '700' }}>{appreciationLabel}</Text>
                                 </View>
-                            </>
-                        )}
+                        </>
                     </View>
                 </View>
 
@@ -281,26 +303,16 @@ export default function PropertyTour({ project }) {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 36 }}>
                     <View>
                         <Text style={{ fontSize: 10, color: 'black', fontWeight: '700', letterSpacing: 0.5 }}>MARKET HEALTH</Text>
-                        {loading ? (
-                            <ActivityIndicator size="small" color="#B45309" style={{ marginTop: 4 }} />
-                        ) : (
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: getMarketHealthColor(marketHealth), marginTop: 4 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: getMarketHealthColor(marketHealth), marginTop: 4 }}>
                                 {marketHealth}
-                            </Text>
-                        )}
+                        </Text>
                     </View>
                     <TouchableOpacity style={{ marginBottom: 20 }}>
                         <MaterialCommunityIcons name="dots-horizontal" size={24} color="#D1D5DB" />
                     </TouchableOpacity>
                 </View>
                 <View style={{ width: '85%', alignSelf: 'center', marginRight: 60 }}>
-                    {loading ? (
-                        <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
-                            <ActivityIndicator size="large" color="#4A43EC" />
-                        </View>
-                    ) : (
-                        <MarketGraph chartData={trajectoryData?.chart_data} period={period} />
-                    )}
+                    <MarketGraph chartData={trajectoryData?.chart_data} period={period} />
                 </View>
             </View>
 
@@ -308,9 +320,7 @@ export default function PropertyTour({ project }) {
             <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827', marginHorizontal: 16, marginBottom: 25 }}>Recommended Property</Text>
             <View style={{ marginHorizontal: 24,   marginBottom: 26  }}>
                 {recommendedLoading ? (
-                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                        <ActivityIndicator size="large" color="#4A43EC" />
-                    </View>
+                    <View>{[0, 1].map((item) => <Shimmer key={item} style={{ width: '100%', height: 76, borderRadius: 16, marginBottom: 15 }} />)}</View>
                 ) : recommendedProjects.length > 0 ? (
                     recommendedProjects.map((item) => (
                         <View

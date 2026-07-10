@@ -11,7 +11,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { openFilter, setSearchQuery } from "../store/slices/filterSlice";
-import { getTrendingSearchesThunk, getTrendingLocationsThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk } from "../store/slices/searchSlice";
+import { getTrendingSearchesThunk, getTrendingLocationsThunk, getSearchHistoryThunk, saveSearchHistoryThunk, deleteSearchHistoryThunk, clearAllSearchHistoryThunk, searchPropertiesAndProjectsThunk } from "../store/slices/searchSlice";
 import { fetchNearbyProjectsThunk, fetchProjectListThunk } from "../store/slices/projectSlice";
 
 
@@ -185,11 +185,15 @@ function TrendingItem({ item, index, total, onSelect }) {
 }
 
 function SuggestionItem({ item, index, onPress }) {
+    const location = [item.area, item.city].filter(Boolean).join(', ');
     return (
         <Animated.View entering={FadeIn.delay(index * 30).duration(180)} layout={Layout.springify()}>
             <TouchableOpacity onPress={() => onPress(item)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 13, gap: 12, backgroundColor: '#fff' }}>
                 <FontAwesome name="search" size={14} color="#9CA3AF" />
-                <Text style={{ flex: 1, fontSize: 14, color: '#111827' }}>{item}</Text>
+                <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, color: '#111827' }}>{item.title || 'Untitled listing'}</Text>
+                    {location ? <Text style={{ marginTop: 2, fontSize: 12, color: '#9CA3AF' }}>{location}</Text> : null}
+                </View>
                 <MaterialCommunityIcons name="arrow-top-left" size={16} color="#9CA3AF" />
             </TouchableOpacity>
             <Divider left={50} />
@@ -281,7 +285,7 @@ function HistoryPanel({ onSelect, searchHistory, trendingSearches, trendingLocat
     );
 }
 
-function SuggestionsPanel({ suggestions, onSelect }) {
+function SuggestionsPanel({ suggestions, loading, onSelect }) {
     const opacity = useSharedValue(1);
     const translateY = useSharedValue(10);
 
@@ -299,9 +303,10 @@ function SuggestionsPanel({ suggestions, onSelect }) {
             <SectionLabel text="SUGGESTIONS" />
             <View style={{ backgroundColor: '#fff' }}>
                 {suggestions.map((item, i) => (
-                    <SuggestionItem key={item} item={item} index={i} onPress={onSelect} />
+                    <SuggestionItem key={`${item.type || 'result'}-${item.id || i}`} item={item} index={i} onPress={onSelect} />
                 ))}
-                {suggestions.length === 0 && (
+                {loading && <ActivityIndicator style={{ paddingVertical: 24 }} size="small" color="#4A43EC" />}
+                {!loading && suggestions.length === 0 && (
                     <View style={{ paddingHorizontal: 20, paddingVertical: 24, alignItems: 'center' }}>
                         <MaterialCommunityIcons name="magnify-close" size={32} color="#D1D5DB" />
                         <Text style={{ fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>No results found</Text>
@@ -323,9 +328,10 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     const [locationStatus, setLocationStatus] = useState('');
     
     // Get data from Redux
-    const { trendingSearches, trendingLocations, trendingLocationsLoading, searchHistory } = useSelector(state => state.search);
+    const { trendingSearches, trendingLocations, trendingLocationsLoading, searchHistory, suggestions, suggestionResultCount, suggestionsLoading } = useSelector(state => state.search);
     const { isLoggedIn, token } = useSelector(state => state.auth);
     const { list: projectList } = useSelector(state => state.project);
+    const coordinates = useSelector(state => state.location.coordinates);
 
     const headerOpacity = useSharedValue(1);
     const headerY = useSharedValue(-8);
@@ -366,29 +372,34 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         return () => clearTimeout(debounceRef.current);
     }, [value]);
 
-    const suggestions = debouncedQuery
-        ? projectList
-            .filter(p =>
-                p.name?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                p.area?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-                p.city?.toLowerCase().includes(debouncedQuery.toLowerCase())
-            )
-            .slice(0, 8)
-            .map(p => `${p.name} · ${p.area}, ${p.city}`)
-        : [];
+    useEffect(() => {
+        if (!debouncedQuery) return;
+        dispatch(searchPropertiesAndProjectsThunk({ query: debouncedQuery, limit: 20, ...coordinates }));
+    }, [coordinates, debouncedQuery, dispatch]);
 
-    const handleSelect = useCallback((text) => {
-        // Extract just the project name if it's a suggestion with " · location" format
-        const searchTerm = text.includes(' · ') ? text.split(' · ')[0].trim() : text;
+    const localSuggestions = debouncedQuery
+        ? projectList.filter((project) => {
+            const query = debouncedQuery.toLowerCase();
+            return [project.name, project.title, project.area, project.city, project.location]
+                .some((value) => String(value || '').toLowerCase().includes(query));
+        }).slice(0, 20).map((project) => ({
+            ...project,
+            type: 'project',
+            title: project.title || project.name,
+        }))
+        : [];
+    const displayedSuggestions = suggestions.length > 0 ? suggestions : localSuggestions;
+
+    const handleSelect = useCallback((selection) => {
+        const searchTerm = typeof selection === 'string' ? selection : selection?.title;
+        if (!searchTerm) return;
         dispatch(setSearchQuery(searchTerm));
         onChangeText(searchTerm);
         
-        // Calculate result count based on current suggestions/matches
-        const resultCount = projectList.filter(p =>
-            p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.city?.toLowerCase().includes(searchTerm.toLowerCase())
-        ).length;
+        const savedResultCount = Number(selection?.source?.result_count);
+        const resultCount = Number.isFinite(savedResultCount) && savedResultCount > 0
+            ? savedResultCount
+            : Math.max(suggestionResultCount || 0, displayedSuggestions.length);
         
         // Save search to history if user is logged in
         if (isLoggedIn && token) {
@@ -400,7 +411,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
         }
         
         router.push('/(screens)/property-listing');
-    }, [isLoggedIn, token, dispatch, projectList, onChangeText]);
+    }, [isLoggedIn, token, dispatch, displayedSuggestions.length, onChangeText, suggestionResultCount]);
 
     const handleDeleteHistory = useCallback((itemOrId) => {
         const id = typeof itemOrId === 'string' ? itemOrId : getSearchHistoryId(itemOrId);
@@ -466,6 +477,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
             };
+            dispatch(getTrendingSearchesThunk(coords));
 
             setLocationStatus('Detecting area...');
             let locationName = 'Current location';
@@ -586,7 +598,7 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                     showSuggestions
-                        ? <SuggestionsPanel key="suggestions" suggestions={suggestions} onSelect={handleSelect} />
+                        ? <SuggestionsPanel key="suggestions" suggestions={displayedSuggestions} loading={suggestionsLoading && displayedSuggestions.length === 0} onSelect={handleSelect} />
                         : <HistoryPanel key="history" onSelect={handleSelect} searchHistory={searchHistory} trendingSearches={trendingSearches} trendingLocations={trendingLocations} trendingLocationsLoading={trendingLocationsLoading} onDeleteHistory={handleDeleteHistory} onClearAll={handleClearAll} />
                 }
             />

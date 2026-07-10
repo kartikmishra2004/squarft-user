@@ -8,6 +8,7 @@ import {
   FlatList,
   Platform,
   Animated,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -36,12 +37,12 @@ import { buildProjectAddress, buildProjectPrice } from "../../services/projectDi
 
 const CATEGORIES = [
   { id: "1", label: "Plot", image: require("../../assets/images/plot.png"), type: "Plot" },
-  { id: "2", label: "Villa", image: require("../../assets/images/villa.png"), type: "House/Villa" },
-  { id: "3", label: "Apartment", image: require("../../assets/images/apartment.png"), type: "Flat/Apartment" },
-  { id: "4", label: "RowHouse", image: require("../../assets/images/rowhouse.png"), type: "House/Villa" },
-  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"), type: "Commercial" },
-  { id: "6", label: "Showroom", image: require("../../assets/images/showroom.png"), type: "Commercial" },
-  { id: "7", label: "Office", image: require("../../assets/images/office.png"), type: "Commercial" },
+  { id: "2", label: "Villa", image: require("../../assets/images/villa.png"), type: "Villa" },
+  { id: "3", label: "Apartment", image: require("../../assets/images/apartment.png"), type: "Apartment" },
+  { id: "4", label: "RowHouse", image: require("../../assets/images/rowhouse.png"), type: "Rowhouse" },
+  { id: "5", label: "Shop", image: require("../../assets/images/Shop.png"), type: "Shop" },
+  { id: "6", label: "Showroom", image: require("../../assets/images/showroom.png"), type: "Showroom" },
+  { id: "7", label: "Office", image: require("../../assets/images/office.png"), type: "Office" },
 ];
 
 const cardShadow = {
@@ -230,6 +231,18 @@ export default function Home() {
   } = useSelector((s) => s.properties);
   const { featured: apiFeatured, featuredLoading, list: projectList } = useSelector((s) => s.project);
   const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
+  const coordinates = useSelector((s) => s.location.coordinates);
+
+  const handleShareApp = useCallback(async () => {
+    try {
+      await Share.share({
+        title: "SquarFT",
+        message: "Find properties and projects near you with SquarFT.",
+      });
+    } catch (error) {
+      console.log("App sharing failed:", error);
+    }
+  }, []);
 
   const displayUserName = useMemo(() => {
     const profileUser = profile?.user || profile;
@@ -285,6 +298,10 @@ export default function Home() {
     dispatch(fetchSavedPropertiesThunk());
     dispatch(fetchHighGrowthProjectsThunk());
   }, [dispatch, token]);
+
+  useEffect(() => {
+    if (token && coordinates) dispatch(fetchRecommendedPropertiesThunk());
+  }, [coordinates, dispatch, token]);
 
   useEffect(() => {
     if (token && !profile) {
@@ -825,7 +842,7 @@ export default function Home() {
             <TouchableOpacity className="flex-1 border border-1.5 border-gray-500 rounded-full items-center justify-center">
               <Text className="text-[15px] top-[-1px] font-manrope-bold text-[#0F172A]">Button</Text>
             </TouchableOpacity>
-            <TouchableOpacity className="flex-1 bg-indigo-600 rounded-full py-3 flex-row items-center justify-center gap-2">
+            <TouchableOpacity onPress={handleShareApp} className="flex-1 bg-indigo-600 rounded-full py-3 flex-row items-center justify-center gap-2">
               <FontAwesome6 name="arrow-up-from-bracket" size={16} color="#ffffff" />
               <Text className="text-[15px] top-[-1px] font-manrope-bold text-white">Share</Text>
             </TouchableOpacity>

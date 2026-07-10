@@ -41,11 +41,33 @@ async function request(path, options = {}) {
 }
 
 export const searchApi = {
-    // Get trending searches (no auth required)
-    getTrendingSearches: () =>
-        request('/api/v1/search/trending', {
+    searchPropertiesAndProjects: ({ query, latitude, longitude, limit = 20, token } = {}) => {
+        const params = new URLSearchParams({ q: String(query || '').trim(), limit: String(limit) });
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            params.set('latitude', String(latitude));
+            params.set('longitude', String(longitude));
+        }
+        return request(`/api/v1/search?${params.toString()}`, {
             method: 'GET',
-        }),
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+    },
+
+    // Get trending searches (no auth required)
+    getTrendingSearches: ({ latitude, longitude, city, token } = {}) => {
+        const params = new URLSearchParams();
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            params.set('latitude', String(latitude));
+            params.set('longitude', String(longitude));
+        } else if (city) {
+            params.set('city', String(city).trim());
+        }
+        const query = params.toString();
+        return request(`/api/v1/search/trending${query ? `?${query}` : ''}`, {
+            method: 'GET',
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+    },
 
     // Get popular project locations (no auth required)
     getTrendingLocations: () =>

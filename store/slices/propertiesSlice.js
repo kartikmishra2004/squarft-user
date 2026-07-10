@@ -5,6 +5,25 @@ import { addNotification } from './notificationSlice';
 import { NOTIFICATION_EVENTS } from '../../constants/notificationTypes';
 import { buildProjectAddress, buildProjectPrice, normalizeProject } from '../../services/projectDisplay';
 
+const prioritizeByDistance = (payload, coordinates) => {
+    if (!coordinates) return payload;
+    const list = Array.isArray(payload) ? payload : payload?.data;
+    if (!Array.isArray(list)) return payload;
+    const toRadians = (value) => value * Math.PI / 180;
+    const distance = (item) => {
+        const latitude = Number(item.latitude ?? item.project_latitude);
+        const longitude = Number(item.longitude ?? item.project_longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return Number.POSITIVE_INFINITY;
+        const dLat = toRadians(latitude - coordinates.latitude);
+        const dLng = toRadians(longitude - coordinates.longitude);
+        const a = Math.sin(dLat / 2) ** 2
+            + Math.cos(toRadians(coordinates.latitude)) * Math.cos(toRadians(latitude)) * Math.sin(dLng / 2) ** 2;
+        return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+    const sorted = [...list].sort((a, b) => distance(a) - distance(b));
+    return Array.isArray(payload) ? sorted : { ...payload, data: sorted };
+};
+
 // Fetch saved properties from API
 export const fetchSavedPropertiesThunk = createAsyncThunk(
     'properties/fetchSaved',
@@ -88,7 +107,14 @@ export const fetchRecommendedPropertiesThunk = createAsyncThunk(
         try {
             const { token } = getState().auth;
             if (!token) return [];
-            return await propertyApi.getRecommendedProperties(token, { limit: 6 });
+            const coordinates = getState().location.coordinates;
+            const params = { limit: 6 };
+            if (coordinates) {
+                params.latitude = coordinates.latitude;
+                params.longitude = coordinates.longitude;
+            }
+            const response = await propertyApi.getRecommendedProperties(token, params);
+            return prioritizeByDistance(response, coordinates);
         } catch (e) {
             return rejectWithValue(e.message);
         }

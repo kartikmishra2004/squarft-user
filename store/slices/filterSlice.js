@@ -6,6 +6,7 @@ const filterSlice = createSlice({
         isOpen: false,
         budgetFilterOpen: false,
         address: '',
+        locationCoordinates: null,
         searchQuery: '',
         tags: [],
         propertyTypes: [],       
@@ -20,7 +21,14 @@ const filterSlice = createSlice({
         closeFilter: (state) => { state.isOpen = false; },
         openBudgetFilter: (state) => { state.budgetFilterOpen = true; },
         closeBudgetFilter: (state) => { state.budgetFilterOpen = false; },
-        setAddress: (state, action) => { state.address = action.payload; },
+        setAddress: (state, action) => {
+            state.address = action.payload;
+            state.locationCoordinates = null;
+        },
+        setFilterLocation: (state, action) => {
+            state.address = action.payload.address;
+            state.locationCoordinates = action.payload.coordinates;
+        },
         setSearchQuery: (state, action) => { state.searchQuery = action.payload; },
         removeTag: (state, action) => {
             state.tags = state.tags.filter((t) => t !== action.payload);
@@ -48,6 +56,7 @@ const filterSlice = createSlice({
         toggleReraOnly: (state) => { state.reraOnly = !state.reraOnly; },
         clearFilters: (state) => {
             state.address = '';
+            state.locationCoordinates = null;
             state.searchQuery = '';
             state.tags = [];
             state.propertyTypes = [];
@@ -59,6 +68,7 @@ const filterSlice = createSlice({
         },
         clearNonTypeFilters: (state) => {
             state.address = '';
+            state.locationCoordinates = null;
             state.searchQuery = '';
             state.tags = [];
             state.propertySubTypes = [];
@@ -67,13 +77,14 @@ const filterSlice = createSlice({
             state.possessionStatus = [];
             state.reraOnly = false;
         },
+        clearPropertyTypes: (state) => { state.propertyTypes = []; },
     },
 });
 
 export const {
     openFilter, closeFilter, openBudgetFilter, closeBudgetFilter,
-    setAddress, setSearchQuery, removeTag,
+    setAddress, setFilterLocation, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
-    setAreaRange, togglePossession, toggleReraOnly, clearFilters, clearNonTypeFilters,
+    setAreaRange, togglePossession, toggleReraOnly, clearFilters, clearNonTypeFilters, clearPropertyTypes,
 } = filterSlice.actions;
 export default filterSlice.reducer;

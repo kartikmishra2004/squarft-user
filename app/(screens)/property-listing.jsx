@@ -1,14 +1,14 @@
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable, ScrollView } from "react-native";
 import { useState, useEffect } from "react"; 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
-import { openBudgetFilter, setSearchQuery, clearNonTypeFilters } from "../../store/slices/filterSlice";
+import { openBudgetFilter, setSearchQuery, clearNonTypeFilters, togglePropertyType, clearPropertyTypes, clearFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
 import { fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
@@ -19,6 +19,7 @@ const BUDGET_MIN = 2000000;
 const BUDGET_MAX = 50000000;
 const AREA_MIN = 0;
 const AREA_MAX = 5000;
+const SUBTYPE_FILTERS = ['Apartment', 'Villa', 'Plot', 'Shop', 'Office', 'Showroom', 'Rowhouse'];
 
 const normalizeText = (value) => String(value ?? '').toLowerCase().trim();
 const cleanDisplayText = (value) => {
@@ -129,14 +130,32 @@ const collectVariantPrices = (project) =>
 const getProjectArea = (project) =>
     getNumber(project.total_area_sqft, project.area_sqft, project.areaSqft, project.total_area, project.carpet_area);
 
-const getProjectTypeText = (project) => [
-    project.propertyType,
-    project.property_type,
-    project.property_subtype,
-    project.category,
-    project.type,
-    project.name,
-].map(normalizeText).filter(Boolean).join(' ');
+const getProjectTypeText = (project) => {
+    const configuredSubtypes = Array.isArray(project.available_subtypes)
+        ? project.available_subtypes.filter(Boolean)
+        : [];
+    const fields = configuredSubtypes.length > 0
+        ? configuredSubtypes
+        : [
+            project.propertyType,
+            project.property_type,
+            project.property_subtype,
+            project.category,
+            project.type,
+            project.name,
+        ];
+
+    return [
+        ...fields,
+        ...getNestedUnits(project).flatMap((unit) => [
+        unit?.property_subtype,
+        unit?.sub_type,
+        unit?.inventory_type,
+        unit?.property_type,
+        unit?.type,
+        ]),
+    ].map(normalizeText).filter(Boolean).join(' ');
+};
 
 const matchesPropertyType = (project, selectedTypes) => {
     if (selectedTypes.length === 0) return true;
@@ -144,11 +163,12 @@ const matchesPropertyType = (project, selectedTypes) => {
     const text = getProjectTypeText(project);
     return selectedTypes.some((type) => {
         const selected = normalizeText(type);
-        if (selected === 'flat/apartment') return /\b(flat|apartment|residential)\b/.test(text);
-        if (selected === 'house/villa') return /\b(house|villa|rowhouse|row house)\b/.test(text);
+        if (selected === 'flat/apartment' || selected === 'apartment') return /\b(flat|apartment)\b/.test(text);
+        if (selected === 'house/villa' || selected === 'villa') return /\b(house|villa|bungalow)\b/.test(text);
         if (selected === 'plot') return /\b(plot|land)\b/.test(text);
         if (selected === 'commercial') return /\b(commercial|shop|showroom|office|retail)\b/.test(text);
-        return text.includes(selected);
+        if (selected === 'rowhouse') return /\b(rowhouse|row house|townhouse|town house)\b/.test(text);
+        return new RegExp(`\\b${selected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?\\b`).test(text);
     });
 };
 
@@ -161,6 +181,7 @@ const getBhkValues = (project) => {
         project.configuration,
         project.configurations,
         project.configs,
+        ...(Array.isArray(project.available_configurations) ? project.available_configurations : []),
         project.property_subtype,
         project.propertySubtype,
         project.sub_type,
@@ -276,7 +297,18 @@ function applyFilters(projects, filter) {
 
         if (filter.searchQuery) {
             const q = filter.searchQuery.toLowerCase().trim();
-            if (!searchText.includes(q)) return false;
+            const bhkMatch = q.match(/\b([1-5])\s*(?:bhk|bedroom|bed)\b/);
+            const subtypeMatch = q.match(/\b(apartment|flat|villa|bungalow|plot|land|shop|office|showroom|rowhouse|townhouse)\b/);
+            if (bhkMatch && !matchesBhk(p, [`${bhkMatch[1]} BHK`])) return false;
+            if (subtypeMatch && !matchesPropertyType(p, [subtypeMatch[1]])) return false;
+
+            const remainingText = q
+                .replace(/\b[1-5]\s*(?:bhk|bedroom|bed)\b/g, ' ')
+                .replace(/\b(apartment|flat|villa|bungalow|plot|land|shop|office|showroom|rowhouse|townhouse)\b/g, ' ')
+                .replace(/\b(in|at|near)\b/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (remainingText && !searchText.includes(remainingText)) return false;
         }
 
         if (!matchesPropertyType(p, filter.propertyTypes)) return false;
@@ -368,6 +400,7 @@ function ProjectCard({ item }) {
 export default function PropertyListing() {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
+    const navigation = useNavigation();
     const filter = useSelector((state) => state.filter);
     const { list: apiProjects, featured, nearby, loading: projectsLoading, featuredLoading, nearbyLoading } = useSelector((state) => state.project);
     const { highGrowthProjects, highGrowthLocalities, highGrowthLoading, highGrowthCity } = useSelector((state) => state.properties);
@@ -383,6 +416,13 @@ export default function PropertyListing() {
     const [sortOpen, setSortOpen] = useState(false);
     const [bhkOpen, setBhkOpen] = useState(false);
     const [possessionOpen, setPossessionOpen] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', () => {
+            dispatch(clearFilters());
+        });
+        return unsubscribe;
+    }, [dispatch, navigation]);
 
     // Fetch project list on mount if not already loaded
     useEffect(() => {
@@ -551,7 +591,7 @@ export default function PropertyListing() {
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
-                        onPress={() => dispatch(clearNonTypeFilters())}
+                        onPress={() => { dispatch(clearNonTypeFilters()); dispatch(clearPropertyTypes()); }}
                         style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}
                     >
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>View All</Text>
@@ -595,6 +635,33 @@ export default function PropertyListing() {
                         <Ionicons name="chevron-down" size={12} color={(filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#6B7280'} />
                     </TouchableOpacity>
                 </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 16 }}
+                >
+                    {SUBTYPE_FILTERS.map((subtype) => {
+                        const selected = filter.propertyTypes.includes(subtype);
+                        return (
+                            <TouchableOpacity
+                                key={subtype}
+                                onPress={() => dispatch(togglePropertyType(subtype))}
+                                style={{
+                                    borderWidth: 1,
+                                    borderColor: selected ? '#4A43EC' : '#E5E7EB',
+                                    borderRadius: 10,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 7,
+                                    backgroundColor: selected ? '#F5F3FF' : '#fff',
+                                }}
+                            >
+                                <Text style={{ fontSize: 12, color: selected ? '#4A43EC' : '#374151', fontWeight: selected ? '600' : '400' }}>
+                                    {subtype}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
             </View>
             <View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center', marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
 

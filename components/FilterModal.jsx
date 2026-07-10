@@ -1,13 +1,12 @@
 import { memo, useEffect, useState } from "react";
 import {
     KeyboardAvoidingView,
-    Modal,
     Platform,
-    Pressable,
     ScrollView,
     View, Text, TextInput, TouchableOpacity,
     useWindowDimensions,
 } from "react-native";
+import { SettledBackdrop, SettledModal } from "./SettledModal";
 import { useDispatch, useSelector } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -133,7 +132,7 @@ function CheckBox({ label, checked, onPress }) {
 export default function FilterModal() {
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
-    const { isOpen, address, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
+    const { isOpen, address, locationCoordinates, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
     const [localAddress, setLocalAddress] = useState(address);
 
     useEffect(() => {
@@ -142,7 +141,7 @@ export default function FilterModal() {
     }, [address, isOpen]);
 
     return (
-        <Modal
+        <SettledModal
             visible={isOpen}
             transparent
             animationType="slide"
@@ -153,7 +152,7 @@ export default function FilterModal() {
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 style={{ flex: 1, justifyContent: "flex-end" }}
             >
-                <Pressable
+                <SettledBackdrop
                     onPress={() => dispatch(closeFilter())}
                     style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
                 />
@@ -176,7 +175,19 @@ export default function FilterModal() {
                         {/* Address */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 12 }}>
                             <TextInput value={localAddress} onChangeText={setLocalAddress} placeholder="Address & Landmark" placeholderTextColor="#9CA3AF" style={{ flex: 1, fontSize: 14, color: '#111827' }} />
-                            <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#4A43EC" />
+                            <TouchableOpacity
+                                onPress={() => {
+                                    dispatch(setAddress(localAddress));
+                                    dispatch(closeFilter());
+                                    router.push('/(screens)/location-picker');
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Choose location on map"
+                                hitSlop={10}
+                                style={{ padding: 6 }}
+                            >
+                                <MaterialCommunityIcons name="map-marker-radius-outline" size={22} color="#4A43EC" />
+                            </TouchableOpacity>
                         </View>
 
                         {tags.length > 0 && (
@@ -237,7 +248,19 @@ export default function FilterModal() {
                             onPress={() => {
                                 dispatch(setAddress(localAddress));
                                 dispatch(closeFilter());
-                                router.push('/(screens)/property-listing');
+                                if (locationCoordinates) {
+                                    router.push({
+                                        pathname: '/(screens)/property-listing',
+                                        params: {
+                                            nearby: '1',
+                                            latitude: String(locationCoordinates.latitude),
+                                            longitude: String(locationCoordinates.longitude),
+                                            locationName: localAddress,
+                                        },
+                                    });
+                                } else {
+                                    router.push('/(screens)/property-listing');
+                                }
                             }}
                             style={{ backgroundColor: '#4A43EC', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
                             <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Apply Filters</Text>
@@ -245,6 +268,6 @@ export default function FilterModal() {
                     </View>
                 </View>
             </KeyboardAvoidingView>
-        </Modal>
+        </SettledModal>
     );
 }

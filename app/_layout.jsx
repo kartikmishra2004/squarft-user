@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Provider, useDispatch } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import { useFonts } from "expo-font";
 import { Platform } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
@@ -19,6 +19,8 @@ import { store } from "../store/store";
 import PushNotificationRegistrar from "../components/PushNotificationRegistrar";
 import { hydrateAndCleanTrackers } from "../store/slices/projectViewTrackingSlice";
 import { hydrateAndCleanRecentTrackers } from "../store/slices/recentProjectsSlice";
+import * as Location from "expo-location";
+import { setCoordinates, setLocationPermission } from "../store/slices/locationSlice";
 
 if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
     registerGlobals();
@@ -29,11 +31,38 @@ SplashScreen.preventAutoHideAsync();
 
 function ActivityTrackerHydrator() {
     const dispatch = useDispatch();
+    const token = useSelector((state) => state.auth.token);
 
     useEffect(() => {
         dispatch(hydrateAndCleanTrackers());
         dispatch(hydrateAndCleanRecentTrackers());
     }, [dispatch]);
+
+    useEffect(() => {
+        // Never trigger the OS location prompt on splash/auth screens.
+        if (!token) return undefined;
+        let active = true;
+        const requestLocation = async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (!active) return;
+                dispatch(setLocationPermission(status));
+                if (status !== 'granted') return;
+
+                const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                if (active) {
+                    dispatch(setCoordinates({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    }));
+                }
+            } catch {
+                if (active) dispatch(setLocationPermission('unavailable'));
+            }
+        };
+        requestLocation();
+        return () => { active = false; };
+    }, [dispatch, token]);
 
     return null;
 }

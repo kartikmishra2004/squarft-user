@@ -26,6 +26,7 @@ import { buildProjectAddress, buildProjectPrice } from "../../services/projectDi
 import { GeocodingService } from "../../services/geocoding/GeocodingService";
 import { processProjectsForMap } from "../../services/geocoding/processor";
 import { getFallbackCoordinate } from "../../services/geocoding/fallback";
+import { GOOGLE_MAPS_API_KEY } from "../../services/config";
 
 const INDORE_CENTER = { latitude: 22.7196, longitude: 75.8577 };
 const DEFAULT_REGION = {
@@ -372,16 +373,14 @@ export default function MapViewScreen() {
     const geocodingServiceRef = useRef(null);
     const baseProjects = mapProjects?.length ? mapProjects : allProjects;
 
-    const GOOGLE_MAPS_API_KEY =
-        Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-        process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-        process.env?.GOOGLE_MAPS_API_KEY ||
-        "";
+    const geocodingApiKey = GOOGLE_MAPS_API_KEY
+        || Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        || "";
 
     // Initialize geocoding service when we have a key
-    if (!geocodingServiceRef.current && GOOGLE_MAPS_API_KEY) {
+    if (!geocodingServiceRef.current && geocodingApiKey) {
         geocodingServiceRef.current = new GeocodingService({
-            apiKey: GOOGLE_MAPS_API_KEY,
+            apiKey: geocodingApiKey,
             maxCacheSize: 500,
             cacheTTL: 7 * 24 * 60 * 60 * 1000, // 7 days
         });

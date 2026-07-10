@@ -1,4 +1,5 @@
-import { Modal, Pressable, Switch, Text, TouchableOpacity, View } from "react-native";
+import { Switch, Text, TouchableOpacity, View } from "react-native";
+import { SettledBackdrop, SettledModal } from "./SettledModal";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,7 +14,7 @@ export default function BHKFilterModal({ visible, onClose }) {
     const reraOnly = useSelector((state) => state.filter.reraOnly);
 
     return (
-        <Modal
+        <SettledModal
             visible={visible}
             transparent
             animationType="slide"
@@ -21,7 +22,7 @@ export default function BHKFilterModal({ visible, onClose }) {
             onRequestClose={onClose}
         >
             <View style={{ flex: 1, justifyContent: "flex-end" }}>
-                <Pressable
+                <SettledBackdrop
                     onPress={onClose}
                     style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
                 />
@@ -106,6 +107,6 @@ export default function BHKFilterModal({ visible, onClose }) {
                     </TouchableOpacity>
                 </View>
             </View>
-        </Modal>
+        </SettledModal>
     );
 }
