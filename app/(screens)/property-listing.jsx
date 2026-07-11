@@ -1,14 +1,14 @@
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Pressable, ScrollView } from "react-native";
 import { useState, useEffect } from "react"; 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
-import { openBudgetFilter, setSearchQuery, clearNonTypeFilters, togglePropertyType, clearPropertyTypes, clearFilters } from "../../store/slices/filterSlice";
+import { openBudgetFilter, setSearchQuery, clearNonTypeFilters, togglePropertyType, clearPropertyTypes, openFilter, clearFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
 import { fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
@@ -584,6 +584,9 @@ export default function PropertyListing() {
                             style={{ flex: 1, fontSize: 14, color: '#111827' }}
                         />
                     </View>
+                      <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-xl px-5 h-[44px] w-[50px] gap-2">
+                                  <AntDesign name="spotify" size={18} color="#7F88E5" />
+                                </TouchableOpacity>
                     <TouchableOpacity onPress={handleOpenMap} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
                         <MaterialCommunityIcons name="map-outline" size={20} color="#fff" />
                     </TouchableOpacity>
@@ -635,36 +638,9 @@ export default function PropertyListing() {
                         <Ionicons name="chevron-down" size={12} color={(filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#6B7280'} />
                     </TouchableOpacity>
                 </View>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 16 }}
-                >
-                    {SUBTYPE_FILTERS.map((subtype) => {
-                        const selected = filter.propertyTypes.includes(subtype);
-                        return (
-                            <TouchableOpacity
-                                key={subtype}
-                                onPress={() => dispatch(togglePropertyType(subtype))}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: selected ? '#4A43EC' : '#E5E7EB',
-                                    borderRadius: 10,
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 7,
-                                    backgroundColor: selected ? '#F5F3FF' : '#fff',
-                                }}
-                            >
-                                <Text style={{ fontSize: 12, color: selected ? '#4A43EC' : '#374151', fontWeight: selected ? '600' : '400' }}>
-                                    {subtype}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
+              
             </View>
             <View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center', marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
-
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#6B7280' }}>
                     <Text style={{ fontWeight: '700', color: '#111827' }}>{sorted.length}</Text>{isFeaturedMode ? ' Featured Projects' : (isRecommendedMode ? ' Recommended Projects' : (isHighGrowthMode ? ' High Growth Projects' : (isFocusMode ? ' Projects in Focus' : (category ? ` ${category}s` : ' Premium Projects'))))}

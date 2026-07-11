@@ -19,6 +19,7 @@ import {
     fetchSavedPropertiesThunk,
 } from "../../store/slices/propertiesSlice";
 import ZoomableImage from "./ZoomableImage";
+import { getProjectPropertyCardConfig } from "../../services/propertyConfiguration";
 
 const naksha = require("../../assets/images/building_naksha.png");
 
@@ -103,7 +104,7 @@ export default function PropertyDetailModal({
     if (!project || !variant) return null;
 
     const isSaved = savedProjects.includes(project.id);
-    const variantType = variant.type || variant.title || "Property";
+    const variantType = getProjectPropertyCardConfig(variant) || variant.title || variant.type || "Property";
     const variantId = `${project.id}_${variantType.replace(/\s+/g, "_")}`;
     const isAdded = bookedVisits.some((v) => v.id === variantId);
 

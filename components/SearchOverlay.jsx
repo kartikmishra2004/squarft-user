@@ -391,7 +391,8 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
     const displayedSuggestions = suggestions.length > 0 ? suggestions : localSuggestions;
 
     const handleSelect = useCallback((selection) => {
-        const searchTerm = typeof selection === 'string' ? selection : selection?.title;
+        const isResult = typeof selection === 'object' && selection !== null;
+        const searchTerm = (value || (typeof selection === 'string' ? selection : selection?.title) || '').trim();
         if (!searchTerm) return;
         dispatch(setSearchQuery(searchTerm));
         onChangeText(searchTerm);
@@ -410,8 +411,24 @@ export default function SearchOverlay({ value, onChangeText, onClose, insets }) 
             }));
         }
         
+        if (isResult && selection.type === 'project' && selection.id) {
+            router.push({
+                pathname: '/(screens)/project-detail',
+                params: { id: selection.id, slug: selection.slug || 'none' },
+            });
+            return;
+        }
+
+        if (isResult && selection.type === 'property' && selection.project_id) {
+            router.push({
+                pathname: '/(screens)/project-detail',
+                params: { id: selection.project_id, slug: selection.project_slug || 'none' },
+            });
+            return;
+        }
+
         router.push('/(screens)/property-listing');
-    }, [isLoggedIn, token, dispatch, displayedSuggestions.length, onChangeText, suggestionResultCount]);
+    }, [isLoggedIn, token, dispatch, displayedSuggestions.length, onChangeText, suggestionResultCount, value]);
 
     const handleDeleteHistory = useCallback((itemOrId) => {
         const id = typeof itemOrId === 'string' ? itemOrId : getSearchHistoryId(itemOrId);

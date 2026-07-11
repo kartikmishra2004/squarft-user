@@ -43,6 +43,8 @@ function getVariantArea(variant, project) {
 }
 
 function getPropertyTitle(item) {
+    const configuration = getProjectPropertyCardConfig(item);
+    if (configuration) return configuration;
     return item.title || item.name || item.property_name || item.project_name || "Property";
 }
 
@@ -73,20 +75,12 @@ function getPropertyImage(item, fallback) {
     return getImageSource(item.cover_image || item.cover_image_url || item.image || item.image_url || item.imageMain, fallback);
 }
 
-function getPropertyConfig(item) {
-    const projectDetailConfig = getProjectPropertyCardConfig(item);
-    if (projectDetailConfig) return projectDetailConfig;
-    if (item.configs) return item.configs;
-    if (item.bedrooms) return `${item.bedrooms} BHK`;
-    if (Array.isArray(item.subTypes) && item.subTypes.length) return item.subTypes.join(", ");
-    return item.sub_type || item.property_subtype || item.property_type || "";
-}
-
 function buildPropertyVariant(item) {
+    const propertyTitle = getPropertyTitle(item);
     return {
         ...item,
-        title: getPropertyTitle(item),
-        type: item.type || item.property_type || item.property_subtype || getPropertyTitle(item),
+        title: propertyTitle,
+        type: propertyTitle,
         price: item.price ?? item.priceRange ?? item.variants?.[0]?.priceRange ?? item.base_price ?? item.price_from ?? item.min_price,
         base_price: item.base_price ?? item.price_from ?? item.min_price,
         area: item.area_sqft ? `${item.area_sqft} sqft` : item.area,
@@ -158,9 +152,6 @@ export default function Overview({ project }) {
                 <Text className="text-[13px] font-inter-bold text-[#4A43EC] mb-1" numberOfLines={1}>{getPropertyPriceText(item)}</Text>
                 <Text className="text-[14px] font-inter-bold text-gray-900 mb-0.5" numberOfLines={1}>{getPropertyTitle(item)}</Text>
                 <Text className="text-[10px] font-inter-regular text-gray-400 mb-0.5" numberOfLines={1}>{getPropertyLocation(item)}</Text>
-                {!!getPropertyConfig(item) && (
-                    <Text className="text-[10px] text-gray-400" numberOfLines={1}>{getPropertyConfig(item)}</Text>
-                )}
             </View>
         </TouchableOpacity>
     );
@@ -204,7 +195,7 @@ export default function Overview({ project }) {
                         />
                         <View className="p-3">
                             <View className="flex-row items-center justify-between mb-1">
-                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{v.configurationLabel || getPropertyConfig(v) || v.type || v.title}</Text>
+                                <Text className="text-[13px] font-manrope-bold text-[#0F172A]">{getPropertyTitle(v)}</Text>
                                 <Text className="text-[16px] font-manrope-bold text-[#4A43EC]">
                                     {getVariantPrice(v)}
                                 </Text>
@@ -215,7 +206,7 @@ export default function Overview({ project }) {
                             </View>
                             <TouchableOpacity
                                 onPress={() => {
-                                    setSelectedVariant(v);
+                                    setSelectedVariant(buildPropertyVariant(v));
                                     setPropertyDetailVisible(true);
                                 }}
                                 className="bg-[#6C3BFF]/5 border border-[#dacff9] rounded-2xl mx-2 py-3 mb-1 items-center"

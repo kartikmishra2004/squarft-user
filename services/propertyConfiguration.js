@@ -6,9 +6,19 @@ const toTitleCase = (value) => cleanValue(value)
     .toLowerCase()
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-const getCategory = (property = {}) => cleanValue(
-    property.property_type || property.type || property.category,
-).toLowerCase();
+const COMMERCIAL_SUBTYPES = new Set(['shop', 'office', 'showroom']);
+
+const getCategory = (property = {}) => {
+    const explicitCategory = cleanValue(
+        property.property_type || property.type || property.category,
+    ).toLowerCase();
+    if (explicitCategory === 'residential' || explicitCategory === 'commercial') return explicitCategory;
+
+    const subtype = cleanValue(property.sub_type || property.property_subtype).toLowerCase();
+    if (COMMERCIAL_SUBTYPES.has(subtype)) return 'commercial';
+    if (property.bedrooms !== null && property.bedrooms !== undefined) return 'residential';
+    return explicitCategory;
+};
 
 const getBedroomLabel = (property = {}) => {
     const bedrooms = Number(property.bedrooms);
@@ -26,12 +36,10 @@ export const getProjectPropertyCardConfig = (property = {}) => {
     const subtypeLabel = getPropertySubtypeLabel(property);
 
     if (category === 'residential') {
-        return [bedroomLabel, subtypeLabel].filter(Boolean).join(' • ');
+        const descriptionLabel = cleanValue(property.description) || bedroomLabel;
+        return [descriptionLabel, subtypeLabel].filter(Boolean).join(' ');
     }
 
-    if (category === 'commercial') {
-        return subtypeLabel;
-    }
-
+    if (category === 'commercial') return subtypeLabel;
     return subtypeLabel || bedroomLabel;
 };

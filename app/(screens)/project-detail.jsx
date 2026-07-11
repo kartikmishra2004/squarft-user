@@ -218,11 +218,17 @@ function normalizeFloorPlan(plan) {
     ...plan,
     property_type: propertyType,
   });
-  const title = plan.title
+  const description = cleanText(plan.description);
+  const bedroomTitle = plan.bedrooms !== null && plan.bedrooms !== undefined
+    ? `${plan.bedrooms} BHK`
+    : null;
+  const title = description
+    || bedroomTitle
+    || plan.title
     || configurationLabel
-    || formatConfigLabel(plan.sub_type || plan.property_subtype || propertyType)
+    || formatConfigLabel(plan.sub_type || plan.property_subtype )
     || 'Unit';
-  const areaSqft = plan.area_sqft ?? plan.total_area_sqft ?? plan.areaSqft ?? null;
+  const areaSqft = plan.area_sqft ?? plan.total_area_sqft ??  null;
 
   return {
     ...plan,
