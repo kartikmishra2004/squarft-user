@@ -14,6 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { AudioSession } from "@livekit/react-native";
 import { ConnectionState, DisconnectReason, Room, RoomEvent } from "livekit-client";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voiceApi } from "../../services/voiceApi";
 
 LogBox.ignoreLogs([
@@ -80,6 +81,7 @@ function formatDuration(seconds) {
 
 export default function VoiceAgentScreen() {
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const phoneNumber = getParam(params.phoneNumber);
   const name = getParam(params.name, "App User");
   const roomRef = useRef(null);
@@ -319,7 +321,10 @@ export default function VoiceAgentScreen() {
         )}
       </View>
 
-      <View className="flex-row items-center justify-center gap-5 px-8 pb-10">
+      <View
+        className="flex-row items-center justify-center gap-5 px-8"
+        style={{ paddingBottom: Math.max(insets.bottom, 40) }}
+      >
         <Pressable
           onPress={toggleMic}
           disabled={connectionState !== ConnectionState.Connected}

@@ -834,9 +834,6 @@ export default function Home() {
             resizeMode="contain"
           />
           <View className="flex-row gap-3 px-5 pb-6 top-[-6px]">
-            <TouchableOpacity className="flex-1 border border-1.5 border-gray-500 rounded-full items-center justify-center">
-              <Text className="text-[15px] top-[-1px] font-manrope-bold text-[#0F172A]">Button</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleShareApp} className="flex-1 bg-indigo-600 rounded-full py-3 flex-row items-center justify-center gap-2">
               <FontAwesome6 name="arrow-up-from-bracket" size={16} color="#ffffff" />
               <Text className="text-[15px] top-[-1px] font-manrope-bold text-white">Share</Text>

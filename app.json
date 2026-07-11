@@ -80,6 +80,12 @@
           "locationWhenInUsePermission": "Allow SquarFT to use your location to show nearby projects."
         }
       ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow SquarFT to use Face ID to unlock the app."
+        }
+      ],
       "expo-font"
     ],
     "splash": {

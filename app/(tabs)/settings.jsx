@@ -1,16 +1,24 @@
 import {
     View, Text, Image, TouchableOpacity,
-    ScrollView, Switch, Alert, ActivityIndicator,
+    ScrollView, Switch, Alert, ActivityIndicator, Platform,
 } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router, useFocusEffect } from "expo-router";
-import { logout, fetchProfileThunk, updateProfilePictureThunk } from "../../store/slices/authSlice";
+import { logoutThunk, fetchProfileThunk, updateProfilePictureThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 import { ProfileSkeleton } from "../../components/SkeletonLoader";
 import { userVerificationApi } from "../../services/userVerificationApi";
+import {
+    authenticateBiometric,
+    getBiometricLabel,
+    getBiometricLockEnabled,
+    isBiometricHardwareAvailable,
+    setBiometricLockEnabled,
+} from "../../utils/biometricLock";
 
 const cardShadow = {
     shadowColor: "#7a7878ff",
@@ -105,7 +113,10 @@ export default function Settings() {
     const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
     const [idVerificationStatus, setIdVerificationStatus] = useState(null);
-    
+    const [biometricLockOn, setBiometricLockOn] = useState(false);
+    const [biometricLabel, setBiometricLabel] = useState("Biometric Lock");
+    const [biometricBusy, setBiometricBusy] = useState(false);
+
     const { profile, loading, isLoggedIn, token, profilePictureLoading } = useSelector((state) => state.auth);
 
     useEffect(() => {
@@ -136,6 +147,45 @@ export default function Settings() {
         loadIdVerificationStatus();
     }, [loadIdVerificationStatus]);
 
+    useEffect(() => {
+        (async () => {
+            const [enabled, label] = await Promise.all([
+                getBiometricLockEnabled(),
+                getBiometricLabel(),
+            ]);
+            setBiometricLockOn(enabled);
+            setBiometricLabel(label);
+        })();
+    }, []);
+
+    const handleBiometricToggle = async (nextValue) => {
+        if (biometricBusy) return;
+
+        if (nextValue) {
+            const available = await isBiometricHardwareAvailable();
+            if (!available) {
+                Alert.alert(
+                    "Not available",
+                    `${biometricLabel} is not set up on this device. Please enroll it in your device settings first.`
+                );
+                return;
+            }
+        }
+
+        setBiometricBusy(true);
+        try {
+            const confirmed = await authenticateBiometric(
+                nextValue ? `Enable ${biometricLabel} lock` : `Disable ${biometricLabel} lock`
+            );
+            if (!confirmed) return;
+
+            await setBiometricLockEnabled(nextValue);
+            setBiometricLockOn(nextValue);
+        } finally {
+            setBiometricBusy(false);
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             loadIdVerificationStatus();
@@ -148,7 +198,7 @@ export default function Settings() {
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Logout', style: 'destructive', onPress: () => {
-                    dispatch(logout());
+                    dispatch(logoutThunk());
                     router.replace('/(auth)/login');
                 },
             },
@@ -170,7 +220,9 @@ export default function Settings() {
 
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ["images"],
-                allowsEditing: true,
+                // The native Android crop screen (UCrop) hides its "Done" button behind
+                // the edge-to-edge system bars, so crop manually there instead.
+                allowsEditing: Platform.OS === "ios",
                 aspect: [1, 1],
                 quality: 0.85,
             });
@@ -180,8 +232,26 @@ export default function Settings() {
             const asset = result.assets?.[0];
             if (!asset?.uri) return;
 
+            let uri = asset.uri;
+            if (Platform.OS === "android" && asset.width && asset.height) {
+                const size = Math.min(asset.width, asset.height);
+                const manipulated = await ImageManipulator.manipulateAsync(
+                    asset.uri,
+                    [{
+                        crop: {
+                            originX: Math.round((asset.width - size) / 2),
+                            originY: Math.round((asset.height - size) / 2),
+                            width: size,
+                            height: size,
+                        },
+                    }],
+                    { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+                );
+                uri = manipulated.uri;
+            }
+
             await dispatch(updateProfilePictureThunk({
-                uri: asset.uri,
+                uri,
                 name: asset.fileName || "profile-picture.jpg",
                 type: asset.mimeType || "image/jpeg",
             })).unwrap();
@@ -244,7 +314,7 @@ export default function Settings() {
             />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 120 }}
+                contentContainerStyle={{ paddingBottom: 160 }}
             >
 
                 <View style={{ alignItems: 'center', paddingTop: 30, paddingBottom: 2 }}>
@@ -308,6 +378,23 @@ export default function Settings() {
                         sublabel={displayVerification}
                         sublabelColor={String(displayVerification).toLowerCase().includes('reject') ? '#EF4444' : String(displayVerification).toLowerCase().includes('pending') ? '#F59E0B' : '#10B981'}
                         onPress={() => router.push('/(screens)/id-verification')}
+                    />
+                    <SettingsRow
+                        icon={<MaterialCommunityIcons name="fingerprint" size={18} color="#4A43EC" />}
+                        label="Biometric Lock"
+                        sublabel={biometricLockOn ? `Enabled (${biometricLabel})` : "Disabled"}
+                        right={
+                            biometricBusy ? (
+                                <ActivityIndicator size="small" color="#4A43EC" />
+                            ) : (
+                                <Switch
+                                    value={biometricLockOn}
+                                    onValueChange={handleBiometricToggle}
+                                    trackColor={{ false: '#E5E7EB', true: '#4A43EC' }}
+                                    thumbColor="#fff"
+                                />
+                            )
+                        }
                         isLast
                     />
                 </SettingsCard>
@@ -344,12 +431,8 @@ export default function Settings() {
                                 thumbColor="#fff"
                             />
                         }
+                        isLast
                     />
-                    <SettingsRow
-                        icon={<MaterialCommunityIcons name="fingerprint" size={18} color="#475569" />}
-                        label="Biometric Lock"
-                    />
-
                 </SettingsCard>
 
                 {/* Support */}

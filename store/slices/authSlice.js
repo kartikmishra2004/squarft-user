@@ -1,13 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../../services/authApi';
 import { profileApi } from '../../services/profileApi';
+import { clearAuthSession, loadAuthSession, saveAuthSession } from '../../utils/authStorage';
 
 export const loginThunk = createAsyncThunk('auth/login', async ({ phone, password }, { rejectWithValue }) => {
     try {
-        return await authApi.login(phone, password);
+        const response = await authApi.login(phone, password);
+        await saveAuthSession({ token: response.token, user: response.user });
+        return response;
     } catch (e) {
         return rejectWithValue(e.message);
     }
+});
+
+// Rehydrate a previously saved session on app start
+export const hydrateAuthThunk = createAsyncThunk('auth/hydrate', async () => {
+    return await loadAuthSession();
+});
+
+// Log out and clear the persisted session
+export const logoutThunk = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
+    await clearAuthSession();
+    dispatch(logout());
 });
 
 
@@ -91,6 +105,7 @@ const authSlice = createSlice({
         verifiedToken: null,
         rememberMe: false,
         isLoggedIn: false,
+        authChecked: false,
         token: null,
         user: null,
         profile: null,
@@ -138,11 +153,24 @@ const authSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            // Hydrate persisted session
+            .addCase(hydrateAuthThunk.fulfilled, (state, action) => {
+                state.authChecked = true;
+                if (action.payload?.token) {
+                    state.token = action.payload.token;
+                    state.user = action.payload.user || null;
+                    state.isLoggedIn = true;
+                }
+            })
+            .addCase(hydrateAuthThunk.rejected, (state) => {
+                state.authChecked = true;
+            })
             // Login
             .addCase(loginThunk.pending, (state) => { state.loading = true; state.error = null; })
             .addCase(loginThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 state.token = action.payload.token;
+                state.user = action.payload.user || state.user;
                 state.isLoggedIn = true;
             })
             .addCase(loginThunk.rejected, (state, action) => {

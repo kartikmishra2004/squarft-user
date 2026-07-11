@@ -9,17 +9,17 @@ const SPLASH_DURATION_MS = 1800;
 
 export default function Index() {
     const router = useRouter();
-    const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+    const { isLoggedIn, authChecked } = useSelector((state) => state.auth);
 
     useEffect(() => {
-        if (isLoggedIn) return undefined;
+        if (!authChecked || isLoggedIn) return undefined;
 
         const splashTimer = setTimeout(() => {
             router.replace("/(auth)/onboarding1");
         }, SPLASH_DURATION_MS);
 
         return () => clearTimeout(splashTimer);
-    }, [isLoggedIn, router]);
+    }, [authChecked, isLoggedIn, router]);
 
     if (isLoggedIn) {
         return <Redirect href="/(tabs)/home" />;

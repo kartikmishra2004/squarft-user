@@ -18,10 +18,12 @@ import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, Publ
 import { store } from "../store/store";
 import PushNotificationRegistrar from "../components/PushNotificationRegistrar";
 import FilterModal from "../components/FilterModal";
+import BiometricLockGate from "../components/BiometricLockGate";
 import { hydrateAndCleanTrackers } from "../store/slices/projectViewTrackingSlice";
 import { hydrateAndCleanRecentTrackers } from "../store/slices/recentProjectsSlice";
 import * as Location from "expo-location";
 import { setCoordinates, setLocationPermission } from "../store/slices/locationSlice";
+import { hydrateAuthThunk } from "../store/slices/authSlice";
 
 if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
     registerGlobals();
@@ -29,6 +31,26 @@ if (!globalThis.__SQUARFT_LIVEKIT_GLOBALS_REGISTERED__) {
 }
 
 SplashScreen.preventAutoHideAsync();
+
+function AuthHydrator() {
+    const dispatch = useDispatch();
+    const authChecked = useSelector((state) => state.auth.authChecked);
+
+    useEffect(() => {
+        dispatch(hydrateAuthThunk());
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (!authChecked) return undefined;
+
+        const timer = setTimeout(() => {
+            SplashScreen.hideAsync();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [authChecked]);
+
+    return null;
+}
 
 function ActivityTrackerHydrator() {
     const dispatch = useDispatch();
@@ -103,31 +125,24 @@ export default function RootLayout() {
         NavigationBar.setButtonStyleAsync("dark").catch(() => { });
     }, []);
 
-    useEffect(() => {
-        if (fontsLoaded && rootNavigationState?.key) {
-            // Add a small delay to ensure fonts are fully rendered before hiding splash
-            const timer = setTimeout(() => {
-                SplashScreen.hideAsync();
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [fontsLoaded, rootNavigationState?.key]);
-
     if (!fontsLoaded || !rootNavigationState?.key) return null;
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Provider store={store}>
                 <BottomSheetModalProvider>
+                    <AuthHydrator />
                     <ActivityTrackerHydrator />
                     <PushNotificationRegistrar />
                     <FilterModal />
-                    <Stack screenOptions={{ gestureEnabled: false }}>
-                        <Stack.Screen name="index" options={{ headerShown: false }} />
-                        <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
-                        <Stack.Screen name="(screens)" options={{ headerShown: false }} />
-                    </Stack>
+                    <BiometricLockGate>
+                        <Stack screenOptions={{ gestureEnabled: false }}>
+                            <Stack.Screen name="index" options={{ headerShown: false }} />
+                            <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
+                            <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
+                            <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+                        </Stack>
+                    </BiometricLockGate>
                 </BottomSheetModalProvider>
             </Provider>
         </GestureHandlerRootView>

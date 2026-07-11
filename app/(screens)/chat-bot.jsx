@@ -18,6 +18,7 @@ import { Audio } from "expo-av";
 import { Stack, useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chatApi } from "../../services/chatApi";
 import { fetchProfileThunk } from "../../store/slices/authSlice";
 
@@ -277,6 +278,7 @@ function ChatMessage({ item, renderProperty, renderSlot, renderContact, userInit
 export default function ChatBot() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const listRef = useRef(null);
   const { width, height } = useWindowDimensions();
   const { isLoggedIn, loading, profile, token } = useSelector((state) => state.auth);
@@ -525,7 +527,10 @@ export default function ChatBot() {
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
 
-      <View className="border-t border-[#EEF0F4] bg-white px-5 pt-3" style={{ paddingBottom: Platform.OS === "ios" ? 28 : 16 }}>
+      <View
+        className="border-t border-[#EEF0F4] bg-white px-5 pt-3"
+        style={{ paddingBottom: Math.max(insets.bottom, Platform.OS === "ios" ? 28 : 16) }}
+      >
         <View className="mb-3 flex-row items-center gap-2">
           {QUICK_PROMPTS.map((item) => (
             <Pressable
