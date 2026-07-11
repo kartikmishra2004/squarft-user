@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, AntDesign } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import FilterModal from "../../components/FilterModal";
 import BudgetFilterModal from "../../components/BudgetFilterModal";
 import BHKFilterModal from "../../components/BHKFilterModal";
 import PossessionFilterModal from "../../components/PossessionFilterModal";
@@ -544,7 +543,6 @@ export default function PropertyListing() {
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-            <FilterModal />
             <BudgetFilterModal />
             <BHKFilterModal visible={bhkOpen} onClose={() => setBhkOpen(false)} />
             <PossessionFilterModal visible={possessionOpen} onClose={() => setPossessionOpen(false)} />

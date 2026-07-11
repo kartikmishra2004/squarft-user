@@ -116,6 +116,7 @@ const visitSlice = createSlice({
         visits: [],
         branches: [],
         availableSlots: [],
+        slotMeta: null,
         availableOfficers: [],
         officerMeta: null,
         loading: false,
@@ -132,6 +133,7 @@ const visitSlice = createSlice({
         },
         clearAvailableSlots: (state) => {
             state.availableSlots = [];
+            state.slotMeta = null;
         },
         clearAvailableOfficers: (state) => {
             state.availableOfficers = [];
@@ -175,9 +177,12 @@ const visitSlice = createSlice({
             .addCase(fetchAvailableSlotsThunk.fulfilled, (state, action) => {
                 state.slotsLoading = false;
                 state.availableSlots = action.payload.data || [];
+                state.slotMeta = action.payload.meta || null;
             })
             .addCase(fetchAvailableSlotsThunk.rejected, (state, action) => {
                 state.slotsLoading = false;
+                state.availableSlots = [];
+                state.slotMeta = null;
                 state.error = action.payload;
             })
             // Fetch available officers

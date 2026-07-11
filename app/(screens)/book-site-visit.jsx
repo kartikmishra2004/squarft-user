@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { confirmVisits } from "../../store/slices/propertiesSlice";
-import { fetchBranchListThunk, fetchAvailableSlotsThunk, fetchAvailableOfficersThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots, clearAvailableOfficers } from "../../store/slices/visitSlice";
+import { fetchAvailableSlotsThunk, fetchAvailableOfficersThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots, clearAvailableOfficers } from "../../store/slices/visitSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -159,30 +159,6 @@ const resolveProjectSlug = (visit, property, projects) => {
   return matchedProject?.slug || null;
 };
 
-const LOCALITY_CITY_FALLBACKS = {
-  nipania: "Indore",
-  "scheme no 140": "Indore",
-  "bypass road": "Indore",
-  "ab road": "Indore",
-  "scheme 54": "Indore",
-  palasia: "Indore",
-};
-
-const getCityForVisit = (visit) => {
-  const explicitCity = visit?.city || visit?.projectCity || visit?.builderCity;
-  if (explicitCity) return explicitCity;
-
-  const locationParts = String(visit?.location || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (locationParts.length > 1) return locationParts[locationParts.length - 1];
-
-  const locality = locationParts[0]?.toLowerCase();
-  return LOCALITY_CITY_FALLBACKS[locality] || null;
-};
-
 const buildPropertyDetailPayload = (visit) => {
   const propertyId = getPropertyIdForVisit(visit);
   const selectedVariant = getSelectedVisitVariant(visit);
@@ -239,7 +215,7 @@ export default function BookSiteVisit() {
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
-  const { branches, availableSlots, availableOfficers, officerMeta, branchesLoading, slotsLoading, officersLoading, creating } = useSelector((state) => state.visit);
+  const { availableSlots, slotMeta, availableOfficers, officerMeta, slotsLoading, officersLoading, creating } = useSelector((state) => state.visit);
 
   // Deduplicate securely to prevent persisted duplicates lingering from old bug
   const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
@@ -255,9 +231,6 @@ export default function BookSiteVisit() {
   const [selectedTime, setSelectedTime] = useState(initialTime ? [initialTime] : []);
   const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
   const [notes, setNotes] = useState(initialNotes || "");
-  const [selectedBranch, setSelectedBranch] = useState(null);
-  const [resolvedPropertyCity, setResolvedPropertyCity] = useState(null);
-  const [resolvingPropertyCity, setResolvingPropertyCity] = useState(false);
   const [selectedSalesOfficerId, setSelectedSalesOfficerId] = useState(null);
   const [isOfficerDropdownOpen, setIsOfficerDropdownOpen] = useState(false);
   const [detailModalData, setDetailModalData] = useState(null);
@@ -266,11 +239,8 @@ export default function BookSiteVisit() {
 
   const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => String(v.id));
 
-  // Get first property to determine city for branch lookup
   const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(String(v.id)));
-  const propertyCity = getCityForVisit(firstProperty);
   const propertyIdForSlots = getPropertyIdForVisit(firstProperty);
-  const bookingCity = propertyCity || resolvedPropertyCity;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -286,80 +256,22 @@ export default function BookSiteVisit() {
     }
   }, [now, selectedDate]);
 
+  // The backend resolves the best branch for the property's city.
   useEffect(() => {
-    setResolvedPropertyCity(null);
-  }, [propertyIdForSlots]);
-
-  useEffect(() => {
-    if (propertyCity || !isLoggedIn || !token || !propertyIdForSlots) return;
-
-    let isMounted = true;
-    setResolvingPropertyCity(true);
-
-    propertyApi.getPropertyList(token, { limit: 500 })
-      .then((response) => {
-        if (!isMounted) return;
-        const properties = getApiList(response);
-        const property = findById(properties, propertyIdForSlots);
-        const city = property?.city || getCityForVisit({
-          ...property,
-          location: property?.location || [property?.area, property?.city].filter(Boolean).join(", "),
-        });
-
-        if (city) {
-          setResolvedPropertyCity(city);
-        }
-      })
-      .catch((error) => {
-        console.log("Failed to resolve property city for visit slots:", error?.message || error);
-      })
-      .finally(() => {
-        if (isMounted) setResolvingPropertyCity(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [propertyCity, propertyIdForSlots, isLoggedIn, token]);
-
-  // Fetch branches when component mounts
-  useEffect(() => {
-    setSelectedBranch(null);
-    setSelectedTime([]);
-    if (isLoggedIn && token && bookingCity) {
-      console.log('🏢 Fetching branches for city:', bookingCity);
-      dispatch(fetchBranchListThunk(bookingCity));
-    } else {
-      dispatch(clearAvailableSlots());
-    }
-  }, [dispatch, bookingCity, isLoggedIn, token]);
-
-  // Auto-select first branch when branches load
-  useEffect(() => {
-    if (branches.length > 0 && !selectedBranch) {
-      setSelectedBranch(branches[0]);
-      console.log('✅ Auto-selected branch:', branches[0].name);
-    }
-  }, [branches, selectedBranch]);
-
-  // Fetch available slots when date or branch changes
-  useEffect(() => {
-    if (isLoggedIn && token && selectedDate && selectedBranch && propertyIdForSlots) {
+    if (isLoggedIn && token && selectedDate && propertyIdForSlots) {
       console.log('🕐 Fetching available slots:', {
         property_id: propertyIdForSlots,
-        date: selectedDate,
-        branch_id: selectedBranch.id
+        date: selectedDate
       });
       
       dispatch(fetchAvailableSlotsThunk({
         property_id: propertyIdForSlots,
-        date: selectedDate,
-        branch_id: selectedBranch.id
+        date: selectedDate
       }));
     } else {
       dispatch(clearAvailableSlots());
     }
-  }, [dispatch, selectedDate, selectedBranch, propertyIdForSlots, isLoggedIn, token]);
+  }, [dispatch, selectedDate, propertyIdForSlots, isLoggedIn, token]);
 
   const futureAvailableSlots = useMemo(
     () => availableSlots.filter(slot => isFutureSlot(slot, now)),
@@ -396,12 +308,12 @@ export default function BookSiteVisit() {
       dispatch(fetchAvailableOfficersThunk({
         property_id: propertyIdForSlots,
         slot_start: selectedApiSlot.slot_start,
-        branch_id: selectedBranch?.id,
+        branch_id: slotMeta?.branch_id,
       }));
     } else {
       dispatch(clearAvailableOfficers());
     }
-  }, [dispatch, isLoggedIn, token, propertyIdForSlots, selectedApiSlot?.slot_start, selectedBranch?.id]);
+  }, [dispatch, isLoggedIn, token, propertyIdForSlots, selectedApiSlot?.slot_start, slotMeta?.branch_id]);
 
   // Clear slots when component unmounts
   useEffect(() => {
@@ -415,7 +327,6 @@ export default function BookSiteVisit() {
     ? groupAvailableSlots(futureAvailableSlots)
     : { morning: [], afternoon: [], evening: [] };
 
-  const slotSetupLoading = resolvingPropertyCity || branchesLoading;
   const salesOfficers = useMemo(
     () => (availableOfficers || []).map(normalizeOfficer).filter((officer) => officer.id),
     [availableOfficers]
@@ -424,18 +335,10 @@ export default function BookSiteVisit() {
   const requiresSalesOfficerSelection = selectedTime.length > 0 && Boolean(officerMeta?.show_officer_dropdown);
   const emptySlotTitle = !propertyIdForSlots
     ? "Property unit missing"
-    : !bookingCity
-      ? "City details missing"
-      : !selectedBranch
-        ? "No active branch found"
-        : "No slots available";
+    : "No slots available";
   const emptySlotMessage = !propertyIdForSlots
     ? "Please reopen the project and add a specific unit to your site visit."
-    : !bookingCity
-      ? "We could not detect this property's city. Please reopen the property details and add the unit again."
-      : !selectedBranch
-        ? `No active branch is available for ${bookingCity}.`
-        : "Try a different date or nearby branch.";
+    : "Try a different date.";
 
   const isPreviousMonthDisabled = getMonthKey(calendarMonth) <= getMonthKey(toLocalDateKey(now));
 
@@ -633,22 +536,14 @@ export default function BookSiteVisit() {
       return;
     }
     
-    // Convert selected date and time to ISO format for API
-    const [hours, minutes] = selectedTimeVal.replace(/[AP]M/, '').trim().split(':').map(Number);
-    const isPM = selectedTimeVal.includes('PM');
-    const hour24 = isPM && hours !== 12 ? hours + 12 : (!isPM && hours === 12 ? 0 : hours);
-    
-    const slotDateTime = new Date(selectedDate);
-    slotDateTime.setHours(hour24, minutes || 0, 0, 0);
-
     try {
-      const slotStart = selectedApiSlot.slot_start || slotDateTime.toISOString();
+      const slotStart = selectedApiSlot.slot_start;
       
       console.log('📤 Creating site visit:', {
         property_count: bookingTargets.length,
         slot_start: slotStart,
         user_note: notes || null,
-        branch_id: selectedBranch?.id,
+        branch_id: slotMeta?.branch_id,
         officer_id: selectedSalesOfficer?.officer_id || null,
         visitors_count: visitors,
       });
@@ -661,7 +556,7 @@ export default function BookSiteVisit() {
           property_id: target.propertyId,
           slot_start: slotStart,
           user_note: notes || null,
-          branch_id: selectedBranch?.id,
+          branch_id: slotMeta?.branch_id,
           officer_id: selectedSalesOfficer?.officer_id,
           visitors_count: visitors,
           property_name: propertyName, // Pass property name for notification
@@ -941,11 +836,11 @@ export default function BookSiteVisit() {
           <View className="mb-7">
             <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Time Slot</Text>
 
-            {slotSetupLoading || slotsLoading ? (
+            {slotsLoading ? (
               <View className="py-8 items-center justify-center">
                 <ActivityIndicator size="small" color="#4A43EC" />
                 <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">
-                  {slotSetupLoading ? "Preparing visit slots..." : "Checking available slots..."}
+                  Checking available slots...
                 </Text>
               </View>
             ) : futureAvailableSlots.length > 0 ? (

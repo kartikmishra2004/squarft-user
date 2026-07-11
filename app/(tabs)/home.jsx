@@ -25,7 +25,6 @@ import { useFocusEffect, useNavigation, router } from "expo-router";
 import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecommendedPropertiesThunk, fetchSavedPropertiesThunk, savePropertyThunk, unsavePropertyThunk, fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
 import { currentUser } from "../../data/user";
 import { fetchProfileThunk } from "../../store/slices/authSlice";
-import FilterModal from "../../components/FilterModal";
 import SearchOverlay from "../../components/SearchOverlay";
 import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
@@ -337,15 +336,12 @@ export default function Home() {
 
   if (searchActive) {
     return (
-      <>
-        <FilterModal />
-        <SearchOverlay
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onClose={() => { dispatch(setSearchActive(false)); setSearchQuery(''); }}
-          insets={insets}
-        />
-      </>
+      <SearchOverlay
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        onClose={() => { dispatch(setSearchActive(false)); setSearchQuery(''); }}
+        insets={insets}
+      />
     );
   }
 
@@ -413,7 +409,6 @@ export default function Home() {
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
-      <FilterModal />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View

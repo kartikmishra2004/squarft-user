@@ -24,30 +24,30 @@ const query = (params) =>
 export const visitApi = {
     // Get list of visits by status
     getVisitList: (token, status) =>
-        request(`/api/v1/list?${query({ status })}`, token),
+        request(`/api/v1/visits/list?${query({ status })}`, token),
 
     // Get branches by city
     getBranchList: (token, city) =>
-        request(`/api/v1/branches?${query({ city })}`, token),
+        request(`/api/v1/visits/branches?${query({ city })}`, token),
 
     // Get available time slots
     getAvailableSlots: (token, property_id, date, branch_id) =>
-        request(`/api/v1/slots?${query({ property_id, date, branch_id })}`, token),
+        request(`/api/v1/visits/slots?${query({ property_id, date, branch_id })}`, token),
 
     // Get available sales officers for a selected slot
     getAvailableOfficers: (token, property_id, slot_start, branch_id) =>
-        request(`/api/v1/available-officers?${query({ property_id, slot_start, branch_id })}`, token),
+        request(`/api/v1/visits/available-officers?${query({ property_id, slot_start, branch_id })}`, token),
 
     // Create site visit
     createSiteVisit: (token, visitData) =>
-        request('/api/v1', token, {
+        request('/api/v1/visits', token, {
             method: 'POST',
             body: JSON.stringify(visitData),
         }),
 
     // Update site visit
     updateSiteVisit: (token, visitId, updateData) =>
-        request(`/api/v1/${visitId}`, token, {
+        request(`/api/v1/visits/${visitId}`, token, {
             method: 'PUT',
             body: JSON.stringify(updateData),
         }),

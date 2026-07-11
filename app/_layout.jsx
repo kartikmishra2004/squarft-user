@@ -17,6 +17,7 @@ import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700
 import { PublicSans_400Regular, PublicSans_600SemiBold, PublicSans_700Bold, PublicSans_800ExtraBold } from "@expo-google-fonts/public-sans";
 import { store } from "../store/store";
 import PushNotificationRegistrar from "../components/PushNotificationRegistrar";
+import FilterModal from "../components/FilterModal";
 import { hydrateAndCleanTrackers } from "../store/slices/projectViewTrackingSlice";
 import { hydrateAndCleanRecentTrackers } from "../store/slices/recentProjectsSlice";
 import * as Location from "expo-location";
@@ -120,6 +121,7 @@ export default function RootLayout() {
                 <BottomSheetModalProvider>
                     <ActivityTrackerHydrator />
                     <PushNotificationRegistrar />
+                    <FilterModal />
                     <Stack screenOptions={{ gestureEnabled: false }}>
                         <Stack.Screen name="index" options={{ headerShown: false }} />
                         <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />

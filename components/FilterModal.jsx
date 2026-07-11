@@ -1,12 +1,16 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
+    Animated,
+    Easing,
     KeyboardAvoidingView,
+    Modal,
     Platform,
+    Pressable,
     ScrollView,
+    StyleSheet,
     View, Text, TextInput, TouchableOpacity,
     useWindowDimensions,
 } from "react-native";
-import { SettledBackdrop, SettledModal } from "./SettledModal";
 import { useDispatch, useSelector } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -134,29 +138,54 @@ export default function FilterModal() {
     const insets = useSafeAreaInsets();
     const { isOpen, address, locationCoordinates, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
     const [localAddress, setLocalAddress] = useState(address);
+    const sheetProgress = useRef(new Animated.Value(1)).current;
+    const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    const animateOpen = () => {
+        Animated.sequence([
+            Animated.timing(sheetProgress, {
+                toValue: 0,
+                duration: 460,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: 1,
+                duration: 160,
+                easing: Easing.out(Easing.quad),
+                useNativeDriver: true,
+            }),
+        ]).start();
+    };
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            sheetProgress.stopAnimation();
+            backdropOpacity.stopAnimation();
+            sheetProgress.setValue(1);
+            backdropOpacity.setValue(0);
+            return;
+        }
         setLocalAddress(address);
-    }, [address, isOpen]);
+    }, [address, backdropOpacity, isOpen, sheetProgress]);
 
     return (
-        <SettledModal
+        <Modal
             visible={isOpen}
             transparent
-            animationType="slide"
+            animationType="none"
             statusBarTranslucent
+            onShow={animateOpen}
             onRequestClose={() => dispatch(closeFilter())}
         >
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 style={{ flex: 1, justifyContent: "flex-end" }}
             >
-                <SettledBackdrop
-                    onPress={() => dispatch(closeFilter())}
-                    style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.35)" }}
-                />
-                <View style={{ maxHeight: "92%", backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" }}>
+                <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity, backgroundColor: "rgba(0,0,0,0.35)" }]}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => dispatch(closeFilter())} />
+                </Animated.View>
+                <Animated.View style={{ maxHeight: "92%", backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", transform: [{ translateY: sheetProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 700] }) }] }}>
                     <View style={{ alignItems: "center", paddingTop: 8 }}>
                         <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: "#D1D5DB" }} />
                     </View>
@@ -266,8 +295,8 @@ export default function FilterModal() {
                             <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Apply Filters</Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </Animated.View>
             </KeyboardAvoidingView>
-        </SettledModal>
+        </Modal>
     );
 }
