@@ -363,6 +363,7 @@ export default function Settings() {
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="email-outline" size={18} color="#475569" />}
                         label="Contact Us"
+                        onPress={() => router.push("/(screens)/contact-us")}
                         isLast
                     />
                 </SettingsCard>

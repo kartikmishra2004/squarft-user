@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -129,6 +129,7 @@ export default function IdVerification() {
     const [submitting, setSubmitting] = useState(false);
     const [pickedFiles, setPickedFiles] = useState({});
     const [verificationData, setVerificationData] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
 
     const documentsByType = useMemo(() => {
         const documents = verificationData?.documents || [];
@@ -203,19 +204,9 @@ export default function IdVerification() {
         }));
     };
 
-    const viewDocument = async (fileUrl) => {
+    const viewDocument = (fileUrl) => {
         if (!fileUrl) return;
-
-        try {
-            const canOpen = await Linking.canOpenURL(fileUrl);
-            if (!canOpen) {
-                Alert.alert("Cannot open document", "No app is available to preview this document.");
-                return;
-            }
-            await Linking.openURL(fileUrl);
-        } catch (_error) {
-            Alert.alert("Cannot open document", "Please try again.");
-        }
+        setPreviewUrl(fileUrl);
     };
 
     const submitDocuments = async () => {
@@ -275,6 +266,31 @@ export default function IdVerification() {
 
     return (
         <View style={{ flex: 1, backgroundColor: "#F3F4F6" }}>
+            <Modal
+                visible={Boolean(previewUrl)}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => setPreviewUrl(null)}
+            >
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center" }}>
+                    <Pressable
+                        onPress={() => setPreviewUrl(null)}
+                        hitSlop={12}
+                        style={{ position: "absolute", top: 50, right: 20, zIndex: 1, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" }}
+                    >
+                        <Feather name="x" size={26} color="#fff" />
+                    </Pressable>
+                    {previewUrl ? (
+                        <Image
+                            source={{ uri: previewUrl }}
+                            style={{ width: "100%", height: "80%" }}
+                            resizeMode="contain"
+                        />
+                    ) : null}
+                </View>
+            </Modal>
+
             <View style={{ paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#EEF2F7" }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Pressable onPress={() => router.back()} style={{ marginRight: 14 }}>
