@@ -10,18 +10,40 @@ import {
     StyleSheet,
     View, Text, TextInput, TouchableOpacity,
     useWindowDimensions,
+    ActivityIndicator,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import RangeSliderLib from "react-native-fast-range-slider";
 import {
     closeFilter, setAddress, removeTag,
     togglePropertyType, toggleSubType,
     setBudgetRange, setAreaRange,
-    togglePossession, clearFilters,
+    togglePossession, clearFilters, setFilterLocation,
 } from "../store/slices/filterSlice";
+import { GeocodingService } from "../services/geocoding";
+
+const GOOGLE_MAPS_API_KEY =
+    Constants.expoConfig?.extra?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    process.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    process.env?.GOOGLE_MAPS_API_KEY ||
+    "";
+
+let geocodingServiceInstance = null;
+function getGeocodingService() {
+    if (!GOOGLE_MAPS_API_KEY) return null;
+    if (!geocodingServiceInstance) {
+        geocodingServiceInstance = new GeocodingService({
+            apiKey: GOOGLE_MAPS_API_KEY,
+            maxCacheSize: 200,
+            cacheTTL: 7 * 24 * 60 * 60 * 1000,
+        });
+    }
+    return geocodingServiceInstance;
+}
 
 const PROPERTY_TYPES = ['Flat/Apartment', 'House/Villa', 'Plot', 'Commercial'];
 const SUB_TYPES = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
@@ -138,6 +160,7 @@ export default function FilterModal() {
     const insets = useSafeAreaInsets();
     const { isOpen, address, locationCoordinates, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
     const [localAddress, setLocalAddress] = useState(address);
+    const [geocoding, setGeocoding] = useState(false);
     const sheetProgress = useRef(new Animated.Value(1)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -274,25 +297,48 @@ export default function FilterModal() {
                             <Text style={{ fontSize: 15, color: '#374151', textDecorationLine: 'underline' }}>Clear All</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => {
+                            disabled={geocoding}
+                            onPress={async () => {
                                 dispatch(setAddress(localAddress));
-                                dispatch(closeFilter());
-                                if (locationCoordinates) {
-                                    router.push({
-                                        pathname: '/(screens)/property-listing',
-                                        params: {
-                                            nearby: '1',
-                                            latitude: String(locationCoordinates.latitude),
-                                            longitude: String(locationCoordinates.longitude),
-                                            locationName: localAddress,
-                                        },
-                                    });
-                                } else {
-                                    router.push('/(screens)/property-listing');
+                                
+                                // If address is entered but no coordinates, try to geocode
+                                if (localAddress && !locationCoordinates) {
+                                    setGeocoding(true);
+                                    try {
+                                        const geocodingService = getGeocodingService();
+                                        if (geocodingService) {
+                                            const coordinates = await geocodingService.geocodeAddress(localAddress);
+                                            if (coordinates) {
+                                                dispatch(setFilterLocation({ 
+                                                    address: localAddress, 
+                                                    coordinates 
+                                                }));
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.log('Geocoding failed:', error);
+                                        // Continue with text-based filtering if geocoding fails
+                                    } finally {
+                                        setGeocoding(false);
+                                    }
                                 }
+                                
+                                dispatch(closeFilter());
+                                router.push('/(screens)/property-listing');
                             }}
-                            style={{ backgroundColor: '#4A43EC', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 }}>
-                            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Apply Filters</Text>
+                            style={{ 
+                                backgroundColor: geocoding ? '#9CA3AF' : '#4A43EC', 
+                                borderRadius: 12, 
+                                paddingHorizontal: 28, 
+                                paddingVertical: 12,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                            }}>
+                            {geocoding && <ActivityIndicator size="small" color="#fff" />}
+                            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
+                                {geocoding ? 'Locating...' : 'Apply Filters'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>

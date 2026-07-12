@@ -27,6 +27,19 @@ const cleanDisplayText = (value) => {
     return text;
 };
 
+// Calculate distance between two coordinates in kilometers using Haversine formula
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
+
 const getSearchText = (project) => [
     project.name,
     project.title,
@@ -129,45 +142,65 @@ const collectVariantPrices = (project) =>
 const getProjectArea = (project) =>
     getNumber(project.total_area_sqft, project.area_sqft, project.areaSqft, project.total_area, project.carpet_area);
 
-const getProjectTypeText = (project) => {
-    const configuredSubtypes = Array.isArray(project.available_subtypes)
-        ? project.available_subtypes.filter(Boolean)
-        : [];
-    const fields = configuredSubtypes.length > 0
-        ? configuredSubtypes
-        : [
-            project.propertyType,
-            project.property_type,
-            project.property_subtype,
-            project.category,
-            project.type,
-            project.name,
-        ];
-
-    return [
-        ...fields,
-        ...getNestedUnits(project).flatMap((unit) => [
-        unit?.property_subtype,
-        unit?.sub_type,
-        unit?.inventory_type,
-        unit?.property_type,
-        unit?.type,
-        ]),
-    ].map(normalizeText).filter(Boolean).join(' ');
-};
-
 const matchesPropertyType = (project, selectedTypes) => {
     if (selectedTypes.length === 0) return true;
 
-    const text = getProjectTypeText(project);
+    // Priority 1: Check available_subtypes array (most reliable)
+    if (Array.isArray(project.available_subtypes) && project.available_subtypes.length > 0) {
+        const subtypes = project.available_subtypes.map(normalizeText);
+        return selectedTypes.some((type) => {
+            const selected = normalizeText(type);
+            // Exact match or with 's' plural
+            return subtypes.some(subtype => 
+                subtype === selected || 
+                subtype === `${selected}s` || 
+                `${subtype}s` === selected
+            );
+        });
+    }
+
+    // Priority 2: Check nested units for their property types
+    const units = getNestedUnits(project);
+    if (units.length > 0) {
+        const unitTypes = units
+            .flatMap((unit) => [
+                unit?.property_type,
+                unit?.property_subtype,
+                unit?.sub_type,
+                unit?.type,
+            ])
+            .filter(Boolean)
+            .map(normalizeText);
+        
+        if (unitTypes.length > 0) {
+            return selectedTypes.some((type) => {
+                const selected = normalizeText(type);
+                return unitTypes.some(unitType => 
+                    unitType === selected || 
+                    unitType === `${selected}s` || 
+                    `${unitType}s` === selected
+                );
+            });
+        }
+    }
+
+    // Priority 3: Fallback to checking project-level fields
+    const projectTypes = [
+        project.property_type,
+        project.property_subtype,
+        project.category,
+        project.type,
+    ]
+        .filter(Boolean)
+        .map(normalizeText);
+
     return selectedTypes.some((type) => {
         const selected = normalizeText(type);
-        if (selected === 'flat/apartment' || selected === 'apartment') return /\b(flat|apartment)\b/.test(text);
-        if (selected === 'house/villa' || selected === 'villa') return /\b(house|villa|bungalow)\b/.test(text);
-        if (selected === 'plot') return /\b(plot|land)\b/.test(text);
-        if (selected === 'commercial') return /\b(commercial|shop|showroom|office|retail)\b/.test(text);
-        if (selected === 'rowhouse') return /\b(rowhouse|row house|townhouse|town house)\b/.test(text);
-        return new RegExp(`\\b${selected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?\\b`).test(text);
+        return projectTypes.some(projectType => 
+            projectType === selected || 
+            projectType === `${selected}s` || 
+            `${projectType}s` === selected
+        );
     });
 };
 
@@ -289,7 +322,24 @@ function applyFilters(projects, filter) {
     return projects.filter((p) => {
         const searchText = getSearchText(p);
 
-        if (filter.address) {
+        // Location-based filtering (prioritize coordinates over text)
+        if (filter.locationCoordinates) {
+            // If coordinates are available, calculate distance
+            const projectLat = p.latitude ?? p.lat;
+            const projectLng = p.longitude ?? p.lng ?? p.lon;
+            
+            if (projectLat != null && projectLng != null) {
+                const distance = calculateDistance(
+                    filter.locationCoordinates.latitude,
+                    filter.locationCoordinates.longitude,
+                    projectLat,
+                    projectLng
+                );
+                // Filter projects within 10km radius
+                if (distance > 10) return false;
+            }
+        } else if (filter.address) {
+            // Fallback to text-based location matching if no coordinates
             const q = filter.address.toLowerCase().trim();
             if (!searchText.includes(q)) return false;
         }
@@ -582,7 +632,7 @@ export default function PropertyListing() {
                             style={{ flex: 1, fontSize: 14, color: '#111827' }}
                         />
                     </View>
-                      <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-xl px-5 h-[44px] w-[50px] gap-2">
+                      <TouchableOpacity onPress={() => dispatch(openFilter())} className="flex-row items-center bg-[#4A43EC] rounded-xl px-5 h-[44px] w-[53px] gap-2">
                                   <AntDesign name="spotify" size={18} color="#7F88E5" />
                                 </TouchableOpacity>
                     <TouchableOpacity onPress={handleOpenMap} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#4A43EC', alignItems: 'center', justifyContent: 'center' }}>
