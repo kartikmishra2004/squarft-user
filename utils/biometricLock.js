@@ -3,6 +3,19 @@ import * as LocalAuthentication from "expo-local-authentication";
 
 const STORAGE_KEY = "@squarft/biometric_lock_enabled";
 
+// Module-level (not React state) so it survives BiometricLockGate remounting
+// mid-session — e.g. when a native view (Google Maps) forces the JS context
+// to reload. Only resets when the app process itself is killed and restarted.
+let sessionUnlocked = false;
+
+export function isSessionUnlocked() {
+  return sessionUnlocked;
+}
+
+export function markSessionUnlocked() {
+  sessionUnlocked = true;
+}
+
 export async function isBiometricHardwareAvailable() {
   try {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();

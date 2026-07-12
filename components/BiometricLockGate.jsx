@@ -4,6 +4,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   authenticateBiometric,
   getBiometricLockEnabled,
+  isSessionUnlocked,
+  markSessionUnlocked,
 } from "../utils/biometricLock";
 
 const APP_LOGO = require("../assets/icons/app-icon.png");
@@ -16,6 +18,11 @@ export default function BiometricLockGate({ children }) {
   useEffect(() => {
     let active = true;
     (async () => {
+      if (isSessionUnlocked()) {
+        if (!active) return;
+        setChecked(true);
+        return;
+      }
       const isEnabled = await getBiometricLockEnabled();
       if (!active) return;
       setLocked(isEnabled);
@@ -32,6 +39,7 @@ export default function BiometricLockGate({ children }) {
     const success = await authenticateBiometric("Unlock SquarFT");
     setAuthenticating(false);
     if (success) {
+      markSessionUnlocked();
       setLocked(false);
     }
   };
