@@ -1,8 +1,10 @@
-import { Text, View, Pressable, ScrollView, Image, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from "react-native";
-import { Link, useRouter, useLocalSearchParams } from "expo-router";
+import { Text, View, Pressable, ScrollView, Image, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useState, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSelector } from "react-redux";
+import { visitApi } from "../../services/visitApi";
 
 export default function Review() {
     const [propertyRating, setPropertyRating] = useState(0);
@@ -10,10 +12,49 @@ export default function Review() {
     const [sameAsPhotos, setSameAsPhotos] = useState('Yes');
     const [samePrice, setSamePrice] = useState('No, it was higher');
     const [comments, setComments] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const scrollViewRef = useRef(null);
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { title, image, location, dateFull } = useLocalSearchParams();
+    const token = useSelector((state) => state.auth.token);
+    const { title, image, location, dateFull, visitId } = useLocalSearchParams();
+
+    const handleSubmit = async () => {
+        if (!visitId) return Alert.alert("Unable to submit", "Visit information is missing. Please open this page from your visits list.");
+        
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(visitId)) {
+            return Alert.alert(
+                "Review Not Available",
+                "This visit cannot be reviewed. Please sign in and complete a real property visit to submit a review."
+            );
+        }
+        
+        if (!propertyRating) return Alert.alert("Rating required", "Please rate the property.");
+        if (!token) return Alert.alert("Sign in required", "Please sign in before submitting a review.");
+
+        setSubmitting(true);
+        try {
+            await visitApi.submitReview(token, visitId, {
+                rating: propertyRating,
+                comment: comments.trim() || null,
+            });
+            router.replace("/rating-submitted");
+        } catch (error) {
+            const errorMessage = error.message || "Please try again.";
+            if (errorMessage.includes("Invalid visit id")) {
+                Alert.alert(
+                    "Review Not Available", 
+                    "This visit is not valid for review. Please complete a real property visit to submit feedback."
+                );
+            } else {
+                Alert.alert("Review not submitted", errorMessage);
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     // Fallbacks just in case handled via direct standalone launch
     const propertyTitle = title || "Green Valley Residency";
@@ -188,12 +229,12 @@ export default function Review() {
                                     style={{ height: 110, textAlignVertical: 'top' }}
                                 />
                             </View>
-                            <Link href="/rating-submitted" asChild>
-                                <Pressable className="bg-[#4A43EC] py-[15px] rounded-[12px] flex-row items-center justify-center mb-4">
+                            <Pressable disabled={submitting} onPress={handleSubmit} className={`bg-[#4A43EC] py-[15px] rounded-[12px] flex-row items-center justify-center mb-4 ${submitting ? 'opacity-70' : ''}`}>
+                                {submitting ? <ActivityIndicator color="white" /> : <>
                                     <Text className="text-white font-manrope-extrabold text-[15px]" style={{ marginRight: 8 }}>Submit Feedback</Text>
                                     <Feather name="send" size={17} color="white" />
-                                </Pressable>
-                            </Link>
+                                </>}
+                            </Pressable>
 
                             <Text className="text-center text-[11px] font-manrope font-medium text-[#9CA3AF] mb-8">
                                 Your feedback helps SquarFT maintain quality listings.

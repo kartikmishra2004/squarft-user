@@ -51,4 +51,10 @@ export const visitApi = {
             method: 'PUT',
             body: JSON.stringify(updateData),
         }),
+
+    submitReview: (token, visitId, reviewData) =>
+        request(`/api/v1/visits/${visitId}/review`, token, {
+            method: 'POST',
+            body: JSON.stringify(reviewData),
+        }),
 };

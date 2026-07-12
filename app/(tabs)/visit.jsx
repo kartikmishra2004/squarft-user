@@ -10,6 +10,7 @@ import { addSiteVisit, removeSiteVisit } from "../../store/slices/propertiesSlic
 import { fetchVisitListThunk } from "../../store/slices/visitSlice";
 import { propertyApi } from "../../services/propertyApi";
 import { ALL_VISITS } from "../../data/visits";
+import PropertyDetailModal from "../../components/projectDetail/PropertyDetailModal";
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 82;
@@ -167,6 +168,7 @@ const ALL_VISIT_STATUSES = ["pending", "pending_confirmation", "confirmed", "com
 
 export default function Visit() {
   const router = useRouter();
+  const [detailVisit, setDetailVisit] = useState(null);
   const { tab } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("Book visit");
   const bookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
@@ -209,40 +211,65 @@ export default function Visit() {
   });
 
   // Merge API visits with local mock visits
-  const apiVisitsFormatted = apiVisits.map(v => ({
-    id: v.id,
-    projectId: v.project_id || v.property_id,
-    propertyIds: v.property_id ? [v.property_id] : [],
-    isApiVisit: true,
-    title: v.property_title || 'Property',
-    location: v.property_address || '',
-    latitude: v.property_latitude ?? v.latitude,
-    longitude: v.property_longitude ?? v.longitude,
-    city: v.property_city ?? v.city,
-    pincode: v.property_pincode ?? v.pincode,
-    image: v.property_image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-    status: normalizeStatus(v.status),
-    dateFull: new Date(v.slot_start).toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
-    }),
-    isoDate: v.slot_start,
-    visitors: 1,
-    notes: v.user_note || '',
-    bookingId: v.id,
-    visitorName: v.user_first_name ? `${v.user_first_name} ${v.user_last_name}` : 'User',
-    duration: v.slot_start && v.slot_end
-      ? `${Math.max(1, Math.round((new Date(v.slot_end) - new Date(v.slot_start)) / 60000))} Minutes`
-      : "1.5 Hours",
-  }));
+  const apiVisitsFormatted = apiVisits.map(v => {
+    const inventory = v.project_inventory || {};
+    const possession = v.project_possession_status || v.project_possession_date || v.project_possession || 'TBD';
+    const tower = v.property_tower_no || v.project_tower_number || '—';
+    
+    return {
+      id: v.id,
+      propertyIds: v.property_id ? [v.property_id] : [],
+      isApiVisit: true,
+      title: v.property_description || v.property_title || 'Property',
+      propertyTitle: v.property_title || '',
+      propertyDescription: v.property_description || '',
+      projectId: v.project_id,
+      projectSlug: v.project_slug,
+      projectName: v.project_name || '',
+      propertyType: v.property_type,
+      areaSqft: v.property_area_sqft,
+      bedrooms: v.property_bedrooms,
+      bathrooms: v.property_bathrooms,
+      basePrice: v.property_base_price,
+      minPrice: v.property_min_price,
+      maxPrice: v.property_max_price,
+      possession,
+      tower_no: tower,
+      inventory: inventory.total || '—',
+      projectInventory: inventory,
+      developerName: v.developer_name,
+      amenities: Array.isArray(v.property_amenities) ? v.property_amenities : [],
+      location: v.property_address || '',
+      latitude: v.property_latitude ?? v.latitude,
+      longitude: v.property_longitude ?? v.longitude,
+      city: v.property_city ?? v.city,
+      pincode: v.property_pincode ?? v.pincode,
+      image: v.property_image || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+      imageMain: v.property_image || v.project_cover_image_url || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+      status: normalizeStatus(v.status),
+      dateFull: new Date(v.slot_start).toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true 
+      }),
+      isoDate: v.slot_start,
+      visitors: 1,
+      notes: v.user_note || '',
+      bookingId: v.id,
+      propertyId: v.property_id,
+      visitorName: v.user_first_name ? `${v.user_first_name} ${v.user_last_name}` : 'User',
+      duration: v.slot_start && v.slot_end
+        ? `${Math.max(1, Math.round((new Date(v.slot_end) - new Date(v.slot_start)) / 60000))} Minutes`
+        : "1.5 Hours",
+    };
+  });
 
   const allCombinedVisits = uniqueById([
     ...apiVisitsFormatted,
-    ...reduxUpcomingVisits,
+    ...(isLoggedIn ? [] : reduxUpcomingVisits),
     ...(isLoggedIn ? [] : validMockVisits),
   ]);
 
@@ -455,9 +482,19 @@ export default function Visit() {
                             />
                             <View className="flex-1 justify-between h-[58px] py-0.5 pr-2">
                               <View>
-                                <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                                  {visit.title || visit.name}
-                                </Text>
+                                <View className="flex-row items-center gap-1.5 mb-0.5">
+                                  <Text className="text-[13px] font-manrope-bold text-gray-900" numberOfLines={1}>
+                                    {visit.title || visit.name}
+                                  </Text>
+                                  {visit.projectName && (
+                                    <>
+                                      <View className="w-[1px] h-3 bg-gray-300" />
+                                      <Text className="text-[11px] font-manrope text-gray-600 flex-shrink" numberOfLines={1}>
+                                        {visit.projectName}
+                                      </Text>
+                                    </>
+                                  )}
+                                </View>
                                 <Text className="text-[#6B7280] text-[10px] font-manrope" numberOfLines={1}>
                                   {visit.location}
                                 </Text>
@@ -533,14 +570,24 @@ export default function Visit() {
                         resizeMode="cover"
                       />
                       <View className="flex-1 justify-center">
-                        <View className="bg-[#EEECFF] self-start px-2 py-0.5 rounded-md mb-1.5">
-                          <Text className="text-[#4A43EC] text-[8px] font-manrope-bold tracking-wider uppercase">
+                        <View className={`${visit.status === "CANCELLED" ? "bg-[#FEE2E2]" : "bg-[#EEECFF]"} self-start px-2 py-0.5 rounded-md mb-1.5`}>
+                          <Text className={`${visit.status === "CANCELLED" ? "text-[#DC2626]" : "text-[#4A43EC]"} text-[8px] font-manrope-bold tracking-wider uppercase`}>
                             {visit.status}
                           </Text>
                         </View>
-                        <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                          {visit.title}
-                        </Text>
+                        <View className="flex-row items-center gap-1.5 mb-0.5">
+                          <Text className="text-[13px] font-manrope-bold text-gray-900" numberOfLines={1}>
+                            {visit.title}
+                          </Text>
+                          {visit.projectName && (
+                            <>
+                              <View className="w-[1px] h-3 bg-gray-300" />
+                              <Text className="text-[11px] font-manrope text-gray-600 flex-shrink" numberOfLines={1}>
+                                {visit.projectName}
+                              </Text>
+                            </>
+                          )}
+                        </View>
                         <View className="flex-row items-center">
                           <Ionicons name="location-outline" size={11} color="#9CA3AF" />
                           <Text className="text-[#6B7280] text-[10px] font-manrope ml-1" numberOfLines={1}>
@@ -644,9 +691,19 @@ export default function Visit() {
                               {visit.status}
                             </Text>
                           </View>
-                          <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                            {visit.title}
-                          </Text>
+                          <View className="flex-row items-center gap-1.5 mb-0.5">
+                            <Text className="text-[13px] font-manrope-bold text-gray-900" numberOfLines={1}>
+                              {visit.title}
+                            </Text>
+                            {visit.projectName && (
+                              <>
+                                <View className="w-[1px] h-3 bg-gray-300" />
+                                <Text className="text-[11px] font-manrope text-gray-600 flex-shrink" numberOfLines={1}>
+                                  {visit.projectName}
+                                </Text>
+                              </>
+                            )}
+                          </View>
                           <View className="flex-row items-center">
                             <Ionicons name="location-outline" size={11} color="#9CA3AF" />
                             <Text className="text-[#6B7280] text-[10px] font-manrope ml-1" numberOfLines={1}>
@@ -671,15 +728,26 @@ export default function Visit() {
                         <View className="flex-col gap-2">
                           <Pressable
                             className="w-full bg-[#4A43EC] rounded-lg py-2.5 flex-row items-center justify-center"
-                            onPress={() => router.push({
-                              pathname: "/(screens)/review",
-                              params: {
-                                title: visit.title,
-                                image: visit.image,
-                                location: visit.location,
-                                dateFull: visit.dateFull,
-                              },
-                            })}
+                            onPress={() => {
+                              if (!visit.isApiVisit) {
+                                Alert.alert(
+                                  "Review Not Available",
+                                  "Please sign in to submit reviews for your completed visits."
+                                );
+                                return;
+                              }
+                              router.push({
+                                pathname: "/(screens)/review",
+                                params: {
+                                  title: visit.title,
+                                  image: visit.image,
+                                  location: visit.location,
+                                  dateFull: visit.dateFull,
+                                  visitId: visit.bookingId || visit.id,
+                                  propertyId: visit.propertyId || '',
+                                },
+                              });
+                            }}
                           >
                             <Feather name="edit-3" size={14} color="white" />
                             <Text className="text-white font-manrope-bold text-[13px] ml-2">
@@ -689,13 +757,7 @@ export default function Visit() {
 
                           <Pressable
                             className="w-full border border-gray-200 rounded-lg py-2.5 flex-row items-center justify-center bg-white"
-                            onPress={() => router.push({
-                              pathname: "/(screens)/project-detail",
-                              params: {
-                                id: visit.projectId || visit.id.replace(/\d{13}$/, ""),
-                                from: "visit",
-                              },
-                            })}
+                            onPress={() => setDetailVisit(visit)}
                           >
                             <Feather name="eye" size={14} color="#6B7280" />
                             <Text className="text-[#111827] font-manrope-bold text-[13px] ml-2">
@@ -728,6 +790,45 @@ export default function Visit() {
           </View>
         )}
       </ScrollView>
+
+      <PropertyDetailModal
+        visible={Boolean(detailVisit)}
+        onClose={() => setDetailVisit(null)}
+        readOnly
+        project={detailVisit ? {
+          id: detailVisit.projectId || detailVisit.propertyId,
+          slug: detailVisit.projectSlug,
+          name: detailVisit.projectName || detailVisit.propertyTitle || detailVisit.title,
+          title: detailVisit.projectName || detailVisit.propertyTitle || detailVisit.title,
+          location: detailVisit.location,
+          area: detailVisit.area,
+          city: detailVisit.city,
+          imageMain: typeof detailVisit.image === 'string' ? { uri: detailVisit.image } : detailVisit.image,
+          imageThumb: typeof detailVisit.image === 'string' ? { uri: detailVisit.image } : detailVisit.image,
+          builder: detailVisit.developerName || 'Developer details unavailable',
+          possession: detailVisit.possession,
+          possessionStatus: detailVisit.possession,
+          tower_no: detailVisit.tower_no,
+          inventory: detailVisit.inventory,
+          amenities: detailVisit.amenities,
+        } : null}
+        variant={detailVisit ? {
+          id: detailVisit.propertyId,
+          title: detailVisit.title,
+          type: detailVisit.propertyType || detailVisit.title,
+          bedrooms: detailVisit.bedrooms,
+          bathrooms: detailVisit.bathrooms,
+          area_sqft: detailVisit.areaSqft,
+          total_area_sqft: detailVisit.areaSqft,
+          base_price: detailVisit.basePrice || detailVisit.minPrice,
+          price: detailVisit.basePrice || detailVisit.minPrice,
+          possession_status: detailVisit.possession,
+          possession: detailVisit.possession,
+          tower_no: detailVisit.tower_no,
+          amenities: detailVisit.amenities,
+          image: typeof detailVisit.image === 'string' ? { uri: detailVisit.image } : detailVisit.image,
+        } : null}
+      />
 
       {activeTab === "Book visit" && bookedSiteVisits.length > 0 && (
         <View

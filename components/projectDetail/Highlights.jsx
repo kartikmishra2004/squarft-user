@@ -1,6 +1,6 @@
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, Animated } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { defaultLandmarks, defaultAmenities } from "../../data/projects";
@@ -27,6 +27,32 @@ function getGeocodingService() {
 }
 
 const VISIBLE_AMENITIES = 5;
+
+function HighlightsSkeleton() {
+    const opacity = useRef(new Animated.Value(0.45)).current;
+    useEffect(() => {
+        const animation = Animated.loop(Animated.sequence([
+            Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+        ]));
+        animation.start();
+        return () => animation.stop();
+    }, [opacity]);
+    const box = (style) => <Animated.View style={[{ backgroundColor: '#E5E7EB' }, style, { opacity }]} />;
+
+    return <View style={{ paddingBottom: 16 }}>
+        {box({ width: 145, height: 18, borderRadius: 6, marginHorizontal: 16, marginTop: 4, marginBottom: 10 })}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 12 }}>
+            {[0, 1, 2, 3].map((item) => <View key={item} style={{ width: '50%', padding: 4 }}>
+                <Animated.View style={{ height: 112, borderRadius: 12, backgroundColor: '#E5E7EB', opacity }} />
+            </View>)}
+        </View>
+        {box({ width: 90, height: 18, borderRadius: 6, marginHorizontal: 16, marginTop: 20, marginBottom: 8 })}
+        <View style={{ marginHorizontal: 16, borderRadius: 16, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap' }}>
+            {[0, 1, 2, 3, 4, 5].map((item) => <Animated.View key={item} style={{ width: '33.33%', height: 82, borderWidth: 1, borderColor: '#F3F4F6', backgroundColor: '#E5E7EB', opacity }} />)}
+        </View>
+    </View>;
+}
 
 // Map landmark category → icon name
 const LANDMARK_ICON_MAP = {
@@ -191,6 +217,8 @@ export default function Highlights({ project }) {
         });
     };
 
+    if (isLoadingLandmarks) return <HighlightsSkeleton />;
+
     return (
         <View style={{ paddingBottom: 16 }}>
 
@@ -198,7 +226,6 @@ export default function Highlights({ project }) {
                 <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>
                     Nearby landmarks
                 </Text>
-                {isLoadingLandmarks && <ActivityIndicator size="small" color="#4A43EC" />}
             </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 12 }}>
@@ -217,7 +244,6 @@ export default function Highlights({ project }) {
                 marginHorizontal: 16, backgroundColor: '#fff',
                 borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB',
                 overflow: 'hidden',
-                borderWidth:1, borderColor: '#e4dfe4ff'
             }}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {allItems.map((item, index) => {
