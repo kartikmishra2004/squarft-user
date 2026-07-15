@@ -3,7 +3,7 @@ import {
   Animated,
   Easing,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Linking,
   Platform,
   Pressable,
@@ -292,11 +292,45 @@ export default function ChatBot() {
   const firstName = getFirstName(profile);
   const userInitials = getInitials(profile);
 
+  const restingBottomInset = Math.max(insets.bottom, Platform.OS === "ios" ? 28 : 0);
+  const bottomInset = useRef(new Animated.Value(restingBottomInset)).current;
+
   useEffect(() => {
     if (isLoggedIn && token && !profile) {
       dispatch(fetchProfileThunk());
     }
   }, [dispatch, isLoggedIn, profile, token]);
+
+  // Manual keyboard-avoiding — iOS only. Android's native window already
+  // resizes for the keyboard (default windowSoftInputMode="adjustResize"),
+  // so adding our own offset there would double up with the native resize
+  // and push the input bar up too far. On iOS there's no such native
+  // resize, so we track the keyboard's height ourselves.
+  useEffect(() => {
+    if (Platform.OS !== "ios") return undefined;
+
+    const showSub = Keyboard.addListener("keyboardWillShow", (event) => {
+      const keyboardHeight = event?.endCoordinates?.height ?? 0;
+      Animated.timing(bottomInset, {
+        toValue: Math.max(keyboardHeight, restingBottomInset),
+        duration: event?.duration || 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener("keyboardWillHide", () => {
+      Animated.timing(bottomInset, {
+        toValue: restingBottomInset,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [bottomInset, restingBottomInset]);
 
   const appendMessage = (nextMessage) => {
     setMessages((current) => [...current, nextMessage]);
@@ -476,11 +510,7 @@ export default function ChatBot() {
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0}
-      className="flex-1 bg-[#F9FAFB]"
-    >
+    <View className="flex-1 bg-[#F9FAFB]">
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="dark-content" />
       <Svg
@@ -528,9 +558,9 @@ export default function ChatBot() {
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
 
-      <View
+      <Animated.View
         className="border-t border-[#EEF0F4] bg-white px-5 pt-3"
-        style={{ paddingBottom: Math.max(insets.bottom, Platform.OS === "ios" ? 28 : 16) }}
+        style={{ paddingBottom: bottomInset }}
       >
         <View className="mb-3 flex-row items-center gap-2">
           {QUICK_PROMPTS.map((item) => (
@@ -563,7 +593,7 @@ export default function ChatBot() {
             <Ionicons name="send" size={17} color="white" />
           </Pressable>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </Animated.View>
+    </View>
   );
 }
