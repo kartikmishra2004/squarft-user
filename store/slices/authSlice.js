@@ -3,9 +3,9 @@ import { authApi } from '../../services/authApi';
 import { profileApi } from '../../services/profileApi';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from '../../utils/authStorage';
 
-export const loginThunk = createAsyncThunk('auth/login', async ({ phone, password }, { rejectWithValue }) => {
+export const loginThunk = createAsyncThunk('auth/login', async ({ verified_token }, { rejectWithValue }) => {
     try {
-        const response = await authApi.login(phone, password);
+        const response = await authApi.login(verified_token);
         await saveAuthSession({ token: response.token, user: response.user });
         return response;
     } catch (e) {
@@ -25,9 +25,11 @@ export const logoutThunk = createAsyncThunk('auth/logout', async (_, { dispatch 
 });
 
 
-export const registerThunk = createAsyncThunk('auth/register', async ({ phone, password, first_name, last_name }, { rejectWithValue }) => {
+export const registerThunk = createAsyncThunk('auth/register', async ({ verified_token, first_name, last_name }, { rejectWithValue }) => {
     try {
-        return await authApi.register(phone, password, first_name, last_name);
+        const response = await authApi.register(verified_token, first_name, last_name);
+        await saveAuthSession({ token: response.token, user: response.user });
+        return response;
     } catch (e) {
         return rejectWithValue(e.message);
     }
@@ -35,13 +37,7 @@ export const registerThunk = createAsyncThunk('auth/register', async ({ phone, p
 
 export const sendOtpThunk = createAsyncThunk('auth/sendOtp', async ({ phone, purpose }, { rejectWithValue }) => {
     try {
-        const response = await authApi.sendOtp(phone, purpose);
-      
-        if (response.otp) {
-            console.log('🔐 OTP for testing:', response.otp);
-            alert(`Development Mode: OTP is ${response.otp}`);
-        }
-        return response;
+        return await authApi.sendOtp(phone, purpose);
     } catch (e) {
         return rejectWithValue(e.message);
     }
@@ -94,6 +90,7 @@ const authSlice = createSlice({
     name: 'auth',
     initialState: {
         name: '',
+        fullName: '',
         email: '',
         mobile: '',
         password: '',
@@ -115,6 +112,7 @@ const authSlice = createSlice({
     },
     reducers: {
         setName: (state, action) => { state.name = action.payload; },
+        setFullName: (state, action) => { state.fullName = action.payload; },
         setEmail: (state, action) => { state.email = action.payload; },
         setMobile: (state, action) => { state.mobile = action.payload; },
         setPassword: (state, action) => { state.password = action.payload; },
@@ -140,6 +138,7 @@ const authSlice = createSlice({
         },
         logout: (state) => {
             state.mobile = '';
+            state.fullName = '';
             state.email = '';
             state.password = '';
             state.token = null;
@@ -181,7 +180,9 @@ const authSlice = createSlice({
             .addCase(registerThunk.pending, (state) => { state.loading = true; state.error = null; })
             .addCase(registerThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                state.user = action.payload.user;
+                state.token = action.payload.token;
+                state.user = action.payload.user || state.user;
+                state.isLoggedIn = true;
             })
             .addCase(registerThunk.rejected, (state, action) => {
                 state.loading = false;
@@ -255,8 +256,8 @@ const authSlice = createSlice({
 });
 
 export const {
-    setName, setEmail, setMobile, setPassword, setNewPassword, setConfirmPassword,
-    setOtpDigit, clearOtp, setOtpFlow, setOtpToken, setVerifiedToken, toggleRememberMe, 
+    setName, setFullName, setEmail, setMobile, setPassword, setNewPassword, setConfirmPassword,
+    setOtpDigit, clearOtp, setOtpFlow, setOtpToken, setVerifiedToken, toggleRememberMe,
     setLoggedIn, clearError, clearAuthInputs, logout,
 } = authSlice.actions;
 export default authSlice.reducer;

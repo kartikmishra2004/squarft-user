@@ -11,6 +11,7 @@ import { router, useFocusEffect } from "expo-router";
 import { logoutThunk, fetchProfileThunk, updateProfilePictureThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 import { ProfileSkeleton } from "../../components/SkeletonLoader";
+import UserAvatar from "../../components/UserAvatar";
 import { userVerificationApi } from "../../services/userVerificationApi";
 import {
     authenticateBiometric,
@@ -324,10 +325,10 @@ export default function Settings() {
                         disabled={profilePictureLoading}
                         style={{ position: 'relative', marginBottom: 12, borderWidth: 5, borderColor: '#FFFFFF', borderRadius: 50, shadowColor: "#949193ff", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 30, elevation: 16 }}
                     >
-                        <Image
-                            source={displayAvatar ? { uri: displayAvatar } : currentUser.avatar}
-                            style={{ width: 80, height: 80, borderRadius: 40 }}
-                            resizeMode="cover"
+                        <UserAvatar
+                            uri={displayAvatar}
+                            name={displayName}
+                            size={80}
                         />
                         <View style={{
                             position: 'absolute', bottom: 0, right: 0,

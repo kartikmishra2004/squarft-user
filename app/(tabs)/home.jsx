@@ -26,6 +26,7 @@ import { toggleFavourite, toggleSeen, toggleContacted, toggleRecent, fetchRecomm
 import { currentUser } from "../../data/user";
 import { fetchProfileThunk } from "../../store/slices/authSlice";
 import SearchOverlay from "../../components/SearchOverlay";
+import UserAvatar from "../../components/UserAvatar";
 import { openFilter, togglePropertyType, clearFilters } from "../../store/slices/filterSlice";
 import { setSearchActive } from "../../store/slices/appSlice";
 import FeaturedCard from "../../components/FeaturedCard";
@@ -442,22 +443,27 @@ export default function Home() {
           />
           {/* Header Row */}
           <View className="flex-row justify-between items-center px-5 pt-2 pb-4 mb-4">
-            <View className="flex-1 flex-row items-center gap-4 mr-3">
+            <View className="flex-1 flex-row items-center gap-2 mr-3">
               <View className="w-[46px] h-[46px] relative">
-                <Image
-                  source={displayAvatar ? { uri: displayAvatar } : currentUser.avatar}
-                  className="w-[50px] h-[50px] rounded-full border-2 border-white"
-                  resizeMode="cover"
+                <UserAvatar
+                  uri={displayAvatar}
+                  name={displayUserName}
+                  size={46}
+                  style={{ borderWidth: 2, borderColor: "#FFFFFF" }}
                 />
               </View>
               <View className="flex-1">
-                <View className="flex-row items-center gap-2">
-                  <Text className="flex-1 text-[17px] font-lato-bold mt-1 text-[#3F3838]" numberOfLines={1}>
+                <View className="flex-row items-center gap-1">
+                  <Text
+                    className="text-[15px] font-lato-bold text-white"
+                    style={{ flexShrink: 1 }}
+                    numberOfLines={1}
+                  >
                     {displayUserName}
                   </Text>
-                  <MaterialIcons name="verified" size={20} color="#3AFF08" />
+                  <MaterialIcons name="verified" size={18} color="#3AFF08" />
                 </View>
-                <Text className="text-[10px] font-lato-regular text-gray-900 mt-1">
+                <Text className="text-[10px] font-lato-regular text-white mt-1">
                   {displayJoinedDate}
                 </Text>
               </View>

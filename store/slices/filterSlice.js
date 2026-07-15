@@ -78,6 +78,7 @@ const filterSlice = createSlice({
             state.reraOnly = false;
         },
         clearPropertyTypes: (state) => { state.propertyTypes = []; },
+        clearSubTypes: (state) => { state.propertySubTypes = []; },
     },
 });
 
@@ -85,6 +86,6 @@ export const {
     openFilter, closeFilter, openBudgetFilter, closeBudgetFilter,
     setAddress, setFilterLocation, setSearchQuery, removeTag,
     togglePropertyType, toggleSubType, setBudgetRange,
-    setAreaRange, togglePossession, toggleReraOnly, clearFilters, clearNonTypeFilters, clearPropertyTypes,
+    setAreaRange, togglePossession, toggleReraOnly, clearFilters, clearNonTypeFilters, clearPropertyTypes, clearSubTypes,
 } = filterSlice.actions;
 export default filterSlice.reducer;

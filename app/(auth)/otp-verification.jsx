@@ -1,10 +1,10 @@
 import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setOtpDigit, clearOtp, setLoggedIn, clearError, clearAuthInputs } from "../../store/slices/authSlice";
-import { verifyOtpThunk, sendOtpThunk } from "../../store/slices/authSlice";
+import { verifyOtpThunk, sendOtpThunk, registerThunk, loginThunk } from "../../store/slices/authSlice";
 import { addNotification } from "../../store/slices/notificationSlice";
 import { NOTIFICATION_EVENTS } from "../../constants/notificationTypes";
 
@@ -12,16 +12,34 @@ const logo = require("../../assets/icons/app-icon.png");
 
 export default function OtpVerification() {
     const dispatch = useDispatch();
-    const { otp, otpFlow, otpToken, mobile, loading, error } = useSelector((state) => state.auth);
+    const { otp, otpFlow, otpToken, mobile, fullName, loading, error } = useSelector((state) => state.auth);
     const inputs = useRef([]);
+    const autoSubmittedRef = useRef(false);
 
     useEffect(() => {
         dispatch(clearError());
         dispatch(clearAuthInputs());
+        autoSubmittedRef.current = false;
     }, []);
 
     const handleChange = (text, index) => {
-        const digit = text.replace(/[^0-9]/g, '').slice(-1);
+        const digits = text.replace(/[^0-9]/g, '');
+
+        // Autofill / paste of the full code can land in a single box.
+        if (digits.length > 1) {
+            digits.slice(0, 6).split('').forEach((d, i) => {
+                dispatch(setOtpDigit({ index: i, value: d }));
+            });
+            const lastFilledIndex = Math.min(digits.length, 6) - 1;
+            if (digits.length < 6) {
+                inputs.current[lastFilledIndex + 1]?.focus();
+            } else {
+                Keyboard.dismiss();
+            }
+            return;
+        }
+
+        const digit = digits.slice(-1);
         dispatch(setOtpDigit({ index, value: digit }));
         if (digit && index < 5) {
             inputs.current[index + 1]?.focus();
@@ -34,39 +52,80 @@ export default function OtpVerification() {
         }
     };
 
-    const handleVerify = async () => {
+    const handleVerify = useCallback(async () => {
         dispatch(clearError());
         const otpString = otp.join('');
+        if (otpString.length !== 6) {
+            return;
+        }
         const result = await dispatch(verifyOtpThunk({ otp_token: otpToken, otp: otpString }));
-        
-        if (verifyOtpThunk.fulfilled.match(result)) {
+
+        if (!verifyOtpThunk.fulfilled.match(result)) {
+            return;
+        }
+
+        const verifiedToken = result.payload.verified_token;
+
+        if (otpFlow === 'reset_password') {
             dispatch(clearOtp());
-            if (otpFlow === 'reset_password') {
-                router.push("/change-password");
-            } else {
-                // New user registration successful - send welcome notification
-                dispatch(addNotification({
-                    title: 'Welcome to SquarFT',
-                    description: 'Your account is ready. Explore verified properties, save favourites, and book a site visit.',
-                    eventKey: NOTIFICATION_EVENTS.USER_WELCOME,
-                    category: 'success',
-                    deepLink: '/home',
-                    data: {
-                        user_name: result.payload?.data?.user?.name || 'User',
-                    },
-                }));
-                
+            router.push("/change-password");
+            return;
+        }
+
+        if (otpFlow === 'login') {
+            const loginResult = await dispatch(loginThunk({ verified_token: verifiedToken }));
+            if (loginThunk.fulfilled.match(loginResult)) {
+                dispatch(clearOtp());
                 dispatch(setLoggedIn(true));
                 router.replace("/(tabs)/home");
             }
+            return;
         }
-    };
+
+        // otpFlow === 'register'
+        const [firstName, ...rest] = fullName.trim().split(/\s+/);
+        const lastName = rest.join(' ') || firstName;
+        const registerResult = await dispatch(registerThunk({
+            verified_token: verifiedToken,
+            first_name: firstName,
+            last_name: lastName,
+        }));
+
+        if (registerThunk.fulfilled.match(registerResult)) {
+            dispatch(clearOtp());
+            dispatch(addNotification({
+                title: 'Welcome to SquarFT',
+                description: 'Your account is ready. Explore verified properties, save favourites, and book a site visit.',
+                eventKey: NOTIFICATION_EVENTS.USER_WELCOME,
+                category: 'success',
+                deepLink: '/home',
+                data: {
+                    user_name: registerResult.payload?.user?.first_name || 'User',
+                },
+            }));
+
+            dispatch(setLoggedIn(true));
+            router.replace("/(tabs)/home");
+        }
+    }, [otp, otpToken, otpFlow, fullName, dispatch]);
+
+    // Auto-submit once all 6 digits are present (covers paste + OS autofill).
+    useEffect(() => {
+        const otpString = otp.join('');
+        if (otpString.length === 6 && !loading && !autoSubmittedRef.current) {
+            autoSubmittedRef.current = true;
+            handleVerify();
+        }
+        if (otpString.length < 6) {
+            autoSubmittedRef.current = false;
+        }
+    }, [otp, loading, handleVerify]);
 
     const handleResend = async () => {
         dispatch(clearError());
         dispatch(clearOtp());
-        const purpose = otpFlow === 'reset_password' ? 'reset_password' : 'register';
-        await dispatch(sendOtpThunk({ phone: mobile, purpose }));
+        autoSubmittedRef.current = false;
+        await dispatch(sendOtpThunk({ phone: mobile, purpose: otpFlow }));
         inputs.current[0]?.focus();
     };
 
@@ -98,7 +157,10 @@ export default function OtpVerification() {
                                     onChangeText={(text) => handleChange(text, index)}
                                     onKeyPress={(e) => handleKeyPress(e, index)}
                                     keyboardType="number-pad"
-                                    maxLength={1}
+                                    textContentType={index === 0 ? "oneTimeCode" : "none"}
+                                    autoComplete={index === 0 ? "sms-otp" : "off"}
+                                    importantForAutofill={index === 0 ? "yes" : "no"}
+                                    maxLength={index === 0 ? 6 : 1}
                                     style={{
                                         marginTop: 10,
                                         marginBottom: 10,

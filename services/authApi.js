@@ -19,16 +19,16 @@ async function request(path, options = {}) {
 }
 
 export const authApi = {
-    login: (phone, password) =>
+    login: (verified_token) =>
         request('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ phone, password }),
+            body: JSON.stringify({ verified_token }),
         }),
 
-    register: (phone, password, first_name, last_name) =>
+    register: (verified_token, first_name, last_name) =>
         request('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ phone, password, first_name, last_name }),
+            body: JSON.stringify({ verified_token, first_name, last_name }),
         }),
 
     sendOtp: (phone, purpose) =>

@@ -1,28 +1,32 @@
 import { Text, View, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ScrollView, ImageBackground, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Link, router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Ionicons } from "@expo/vector-icons";
-import { setMobile, setPassword, toggleRememberMe, clearError, clearAuthInputs } from "../../store/slices/authSlice";
-import { loginThunk } from "../../store/slices/authSlice";
+import { setMobile, setOtpFlow, clearError, clearAuthInputs } from "../../store/slices/authSlice";
+import { sendOtpThunk } from "../../store/slices/authSlice";
 const logo = require("../../assets/icons/app-icon.png");
+
+const COUNTRY_CODE = "+91";
 
 export default function Login() {
     const dispatch = useDispatch();
-    const { mobile, password, rememberMe, loading, error } = useSelector((state) => state.auth);
-    const [showPassword, setShowPassword] = useState(false);
+    const { loading, error } = useSelector((state) => state.auth);
+    const [localNumber, setLocalNumber] = useState('');
 
     useEffect(() => {
         dispatch(clearError());
         dispatch(clearAuthInputs());
     }, []);
 
-    const handleLogin = async () => {
+    const handleSendOtp = async () => {
         dispatch(clearError());
-        const result = await dispatch(loginThunk({ phone: mobile, password }));
-        if (loginThunk.fulfilled.match(result)) {
-            router.replace("/(tabs)/home");
+        const phone = `${COUNTRY_CODE}${localNumber}`;
+        dispatch(setMobile(phone));
+        dispatch(setOtpFlow("login"));
+        const result = await dispatch(sendOtpThunk({ phone, purpose: "login" }));
+        if (sendOtpThunk.fulfilled.match(result)) {
+            router.push("/otp-verification");
         }
     };
 
@@ -50,71 +54,36 @@ export default function Login() {
 
                     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24, paddingTop: 32 }} keyboardShouldPersistTaps="handled">
 
-
                         <Text className="text-gray-500 text-[13px] mb-1.5">Phone Number</Text>
-                        <View className="border border-gray-200 rounded-xl px-4 py-2 mb-5">
+                        <View className="border border-gray-200 rounded-xl px-4 py-2 mb-5 flex-row items-center">
+                            <Text className="text-[15px] text-black font-lato-bold mr-2">{COUNTRY_CODE}</Text>
+                            <View className="w-[1px] h-5 bg-gray-200 mr-2" />
                             <TextInput
-                                value={mobile}
-                                onChangeText={(val) => dispatch(setMobile(val))}
+                                value={localNumber}
+                                onChangeText={(val) => setLocalNumber(val.replace(/[^0-9]/g, '').slice(0, 10))}
                                 placeholder="Phone Number"
                                 placeholderTextColor="#aaa"
                                 keyboardType="phone-pad"
-                                className="text-[15px] text-black"
-                            />
-                        </View>
-
-
-                        <Text className="text-gray-500 text-[13px] mb-1.5">Password</Text>
-                        <View className="border border-gray-200 rounded-xl px-4 py-2 flex-row items-center mb-4">
-                            <TextInput
-                                value={password}
-                                onChangeText={(val) => dispatch(setPassword(val))}
-                                placeholder="••••••••"
-                                placeholderTextColor="#aaa"
-                                secureTextEntry={!showPassword}
+                                maxLength={10}
                                 className="flex-1 text-[15px] text-black"
                             />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons
-                                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                                    size={20}
-                                    color="#aaa"
-                                />
-                            </TouchableOpacity>
                         </View>
-
-
-                        <View className="flex-row items-center justify-between mb-7">
-                            <TouchableOpacity
-                                className="flex-row items-center gap-2"
-                                onPress={() => dispatch(toggleRememberMe())}
-                            >
-                                <View className={`w-4 h-4 border rounded-sm items-center justify-center ${rememberMe ? "bg-[#4A43EC] border-[#4A43EC]" : "border-gray-400"}`}>
-                                    {rememberMe && <Ionicons name="checkmark" size={11} color="white" />}
-                                </View>
-                                <Text className="text-gray-500 text-[13px]">Remember me</Text>
-                            </TouchableOpacity>
-                            <Link href="/forgot-password">
-                                <Text className="text-[#4A43EC] text-[13px]">Forgot Password ?</Text>
-                            </Link>
-                        </View>
-
 
                         {error && (
                             <Text className="text-red-500 text-[13px] mb-4 text-center">{error}</Text>
                         )}
 
                         <TouchableOpacity
-                            onPress={handleLogin}
-                            disabled={loading}
+                            onPress={handleSendOtp}
+                            disabled={loading || localNumber.length !== 10}
                             className="bg-[#4A43EC] rounded-2xl py-4 items-center mb-8"
+                            style={{ opacity: localNumber.length !== 10 ? 0.5 : 1 }}
                         >
                             {loading
                                 ? <ActivityIndicator color="#fff" />
-                                : <Text className="text-white text-[16px] font-lato-bold">Log In</Text>
+                                : <Text className="text-white text-[16px] font-lato-bold">Send OTP</Text>
                             }
                         </TouchableOpacity>
-
 
                     </ScrollView>
                 </View>

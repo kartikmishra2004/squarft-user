@@ -20,7 +20,7 @@ import Constants from "expo-constants";
 import RangeSliderLib from "react-native-fast-range-slider";
 import {
     closeFilter, setAddress, removeTag,
-    togglePropertyType, toggleSubType,
+    togglePropertyType, toggleSubType, clearSubTypes,
     setBudgetRange, setAreaRange,
     togglePossession, clearFilters, setFilterLocation,
 } from "../store/slices/filterSlice";
@@ -45,8 +45,17 @@ function getGeocodingService() {
     return geocodingServiceInstance;
 }
 
-const PROPERTY_TYPES = ['Flat/Apartment', 'House/Villa', 'Plot', 'Commercial'];
+const PROPERTY_TYPES = [
+    { label: 'Plot', type: 'Plot' },
+    { label: 'Villa', type: 'Villa' },
+    { label: 'Apartment', type: 'Apartment' },
+    { label: 'RowHouse', type: 'Rowhouse' },
+    { label: 'Shop', type: 'Shop' },
+    { label: 'Showroom', type: 'Showroom' },
+    { label: 'Office', type: 'Office' },
+];
 const SUB_TYPES = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
+const SUB_TYPE_ELIGIBLE_PROPERTY_TYPES = ['Apartment', 'Rowhouse', 'Villa'];
 const POSSESSION = ['Ready to Move', 'Under Construction'];
 
 const BUDGET_MIN = 2000000;
@@ -60,7 +69,7 @@ function formatBudget(val) {
     return `₹${val}`;
 }
 
-function RangeSlider({ min, max, values, onChange, onLiveChange }) {
+function RangeSlider({ min, max, values, onChange, onLiveChange, onDragStart, onDragEnd }) {
     const { width } = useWindowDimensions();
     return (
         <RangeSliderLib
@@ -84,13 +93,20 @@ function RangeSlider({ min, max, values, onChange, onLiveChange }) {
                 shadowRadius: 4,
                 elevation: 4,
             }}
+            pressedThumbStyle={{
+                transform: [{ scale: 1.15 }],
+            }}
+            onValuesChangeStart={() => onDragStart?.()}
             onValuesChange={(vals) => onLiveChange?.([vals[0], vals[1]])}
-            onValuesChangeFinish={(vals) => onChange([vals[0], vals[1]])}
+            onValuesChangeFinish={(vals) => {
+                onChange([vals[0], vals[1]]);
+                onDragEnd?.();
+            }}
         />
     );
 }
 
-const BudgetRangeSection = memo(function BudgetRangeSection({ budgetRange, onChange }) {
+const BudgetRangeSection = memo(function BudgetRangeSection({ budgetRange, onChange, onDragStart, onDragEnd }) {
     const [liveBudget, setLiveBudget] = useState(budgetRange);
 
     useEffect(() => {
@@ -105,7 +121,15 @@ const BudgetRangeSection = memo(function BudgetRangeSection({ budgetRange, onCha
                 <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Budget Range</Text>
                 <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{budgetLabel}</Text>
             </View>
-            <RangeSlider min={BUDGET_MIN} max={BUDGET_MAX} values={budgetRange} onChange={onChange} onLiveChange={setLiveBudget} />
+            <RangeSlider
+                min={BUDGET_MIN}
+                max={BUDGET_MAX}
+                values={budgetRange}
+                onChange={onChange}
+                onLiveChange={setLiveBudget}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+            />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
                 {['20L', '1Cr', '2Cr', '3Cr', '5Cr+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
             </View>
@@ -113,7 +137,7 @@ const BudgetRangeSection = memo(function BudgetRangeSection({ budgetRange, onCha
     );
 });
 
-const AreaRangeSection = memo(function AreaRangeSection({ areaRange, onChange }) {
+const AreaRangeSection = memo(function AreaRangeSection({ areaRange, onChange, onDragStart, onDragEnd }) {
     const [liveArea, setLiveArea] = useState(areaRange);
 
     useEffect(() => {
@@ -128,7 +152,15 @@ const AreaRangeSection = memo(function AreaRangeSection({ areaRange, onChange })
                 <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>Build-up Area in sq.ft.</Text>
                 <Text style={{ fontSize: 13, color: '#4A43EC', fontWeight: '500' }}>{areaLabel}</Text>
             </View>
-            <RangeSlider min={AREA_MIN} max={AREA_MAX} values={areaRange} onChange={onChange} onLiveChange={setLiveArea} />
+            <RangeSlider
+                min={AREA_MIN}
+                max={AREA_MAX}
+                values={areaRange}
+                onChange={onChange}
+                onLiveChange={setLiveArea}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+            />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
                 {['0', '1667', '3333', '5000+'].map((l) => <Text key={l} style={{ fontSize: 11, color: '#9CA3AF' }}>{l}</Text>)}
             </View>
@@ -136,9 +168,23 @@ const AreaRangeSection = memo(function AreaRangeSection({ areaRange, onChange })
     );
 });
 
-function ChipButton({ label, selected, onPress }) {
+function ChipButton({ label, selected, onPress, disabled }) {
     return (
-        <TouchableOpacity onPress={onPress} style={{ borderWidth: 1, borderColor: selected ? '#4A43EC' : '#E5E7EB', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8, backgroundColor: '#fff' }}>
+        <TouchableOpacity
+            onPress={onPress}
+            disabled={disabled}
+            style={{
+                borderWidth: 1,
+                borderColor: selected ? '#4A43EC' : '#E5E7EB',
+                borderRadius: 8,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                marginRight: 8,
+                marginBottom: 8,
+                backgroundColor: '#fff',
+                opacity: disabled ? 0.4 : 1,
+            }}
+        >
             <Text style={{ color: selected ? '#4A43EC' : '#374151', fontSize: 13, fontWeight: selected ? '600' : '400' }}>{label}</Text>
         </TouchableOpacity>
     );
@@ -161,6 +207,16 @@ export default function FilterModal() {
     const { isOpen, address, locationCoordinates, tags, propertyTypes, propertySubTypes, budgetRange, areaRange, possessionStatus } = useSelector((state) => state.filter);
     const [localAddress, setLocalAddress] = useState(address);
     const [geocoding, setGeocoding] = useState(false);
+    const subTypeEnabled = propertyTypes.some((t) => SUB_TYPE_ELIGIBLE_PROPERTY_TYPES.includes(t));
+    const [sliderDragging, setSliderDragging] = useState(false);
+    const handleSliderDragStart = () => setSliderDragging(true);
+    const handleSliderDragEnd = () => setSliderDragging(false);
+
+    useEffect(() => {
+        if (!subTypeEnabled && propertySubTypes.length > 0) {
+            dispatch(clearSubTypes());
+        }
+    }, [subTypeEnabled]);
     const sheetProgress = useRef(new Animated.Value(1)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -222,7 +278,11 @@ export default function FilterModal() {
                         <View style={{ width: 22 }} />
                     </View>
 
-                    <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 80 }}
+                        showsVerticalScrollIndicator={false}
+                        scrollEnabled={!sliderDragging}
+                    >
 
                         {/* Address */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 12 }}>
@@ -258,20 +318,38 @@ export default function FilterModal() {
                         {/* Property Type */}
                         <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Property Type</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-                            {PROPERTY_TYPES.map((t) => <ChipButton key={t} label={t} selected={propertyTypes.includes(t)} onPress={() => dispatch(togglePropertyType(t))} />)}
+                            {PROPERTY_TYPES.map((t) => <ChipButton key={t.type} label={t.label} selected={propertyTypes.includes(t.type)} onPress={() => dispatch(togglePropertyType(t.type))} />)}
                         </View>
 
                         {/* Sub Type */}
-                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginTop: 8, marginBottom: 10 }}>Property Sub Type</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-                            {SUB_TYPES.map((t) => <ChipButton key={t} label={t} selected={propertySubTypes.includes(t)} onPress={() => dispatch(toggleSubType(t))} />)}
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: subTypeEnabled ? '#111827' : '#9CA3AF', marginTop: 8, marginBottom: 10 }}>Property Sub Type</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, opacity: subTypeEnabled ? 1 : 0.4 }}>
+                            {SUB_TYPES.map((t) => (
+                                <ChipButton
+                                    key={t}
+                                    label={t}
+                                    selected={propertySubTypes.includes(t)}
+                                    disabled={!subTypeEnabled}
+                                    onPress={() => dispatch(toggleSubType(t))}
+                                />
+                            ))}
                         </View>
 
                         {/* Budget Range */}
-                        <BudgetRangeSection budgetRange={budgetRange} onChange={(v) => dispatch(setBudgetRange(v))} />
+                        <BudgetRangeSection
+                            budgetRange={budgetRange}
+                            onChange={(v) => dispatch(setBudgetRange(v))}
+                            onDragStart={handleSliderDragStart}
+                            onDragEnd={handleSliderDragEnd}
+                        />
 
                         {/* Area Range */}
-                        <AreaRangeSection areaRange={areaRange} onChange={(v) => dispatch(setAreaRange(v))} />
+                        <AreaRangeSection
+                            areaRange={areaRange}
+                            onChange={(v) => dispatch(setAreaRange(v))}
+                            onDragStart={handleSliderDragStart}
+                            onDragEnd={handleSliderDragEnd}
+                        />
 
                         {/* Possession Status */}
                         <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 10 }}>Possession Status</Text>
