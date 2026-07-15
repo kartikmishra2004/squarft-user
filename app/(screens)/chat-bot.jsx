@@ -477,7 +477,8 @@ export default function ChatBot() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0}
       className="flex-1 bg-[#F9FAFB]"
     >
       <Stack.Screen options={{ headerShown: false }} />

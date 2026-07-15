@@ -18,6 +18,7 @@
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
       "predictiveBackGestureEnabled": false,
       "package": "com.squarft.user",
       "permissions": [

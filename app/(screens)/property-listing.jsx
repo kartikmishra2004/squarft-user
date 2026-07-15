@@ -453,6 +453,7 @@ export default function PropertyListing() {
     const filter = useSelector((state) => state.filter);
     const { list: apiProjects, featured, nearby, loading: projectsLoading, featuredLoading, nearbyLoading } = useSelector((state) => state.project);
     const { highGrowthProjects, highGrowthLocalities, highGrowthLoading, highGrowthCity } = useSelector((state) => state.properties);
+    const unreadNotifications = useSelector((s) => s.notifications?.list?.filter((item) => !item.watched).length ?? 0);
     const { category, focus, featured: featuredParam, recommended, highGrowth, nearby: nearbyParam, latitude, longitude, locationName } = useLocalSearchParams();
     const isFocusMode = focus === '1';
     const isFeaturedMode = featuredParam === '1';
@@ -616,8 +617,20 @@ export default function PropertyListing() {
                     <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 }}>
                         {pageTitle}
                     </Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => router.push("/(screens)/notifications")}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open notifications"
+                        style={{ position: 'relative' }}
+                    >
                         <Ionicons name="notifications-outline" size={22} color="#374151" />
+                        {unreadNotifications > 0 && (
+                            <View style={{ position: 'absolute', top: -3, right: -3, minWidth: 15, height: 15, borderRadius: 8, backgroundColor: '#FF3B30', borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 }}>
+                                <Text style={{ color: '#fff', fontSize: 8, fontWeight: '700' }}>
+                                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                                </Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -640,7 +653,11 @@ export default function PropertyListing() {
                     </TouchableOpacity>
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ flexDirection: 'row', gap: 8 }}
+                >
                     <TouchableOpacity
                         onPress={() => { dispatch(clearNonTypeFilters()); dispatch(clearPropertyTypes()); }}
                         style={{ backgroundColor: '#4A43EC', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 }}
@@ -685,8 +702,8 @@ export default function PropertyListing() {
                         </Text>
                         <Ionicons name="chevron-down" size={12} color={(filter.possessionStatus.length > 0 || filter.reraOnly) ? '#4A43EC' : '#6B7280'} />
                     </TouchableOpacity>
-                </View>
-              
+                </ScrollView>
+
             </View>
             <View style={{ height: 1, backgroundColor: '#E5E7EB', width: '85%', alignSelf: 'center', marginVertical: 4, marginBottom: 8, marginTop: 4, }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, marginBottom: 8 }}>

@@ -9,7 +9,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { addSiteVisit, removeSiteVisit } from "../../store/slices/propertiesSlice";
 import { fetchVisitListThunk } from "../../store/slices/visitSlice";
 import { propertyApi } from "../../services/propertyApi";
-import { ALL_VISITS } from "../../data/visits";
 import PropertyDetailModal from "../../components/projectDetail/PropertyDetailModal";
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
@@ -199,18 +198,7 @@ export default function Visit() {
 
   const currentVisitTime = Date.now();
 
-  const reduxProjectIds = reduxUpcomingVisits.map(v => v.projectId);
-
-  const validMockVisits = ALL_VISITS.filter(v => {
-    const isMockUpcoming = getVisitTimestamp(v) >= currentVisitTime;
-    // Suppress ONLY the upcoming mock versions of properties that have live Redux upcoming schedules
-    if (isMockUpcoming && reduxProjectIds.includes(v.projectId || v.id)) {
-      return false;
-    }
-    return true;
-  });
-
-  // Merge API visits with local mock visits
+  // Merge API visits with locally-booked (not-yet-synced) visits
   const apiVisitsFormatted = apiVisits.map(v => {
     const inventory = v.project_inventory || {};
     const possession = v.project_possession_status || v.project_possession_date || v.project_possession || 'TBD';
@@ -270,7 +258,6 @@ export default function Visit() {
   const allCombinedVisits = uniqueById([
     ...apiVisitsFormatted,
     ...(isLoggedIn ? [] : reduxUpcomingVisits),
-    ...(isLoggedIn ? [] : validMockVisits),
   ]);
 
   // Filter and sort for upcoming

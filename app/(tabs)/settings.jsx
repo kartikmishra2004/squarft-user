@@ -2,17 +2,16 @@ import {
     View, Text, Image, TouchableOpacity,
     ScrollView, Switch, Alert, ActivityIndicator, Platform,
 } from "react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { logoutThunk, fetchProfileThunk, updateProfilePictureThunk } from "../../store/slices/authSlice";
 import { currentUser } from "../../data/user";
 import { ProfileSkeleton } from "../../components/SkeletonLoader";
 import UserAvatar from "../../components/UserAvatar";
-import { userVerificationApi } from "../../services/userVerificationApi";
 import {
     authenticateBiometric,
     getBiometricLabel,
@@ -88,32 +87,9 @@ function SettingsRow({ icon, iconBg, label, sublabel, sublabelColor, right, onPr
     );
 }
 
-const formatVerificationStatus = (status) => {
-    const normalized = String(status || "").toLowerCase();
-    if (["fully_verified", "verified", "approved"].includes(normalized)) return "Verified";
-    if (normalized === "rejected") return "Rejected";
-    if (normalized === "partially_verified") return "Partially Verified";
-    if (["pending", "under_review"].includes(normalized)) return "Pending Review";
-    return "Not Submitted";
-};
-
-const isKycStatusVerified = (data) => {
-    if (data?.is_kyc_verified) return true;
-    if (Number(data?.completion_percentage) >= 100) return true;
-
-    const requiredDocuments = data?.required_documents || ["profile_photo", "aadhaar_front", "pan_card"];
-    const documentsStatus = data?.documents_status || {};
-
-    return requiredDocuments.every((type) => {
-        const status = String(documentsStatus[type]?.status || "").toLowerCase();
-        return ["approved", "verified"].includes(status);
-    });
-};
-
 export default function Settings() {
     const dispatch = useDispatch();
     const [notificationsOn, setNotificationsOn] = useState(true);
-    const [idVerificationStatus, setIdVerificationStatus] = useState(null);
     const [biometricLockOn, setBiometricLockOn] = useState(false);
     const [biometricLabel, setBiometricLabel] = useState("Biometric Lock");
     const [biometricBusy, setBiometricBusy] = useState(false);
@@ -125,28 +101,6 @@ export default function Settings() {
             dispatch(fetchProfileThunk());
         }
     }, [isLoggedIn, dispatch]);
-
-    const loadIdVerificationStatus = useCallback(async () => {
-        if (!isLoggedIn || !token) {
-            setIdVerificationStatus(null);
-            return;
-        }
-
-        try {
-            const response = await userVerificationApi.getStatus(token);
-            setIdVerificationStatus(
-                isKycStatusVerified(response.data)
-                    ? "Verified"
-                    : formatVerificationStatus(response.data?.overall_status)
-            );
-        } catch (_error) {
-            setIdVerificationStatus(null);
-        }
-    }, [isLoggedIn, token]);
-
-    useEffect(() => {
-        loadIdVerificationStatus();
-    }, [loadIdVerificationStatus]);
 
     useEffect(() => {
         (async () => {
@@ -186,13 +140,6 @@ export default function Settings() {
             setBiometricBusy(false);
         }
     };
-
-    useFocusEffect(
-        useCallback(() => {
-            loadIdVerificationStatus();
-            return () => undefined;
-        }, [loadIdVerificationStatus])
-    );
 
     const handleLogout = () => {
         Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -290,7 +237,6 @@ export default function Settings() {
     const displayEmail = profile?.user?.email || currentUser.email;
     const displayPhone = profile?.user?.phone || currentUser.phone;
     const displayRole = profile?.user?.role || 'PROPERTY OWNER';
-    const displayVerification = idVerificationStatus || profile?.user?.verification_status || 'Not Submitted';
     const displayAvatar = profile?.user?.profilePictureUrl
         || profile?.user?.avatar_url
         || profile?.user?.avatarUrl
@@ -372,13 +318,6 @@ export default function Settings() {
                         label="Phone Number"
                         sublabel={displayPhone}
                         right={<View />}
-                    />
-                    <SettingsRow
-                        icon={<MaterialCommunityIcons name="card-account-details-outline" size={18} color="#4A43EC" />}
-                        label="ID Verification"
-                        sublabel={displayVerification}
-                        sublabelColor={String(displayVerification).toLowerCase().includes('reject') ? '#EF4444' : String(displayVerification).toLowerCase().includes('pending') ? '#F59E0B' : '#10B981'}
-                        onPress={() => router.push('/(screens)/id-verification')}
                     />
                     <SettingsRow
                         icon={<MaterialCommunityIcons name="fingerprint" size={18} color="#4A43EC" />}
