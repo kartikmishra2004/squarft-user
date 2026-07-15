@@ -409,7 +409,7 @@ export default function Home() {
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 150 }}>
         {/* Header */}
         <View
           style={{

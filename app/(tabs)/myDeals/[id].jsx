@@ -174,7 +174,7 @@ export default function DealDetails() {
                         })}
                     </View>
 
-                    <View className="px-5 pt-6 pb-[100px]">
+                    <View className="px-5 pt-6 pb-[140px]">
                         {activeTabContent}
                     </View>
                 </View>

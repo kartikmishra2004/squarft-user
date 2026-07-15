@@ -101,15 +101,15 @@ export default function TabsLayout() {
                     position: "absolute",
                     left: 0,
                     right: 0,
-                    bottom: Platform.OS === "ios" ? 0 : androidBottomInset - 1,
+                    bottom: -1,
                     borderTopRightRadius: 45,
                     borderTopLeftRadius: 45,
                     borderTopColor: "transparent",
                     backgroundColor: "#fff",
                     paddingTop: 12,
                     paddingHorizontal: 15,
-                    paddingBottom: iosBottomPadding,
-                    height: Platform.OS === "ios" ? 88 : 82,
+                    paddingBottom: Platform.OS === "ios" ? iosBottomPadding : Math.max(androidBottomInset, 0),
+                    height: Platform.OS === "ios" ? 88 : 82 + androidBottomInset,
                     ...Platform.select({
                         ios: {
                             shadowColor: "#000",

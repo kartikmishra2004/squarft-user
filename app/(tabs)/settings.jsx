@@ -314,7 +314,7 @@ export default function Settings() {
             />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 160 }}
+                contentContainerStyle={{ paddingBottom: 210 }}
             >
 
                 <View style={{ alignItems: 'center', paddingTop: 30, paddingBottom: 2 }}>

@@ -191,7 +191,7 @@ export default function MyDeals() {
         <View className="flex-1 bg-[#FAFAFA]">
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 150 }}
                 bounces={false}
             >
                 {/* Header Section */}

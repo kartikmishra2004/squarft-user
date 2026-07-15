@@ -14,7 +14,7 @@ import PropertyDetailModal from "../../components/projectDetail/PropertyDetailMo
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 82;
-const ACTION_BAR_TAB_MARGIN = 44;
+const ACTION_BAR_TAB_MARGIN = 60;
 
 const styles = StyleSheet.create({
   tabsOuter: {
@@ -444,7 +444,7 @@ export default function Visit() {
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: activeTab === "Book visit" && bookedSiteVisits.length > 0 ? 172 : 94 }} showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: activeTab === "Book visit" && bookedSiteVisits.length > 0 ? 222 : 144 }} showsVerticalScrollIndicator={false}>
 
         {/* Book visit Tab */}
         {activeTab === "Book visit" && (

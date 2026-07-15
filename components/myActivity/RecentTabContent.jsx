@@ -123,7 +123,7 @@ const RecentTabContent = () => {
   return (
     <ScrollView 
       className="flex-1 bg-white" 
-      contentContainerStyle={{ paddingBottom: 100 }} 
+      contentContainerStyle={{ paddingBottom: 150 }} 
       showsVerticalScrollIndicator={false}
     >
       <StatusBar style="dark" />

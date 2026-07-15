@@ -148,7 +148,7 @@ export default function SeenTabContent() {
         data={displayProjects}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderSeenProject}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: 70 }}
         ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
       />

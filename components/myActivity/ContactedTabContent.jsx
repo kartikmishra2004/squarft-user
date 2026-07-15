@@ -70,7 +70,7 @@ const ContactedTabContent = () => {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
       <StatusBar style="dark" />
       <View className="mt-10 px-4 mb-6">
         {contactedProperties.map((property, index) => {
