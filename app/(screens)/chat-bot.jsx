@@ -292,7 +292,7 @@ export default function ChatBot() {
   const firstName = getFirstName(profile);
   const userInitials = getInitials(profile);
 
-  const restingBottomInset = Math.max(insets.bottom, Platform.OS === "ios" ? 28 : 0);
+  const restingBottomInset = Math.max(insets.bottom, Platform.OS === "ios" ? 28 : 12);
   const bottomInset = useRef(new Animated.Value(restingBottomInset)).current;
 
   useEffect(() => {
@@ -301,15 +301,16 @@ export default function ChatBot() {
     }
   }, [dispatch, isLoggedIn, profile, token]);
 
-  // Manual keyboard-avoiding — iOS only. Android's native window already
-  // resizes for the keyboard (default windowSoftInputMode="adjustResize"),
-  // so adding our own offset there would double up with the native resize
-  // and push the input bar up too far. On iOS there's no such native
-  // resize, so we track the keyboard's height ourselves.
+  // Manual keyboard-avoiding, driven by JS keyboard events rather than
+  // KeyboardAvoidingView — that component's "height"/"padding" behaviors
+  // have proven unreliable on this app (residual gaps on Android after the
+  // keyboard closes, offset math issues on iOS), so we track the keyboard's
+  // own height directly and animate the input bar's bottom padding to match.
   useEffect(() => {
-    if (Platform.OS !== "ios") return undefined;
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
-    const showSub = Keyboard.addListener("keyboardWillShow", (event) => {
+    const showSub = Keyboard.addListener(showEvent, (event) => {
       const keyboardHeight = event?.endCoordinates?.height ?? 0;
       Animated.timing(bottomInset, {
         toValue: Math.max(keyboardHeight, restingBottomInset),
@@ -318,7 +319,7 @@ export default function ChatBot() {
       }).start();
     });
 
-    const hideSub = Keyboard.addListener("keyboardWillHide", () => {
+    const hideSub = Keyboard.addListener(hideEvent, () => {
       Animated.timing(bottomInset, {
         toValue: restingBottomInset,
         duration: 200,
@@ -548,6 +549,7 @@ export default function ChatBot() {
 
       <FlatList
         ref={listRef}
+        style={{ flex: 1 }}
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}

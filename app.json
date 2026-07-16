@@ -10,7 +10,13 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bitcode": false
+      "bundleIdentifier": "com.squarft.user",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow SquarFT to use your camera for video calls and property media.",
+        "NSMicrophoneUsageDescription": "Allow SquarFT to use your microphone for AI voice and video calls.",
+        "NSLocationWhenInUseUsageDescription": "Allow SquarFT to use your location to show nearby projects.",
+        "NSFaceIDUsageDescription": "Allow SquarFT to use Face ID to unlock the app."
+      }
     },
     "android": {
       "googleServicesFile": "./app/google-services.json",

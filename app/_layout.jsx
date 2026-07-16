@@ -1,4 +1,5 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -130,22 +131,24 @@ export default function RootLayout() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <Provider store={store}>
-                <BottomSheetModalProvider>
-                    <AuthHydrator />
-                    <ActivityTrackerHydrator />
-                    <PushNotificationRegistrar />
-                    <FilterModal />
-                    <BiometricLockGate>
-                        <Stack screenOptions={{ gestureEnabled: false }}>
-                            <Stack.Screen name="index" options={{ headerShown: false }} />
-                            <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
-                            <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
-                            <Stack.Screen name="(screens)" options={{ headerShown: false }} />
-                        </Stack>
-                    </BiometricLockGate>
-                </BottomSheetModalProvider>
-            </Provider>
+            <SafeAreaProvider>
+                <Provider store={store}>
+                    <BottomSheetModalProvider>
+                        <AuthHydrator />
+                        <ActivityTrackerHydrator />
+                        <PushNotificationRegistrar />
+                        <FilterModal />
+                        <BiometricLockGate>
+                            <Stack screenOptions={{ gestureEnabled: false }}>
+                                <Stack.Screen name="index" options={{ headerShown: false }} />
+                                <Stack.Screen name="(auth)" options={{ headerShown: false, animation: "none" }} />
+                                <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
+                                <Stack.Screen name="(screens)" options={{ headerShown: false }} />
+                            </Stack>
+                        </BiometricLockGate>
+                    </BottomSheetModalProvider>
+                </Provider>
+            </SafeAreaProvider>
         </GestureHandlerRootView>
     );
 }   
