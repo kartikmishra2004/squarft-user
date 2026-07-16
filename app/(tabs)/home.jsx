@@ -32,7 +32,7 @@ import { setSearchActive } from "../../store/slices/appSlice";
 import FeaturedCard from "../../components/FeaturedCard";
 import { fetchFeaturedProjectsThunk, fetchProjectListThunk } from "../../store/slices/projectSlice";
 import { LinearGradient } from "expo-linear-gradient";
-import { HomeSectionSkeleton } from "../../components/SkeletonLoader";
+import { RecommendedProjectsSkeleton, FeaturedProjectsSkeleton, ProjectInFocusSkeleton, HighGrowthLocalitiesSkeleton } from "../../components/SkeletonLoader";
 import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
 
 const CATEGORIES = [
@@ -78,9 +78,9 @@ const formatUnitCount = (value, singular, plural = `${singular}s`) => {
   return text;
 };
 
-const formatJoinedDate = (value, fallback) => {
+const formatJoinedDate = (value) => {
   const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return fallback;
+  if (!date || Number.isNaN(date.getTime())) return '';
   return `Joined ${date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -220,9 +220,7 @@ export default function Home() {
   const searchActive = useSelector((state) => state.app.searchActive);
   const [searchQuery, setSearchQuery] = useState('');
   const { token, profile, user } = useSelector((s) => s.auth);
-  const { 
-    missed, 
-    highGrowthLocalities, 
+  const {
     highGrowthProjects,
     highGrowthLoading,
     highGrowthCity,
@@ -265,7 +263,6 @@ export default function Home() {
     profileUser?.created_at
       || profileUser?.created_date
       || user?.createdAt,
-    currentUser.joinedDate,
   );
 
   const featuredProjects = useMemo(() => {
@@ -394,19 +391,16 @@ export default function Home() {
     };
   });
 
-  // Use API data if available, fallback to static data
-  const displayHighGrowthProjects = (highGrowthProjects && highGrowthProjects.length > 0)
-    ? highGrowthProjects.map(project => ({
-        ...project,
-        title: project.name || 'Project',
-        location: project.location || '',
-        priceRange: project.price_range || '',
-        bhk: project.bhk_config || '',
-        possession: project.possession || '',
-        image: project.cover_image ? { uri: project.cover_image } : null,
-        isFavourite: favouriteProjects.includes(project.id),
-      }))
-    : highGrowthLocalities.map(p => ({ ...p, isFavourite: favouriteProjects.includes(p.id) }));
+  const displayHighGrowthProjects = (highGrowthProjects || []).map(project => ({
+    ...project,
+    title: project.name || 'Project',
+    location: project.location || '',
+    priceRange: project.price_range || '',
+    bhk: project.bhk_config || '',
+    possession: project.possession || '',
+    image: project.cover_image ? { uri: project.cover_image } : null,
+    isFavourite: favouriteProjects.includes(project.id),
+  }));
 
   return (
     <View className="flex-1 bg-[#F9FAFB]">
@@ -463,9 +457,11 @@ export default function Home() {
                   </Text>
                   <MaterialIcons name="verified" size={18} color="#3AFF08" />
                 </View>
-                <Text className="text-[10px] font-lato-regular text-white mt-1">
-                  {displayJoinedDate}
-                </Text>
+                {displayJoinedDate ? (
+                  <Text className="text-[10px] font-lato-regular text-white mt-1">
+                    {displayJoinedDate}
+                  </Text>
+                ) : null}
               </View>
             </View>
             <View className="flex-row items-center gap-3">
@@ -601,9 +597,7 @@ export default function Home() {
           </View>
 
           {recommendedLoading ? (
-            <View className="px-5 py-4">
-              <HomeSectionSkeleton count={2} />
-            </View>
+            <RecommendedProjectsSkeleton count={2} />
           ) : recommendedProjects.length > 0 ? (
             <FlatList
               data={recommendedProjects}
@@ -667,9 +661,7 @@ export default function Home() {
             </TouchableOpacity>
           </View>
           {featuredLoading ? (
-            <View className="px-5 py-4">
-              <HomeSectionSkeleton count={2} />
-            </View>
+            <FeaturedProjectsSkeleton count={2} />
           ) : featuredProjects.length > 0 ? (
             <FlatList
               data={featuredProjects}
@@ -720,9 +712,7 @@ export default function Home() {
           </TouchableOpacity>
         </View>
         {featuredLoading ? (
-          <View className="px-5 py-2">
-            <HomeSectionSkeleton count={2} />
-          </View>
+          <ProjectInFocusSkeleton count={2} />
         ) : projectsInFocus.length > 0 ? (
           projectsInFocus.map((project) => {
             const projectImage = typeof project.image === "string" ? { uri: project.image } : project.image;
@@ -769,9 +759,7 @@ export default function Home() {
           </TouchableOpacity>
         </View>
         {highGrowthLoading ? (
-          <View className="px-5 py-4">
-            <HomeSectionSkeleton count={2} />
-          </View>
+          <HighGrowthLocalitiesSkeleton count={2} />
         ) : displayHighGrowthProjects.length > 0 ? (
           displayHighGrowthProjects.slice(0, 2).map((item) => {
             const itemImage = item.image 

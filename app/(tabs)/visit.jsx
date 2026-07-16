@@ -77,6 +77,14 @@ const getVisitTimeLabel = (visit) => {
   return "10:00 AM";
 };
 
+const getVisitTypeLabel = (visit) => {
+  if (visit?.variant) return visit.variant;
+  if (Array.isArray(visit?.selectedUnits) && visit.selectedUnits[0]) return visit.selectedUnits[0];
+  if (visit?.propertyType && visit?.bedrooms) return `${visit.bedrooms} BHK ${visit.propertyType}`;
+  if (visit?.bedrooms) return `${visit.bedrooms} BHK`;
+  return visit?.propertyType || visit?.unitType || visit?.type || '';
+};
+
 const uniqueById = (items) => {
   const seen = new Set();
   return items.filter((item) => {
@@ -442,17 +450,14 @@ export default function Visit() {
                   {bookedSiteVisits.map((visit) => {
                     const fallbackId = visit.id.replace(/\d{13}$/, "");
                     const isSelected = selectedForBooking.includes(visit.id);
+                    const typeLabel = getVisitTypeLabel(visit);
                     return (
                       <View key={visit.id} className={`mx-3 mt-2.5 bg-white rounded-xl border relative overflow-hidden ${isSelected ? 'border-[#4A43EC] bg-[#F8F7FF]' : 'border-gray-200'}`}>
                         <View className="flex-row items-center p-2.5 pl-3">
                           <Pressable
                             className="flex-1 flex-row items-center"
                             onPress={() => {
-                              if (isSelected) {
-                                setSelectedForBooking(selectedForBooking.filter(id => id !== visit.id));
-                              } else {
-                                setSelectedForBooking([...selectedForBooking, visit.id]);
-                              }
+                              setSelectedForBooking(isSelected ? [] : [visit.id]);
                             }}
                           >
                             <View className={`w-[20px] h-[20px] rounded-full border items-center justify-center mr-2.5 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
@@ -469,22 +474,17 @@ export default function Visit() {
                             />
                             <View className="flex-1 justify-between h-[58px] py-0.5 pr-2">
                               <View>
-                                <View className="flex-row items-center gap-1.5 mb-0.5">
-                                  <Text className="text-[13px] font-manrope-bold text-gray-900" numberOfLines={1}>
-                                    {visit.title || visit.name}
-                                  </Text>
-                                  {visit.projectName && (
-                                    <>
-                                      <View className="w-[1px] h-3 bg-gray-300" />
-                                      <Text className="text-[11px] font-manrope text-gray-600 flex-shrink" numberOfLines={1}>
-                                        {visit.projectName}
-                                      </Text>
-                                    </>
-                                  )}
-                                </View>
-                                <Text className="text-[#6B7280] text-[10px] font-manrope" numberOfLines={1}>
-                                  {visit.location}
+                                <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                                  {typeLabel || visit.title || visit.name}
                                 </Text>
+                                <Text className="text-[10.5px] font-manrope text-gray-500" numberOfLines={1}>
+                                  {visit.projectName || visit.title || visit.name}
+                                </Text>
+                                {visit.location ? (
+                                  <Text className="text-[#9CA3AF] text-[9.5px] font-manrope" numberOfLines={1}>
+                                    {visit.location}
+                                  </Text>
+                                ) : null}
                               </View>
                               <Text className="text-[11px] font-manrope-bold text-[#4A43EC]" numberOfLines={1}>
                                 {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
@@ -825,11 +825,11 @@ export default function Visit() {
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-3">
               <Text className="text-[9px] font-manrope-bold text-[#94A3B8] tracking-wider uppercase mb-0.5">
-                TOTAL SELECTION
+                SELECTED PROPERTY
               </Text>
               <View className="flex-row items-center">
                 <Text className="text-[14px] font-manrope-bold text-gray-900" numberOfLines={1}>
-                  {selectedForBooking.length} Stops • {selectedForBooking.length * 1.5} hrs
+                  {selectedForBooking.length > 0 ? '1 property • 1.5 hrs' : 'None selected'}
                 </Text>
                 {selectedForBooking.length > 0 && (
                   <Pressable

@@ -289,7 +289,7 @@ export default function ProjectDetail() {
   const dispatch = useDispatch();
   const savedProjects = useSelector((s) => s.properties.favouriteProjects);
   const recommendedProperties = useSelector((s) => s.properties.recommended);
-  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading, currentDetailSlug } = useSelector((s) => s.project);
+  const { details: apiProject, floorPlans, resale, landmarks, amenities, similarProperties, loading: apiLoading, currentDetailSlug, error: apiError } = useSelector((s) => s.project);
   const { list: projectList } = useSelector((s) => s.project);
   const { currentBuilder } = useSelector((s) => s.builder);
   const { isLoggedIn, token } = useSelector((s) => s.auth);
@@ -401,12 +401,11 @@ export default function ProjectDetail() {
     }
   }, [dispatch, projectOrganisationId]);
 
-  if (!listProject && !activeApiProject) {
-    return <ProjectDetailSkeleton insets={insets} />;
-  }
-
-  // Show skeleton while API details are still loading
-  if (apiLoading && !activeApiProject && !listProject) {
+  // Show the full-page skeleton until this specific project's details have
+  // loaded (or failed) — a bare listProject preview isn't enough content to
+  // render the real page without a flash of missing sections.
+  const hasDetailError = Boolean(apiError) && currentDetailSlug === detailLookupKey && !activeApiProject;
+  if (!activeApiProject && !hasDetailError) {
     return <ProjectDetailSkeleton insets={insets} />;
   }
 
@@ -740,8 +739,8 @@ export default function ProjectDetail() {
         </View>
 
         {/* Config block */}
-        <View className="mx-4 bg-white rounded-[10px] mt-3 px-5 py-4 flex-row items-center border border-[#d6d4fc] mb-3">
-          <View className="flex-col pr-10 items-start">
+        <View className="mx-4 bg-white rounded-[10px] mt-3 px-5 py-4 flex-row items-start border border-[#d6d4fc] mb-3">
+          <View className="flex-1 flex-col items-start pr-3">
             <Text className="text-[11px] font-inter-bold text-[#94A3B8] tracking-widest">
               CONFIG
             </Text>
@@ -756,16 +755,16 @@ export default function ProjectDetail() {
             )}
           </View>
           <View className="w-px h-12 bg-gray-200" />
-          <View className="flex-1 flex-row items-end pl-5 gap-4">
+          <View className="flex-col items-end pl-5">
             <Text className="text-[12px] font-manrope-medium text-gray-500 mb-0.5">
               Starting from
             </Text>
             {startingPrice ? (
-              <Text className="text-2xl font-manrope-bold text-[#4941EC]">
+              <Text className="text-2xl font-manrope-bold text-[#4941EC]" numberOfLines={1}>
                 {formatCompactPrice(rawStartingPrice) || startingPrice}*
               </Text>
             ) : (
-              <Text className="text-[13px] font-inter-semibold text-[#94A3B8]">
+              <Text className="text-[13px] font-inter-semibold text-[#94A3B8] text-right">
                {"Price\non request"}
               </Text>
             )}

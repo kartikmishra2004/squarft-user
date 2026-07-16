@@ -46,23 +46,40 @@ export default function BookVisitModal({ visible, onClose, project }) {
         if (selected.length === 0) return;
 
         const selectedOptions = selected.map((index) => visitOptions[index]).filter(Boolean);
+        const timestamp = Date.now();
 
-        // Extract property IDs from selected floor plans
-        const propertyIds = selectedOptions
-            .map(fp => fp.id)
-            .filter(Boolean); // Remove any undefined/null values
+        selectedOptions.forEach((option, index) => {
+            const variantType = option.type || option.title;
+            const propertyId = option.id;
 
-        const selectedUnits = selectedOptions.map(fp => fp.type || fp.title);
+            dispatch(addSiteVisit({
+                id: propertyId || `${project.id}_${timestamp}_${index}`,
+                projectId: project.id,
+                property_id: propertyId,
+                propertyIds: propertyId ? [propertyId] : [],
+                name: project.name,
+                title: project.title || project.name,
+                city: project.city,
+                area: project.area,
+                location: project.location,
+                image: getImageSource(option.image, project.imageMain),
+                imageMain: getImageSource(option.image, project.imageMain),
+                imageThumb: project.imageThumb,
+                variant: variantType,
+                selectedUnits: [variantType],
+                variantDetails: option,
+                variants: [option],
+                floorPlans: [option],
+                price: option.priceRange || option.price || option.base_price || option.price_from,
+                possessionStatus: project.possessionStatus || project.possession,
+                possession: project.possession,
+                tower_no: project.tower_no,
+                inventory: project.inventory,
+                amenities: project.amenities || option.amenities || [],
+                units: project.units,
+            }));
+        });
 
-        console.log('📋 Selected property IDs:', propertyIds);
-
-        dispatch(addSiteVisit({
-            ...project,
-            selectedUnits,
-            projectId: project.id,
-            propertyIds: propertyIds, // Pass property IDs
-            id: project.id + Date.now().toString(),
-        }));
         onClose();
         router.push({ pathname: "/visit", params: { tab: "Book visit" } });
     };

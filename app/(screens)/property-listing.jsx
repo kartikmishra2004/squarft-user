@@ -10,8 +10,8 @@ import PossessionFilterModal from "../../components/PossessionFilterModal";
 import { openBudgetFilter, setSearchQuery, clearNonTypeFilters, togglePropertyType, clearPropertyTypes, openFilter, clearFilters } from "../../store/slices/filterSlice";
 import { fetchFeaturedProjectsThunk, fetchNearbyProjectsThunk, fetchProjectListThunk, setMapProjects } from "../../store/slices/projectSlice";
 import { fetchHighGrowthProjectsThunk } from "../../store/slices/propertiesSlice";
-import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount } from "../../services/projectDisplay";
-import { isReraApproved } from "../../components/ReraStatusBadge";
+import { buildProjectAddress, buildProjectPrice, parseProjectPriceAmount, formatProjectPriceAmount } from "../../services/projectDisplay";
+import ReraStatusBadge, { isReraApproved } from "../../components/ReraStatusBadge";
 
 // Filter constants
 const BUDGET_MIN = 2000000;
@@ -318,6 +318,72 @@ const getPossessionStatus = (project) => {
 
 const hasRera = (project) => isReraApproved(project);
 
+const getDeveloperName = (project) =>
+    cleanDisplayText(
+        project.organisation_name
+        || project.org_name
+        || project.developer_name
+        || project.builder_name
+        || project.developer
+        || project.builder
+        || (typeof project.organisation === 'object' ? project.organisation?.name : project.organisation)
+    );
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const getPossessionLabel = (project) => {
+    const raw = project.possession_date || project.possessionDate;
+    if (raw) {
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) {
+            return `Possession: ${MONTH_LABELS[parsed.getMonth()]}, ${parsed.getFullYear()}`;
+        }
+    }
+
+    const status = getPossessionStatus(project);
+    return cleanDisplayText(status);
+};
+
+const getAvgPricePerSqft = (project) => {
+    const amount = getNumber(project.avg_price_per_sqft, project.avgPricePerSqft);
+    if (!amount) return '';
+    return `Avg Price per sq ft: ${formatProjectPriceAmount(amount)}`;
+};
+
+const getUnitConfigRows = (project) => {
+    const rows = new Map();
+
+    const addRow = (label, priceValue) => {
+        const cleanLabel = cleanDisplayText(label);
+        if (!cleanLabel) return;
+        const amount = parseProjectPriceAmount(priceValue);
+        const key = cleanLabel.toLowerCase();
+        const existing = rows.get(key) || { label: cleanLabel, min: null, max: null };
+        if (amount) {
+            existing.min = existing.min === null ? amount : Math.min(existing.min, amount);
+            existing.max = existing.max === null ? amount : Math.max(existing.max, amount);
+        }
+        rows.set(key, existing);
+    };
+
+    getNestedUnits(project).forEach((unit) => {
+        const label = unit?.configuration || unit?.bhk || unit?.title || unit?.property_subtype || unit?.type;
+        const minPrice = unit?.price_from ?? unit?.min_price ?? unit?.base_price ?? unit?.price;
+        const maxPrice = unit?.price_to ?? unit?.max_price ?? unit?.price;
+        addRow(label, minPrice);
+        addRow(label, maxPrice);
+    });
+
+    return [...rows.values()].filter((row) => row.min || row.max);
+};
+
+const formatConfigPrice = (row) => {
+    if (row.min && row.max && row.min !== row.max) {
+        return `${formatProjectPriceAmount(row.min)} - ${formatProjectPriceAmount(row.max)}`;
+    }
+    return formatProjectPriceAmount(row.min || row.max);
+};
+
 function applyFilters(projects, filter) {
     return projects.filter((p) => {
         const searchText = getSearchText(p);
@@ -393,50 +459,85 @@ function ProjectCard({ item }) {
     const location = item.display_location || buildProjectAddress(item) || cleanDisplayText(item.location || item.address);
     const price = item.display_price || buildProjectPrice(item);
     const image = item.cover_image_url || item.cover_image || item.image_url || item.image;
+    const developerName = getDeveloperName(item);
+    const possessionLabel = getPossessionLabel(item);
+    const avgPriceLabel = getAvgPricePerSqft(item);
+    const rera = hasRera(item);
+    const configRows = getUnitConfigRows(item);
+    const goToDetail = () => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } });
 
     return (
         <View
             className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 mx-4"
         >
-            <TouchableOpacity
-                activeOpacity={0.97}
-                onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
-            >
-                <View className="flex-row h-36 w-full">
-                    <View className="flex-[2] relative bg-gray-200 border-r-2 border-white">
-                        {image
-                            ? <Image source={{ uri: image }} className="w-full h-full" resizeMode="cover" />
-                            : <View className="w-full h-full bg-gray-200 items-center justify-center">
-                                <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
-                              </View>
-                        }
-                    </View>
-                    <View className="flex-[1] relative bg-gray-100 items-center justify-center">
-                        <MaterialCommunityIcons name="image-outline" size={24} color="#D1D5DB" />
-                    </View>
+            <TouchableOpacity activeOpacity={0.97} onPress={goToDetail}>
+                <View className="h-40 w-full relative bg-gray-200">
+                    {image
+                        ? <Image source={{ uri: image }} className="w-full h-full" resizeMode="cover" />
+                        : <View className="w-full h-full bg-gray-200 items-center justify-center">
+                            <MaterialCommunityIcons name="office-building-outline" size={32} color="#9CA3AF" />
+                          </View>
+                    }
+                    {developerName ? (
+                        <View className="absolute top-0 left-0 right-0 px-3 py-2 bg-black/45">
+                            <Text className="text-white text-[11px] font-manrope-extrabold" numberOfLines={1}>{developerName}</Text>
+                        </View>
+                    ) : null}
                 </View>
 
                 <View className="px-3 pt-3 pb-2">
-                    <Text className="text-[10px] text-[#6B7280] font-manrope mb-[4px]" numberOfLines={1}>
+                    <View className="flex-row items-center mb-1">
+                        {possessionLabel ? (
+                            <Text className="text-[11px] text-[#6B7280] font-manrope flex-1" numberOfLines={1}>
+                                Possession: {possessionLabel}
+                            </Text>
+                        ) : <View className="flex-1" />}
+                        {avgPriceLabel ? (
+                            <Text className="text-[11px] text-[#6B7280] font-manrope" numberOfLines={1}>
+                                {avgPriceLabel}
+                            </Text>
+                        ) : null}
+                    </View>
+
+                    <View className="flex-row items-center mb-1 gap-2">
+                        <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>{title}</Text>
+                        {rera ? <ReraStatusBadge approved /> : null}
+                    </View>
+
+                    <Text className="text-[10px] text-[#6B7280] font-manrope mb-2" numberOfLines={1}>
                         {location || item.pincode}
                     </Text>
-                    <View className="flex-row items-center mb-1">
-                        <Text className="text-[15px] font-manrope-extrabold text-[#111827] flex-1" numberOfLines={1}>{title}</Text>
-                    </View>
-                    <Text className="text-[13px] text-[#4A43EC] font-manrope-extrabold mb-1" numberOfLines={1}>
-                        {price || 'Price on request'}
-                    </Text>
-                    <Text className="text-[11px] text-[#9CA3AF] font-manrope">
-                        {item.distance_km ? `${item.distance_km} km away` : item.pincode}
-                    </Text>
-                </View>
 
-                <View className="mx-3 mb-2" style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} />
+                    <View style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} className="mb-2" />
+
+                    {configRows.length > 0 ? (
+                        <View className="flex-row flex-wrap">
+                            {configRows.map((row, index) => (
+                                <View
+                                    key={row.label}
+                                    className="pr-3"
+                                    style={{ width: configRows.length > 1 ? '50%' : '100%', marginBottom: 6 }}
+                                >
+                                    <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase" numberOfLines={1}>
+                                        {row.label}
+                                    </Text>
+                                    <Text className="text-[13px] text-[#111827] font-manrope-extrabold" numberOfLines={1}>
+                                        {formatConfigPrice(row)}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    ) : (
+                        <Text className="text-[13px] text-[#4A43EC] font-manrope-extrabold mb-1" numberOfLines={1}>
+                            {price || 'Price on request'}
+                        </Text>
+                    )}
+                </View>
             </TouchableOpacity>
 
             <View className="px-3 pb-3">
                 <TouchableOpacity
-                    onPress={() => router.push({ pathname: '/(screens)/project-detail', params: { id: item.id, slug: item.slug } })}
+                    onPress={goToDetail}
                     className="w-full border border-[#4A43EC] rounded-xl py-2 items-center justify-center"
                 >
                     <Text className="text-[#4A43EC] font-manrope-extrabold text-[13px]">View details</Text>

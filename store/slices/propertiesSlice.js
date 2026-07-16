@@ -1,5 +1,4 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { properties, projectsInFocus, missedProperties, highGrowthLocalities } from '../../data/properties';
 import { propertyApi } from '../../services/propertyApi';
 import { addNotification } from './notificationSlice';
 import { NOTIFICATION_EVENTS } from '../../constants/notificationTypes';
@@ -210,10 +209,8 @@ const normalizeContactedProperties = (payload) => {
 const propertiesSlice = createSlice({
     name: 'properties',
     initialState: {
-        properties: properties.map((p) => ({ ...p })),
-        projectsInFocus: projectsInFocus.map((p) => ({ ...p })),
-        missed: missedProperties.map((p) => ({ ...p })),
-        highGrowthLocalities: highGrowthLocalities.map((p) => ({ ...p })),
+        properties: [],
+        missed: [],
         highGrowthProjects: [],
         highGrowthLoading: false,
         highGrowthCity: null,
