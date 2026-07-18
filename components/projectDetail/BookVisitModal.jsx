@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import { addSiteVisit } from "../../store/slices/propertiesSlice";
 import { useRouter } from "expo-router";
+import { getProjectPropertyCardConfig } from "../../services/propertyConfiguration";
 
 function formatCompactPrice(value) {
     const amount = Number(value);
@@ -124,7 +125,7 @@ export default function BookVisitModal({ visible, onClose, project }) {
                                 <Image source={getImageSource(v.image, project.imageMain)} className="w-full h-full" resizeMode="cover" />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5">{v.type || v.title}</Text>
+                                <Text className="text-[14px] font-manrope-bold text-gray-900 mb-0.5">{getProjectPropertyCardConfig(v) || v.title || v.type || "Property"}</Text>
                                 <Text className="text-[13px] font-inter-bold text-indigo-600 mb-0.5">
                                     {priceText}
                                 </Text>
