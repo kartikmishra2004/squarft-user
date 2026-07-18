@@ -350,6 +350,38 @@ const getAvgPricePerSqft = (project) => {
     return `Avg Price per sq ft: ${formatProjectPriceAmount(amount)}`;
 };
 
+const CONFIG_PROPERTY_TYPES = new Set(['apartment', 'flat', 'rowhouse', 'villa']);
+
+const getPropertyTypeLabel = (rawType) => {
+    const text = normalizeText(rawType);
+    if (!text) return '';
+    if (text.includes('apartment') || text.includes('flat')) return 'Apartment';
+    if (text.includes('rowhouse') || text.includes('row house')) return 'Rowhouse';
+    if (text.includes('villa')) return 'Villa';
+    if (text.includes('plot') || text.includes('land')) return 'Plot';
+    if (text.includes('shop')) return 'Shop';
+    if (text.includes('office')) return 'Office';
+    if (text.includes('showroom')) return 'Showroom';
+    return cleanDisplayText(rawType).replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getProjectConfigLabel = (project) => {
+    const rawType = project.property_type || project.property_subtype || project.sub_type || project.type;
+    const typeLabel = getPropertyTypeLabel(rawType);
+    if (!typeLabel) return '';
+
+    const normalizedRaw = normalizeText(rawType);
+    const shouldCombineWithBhk = [...CONFIG_PROPERTY_TYPES].some((type) => normalizedRaw.includes(type));
+    if (!shouldCombineWithBhk) return typeLabel;
+
+    const bhkValues = [...getBhkValues(project)]
+        .filter((value) => Number.isFinite(parseFloat(value)))
+        .sort((a, b) => parseFloat(a) - parseFloat(b));
+
+    if (!bhkValues.length) return typeLabel;
+    return `${bhkValues.join(', ')} BHK ${typeLabel}`;
+};
+
 const getUnitConfigRows = (project) => {
     const rows = new Map();
 
@@ -373,6 +405,16 @@ const getUnitConfigRows = (project) => {
         addRow(label, minPrice);
         addRow(label, maxPrice);
     });
+
+    const nestedRows = [...rows.values()].filter((row) => row.min || row.max);
+    if (nestedRows.length > 0) return nestedRows;
+
+    const configLabel = getProjectConfigLabel(project);
+    if (configLabel) {
+        const priceRange = getProjectPriceRange(project);
+        addRow(configLabel, priceRange.min);
+        addRow(configLabel, priceRange.max);
+    }
 
     return [...rows.values()].filter((row) => row.min || row.max);
 };
@@ -511,21 +553,30 @@ function ProjectCard({ item }) {
                     <View style={{ borderBottomWidth: 1, borderStyle: 'dashed', borderColor: '#E5E7EB' }} className="mb-2" />
 
                     {configRows.length > 0 ? (
-                        <View className="flex-row flex-wrap">
-                            {configRows.map((row, index) => (
-                                <View
-                                    key={row.label}
-                                    className="pr-3"
-                                    style={{ width: configRows.length > 1 ? '50%' : '100%', marginBottom: 6 }}
-                                >
-                                    <Text className="text-[9px] text-[#9CA3AF] font-manrope-extrabold uppercase" numberOfLines={1}>
+                        <View className="flex-row">
+                            <View style={{ flex: 1, paddingRight: 12 }}>
+                                {configRows.map((row) => (
+                                    <Text
+                                        key={row.label}
+                                        className="text-[13px] text-[#374151] font-manrope-extrabold uppercase mb-1"
+                                        numberOfLines={1}
+                                    >
                                         {row.label}
                                     </Text>
-                                    <Text className="text-[13px] text-[#111827] font-manrope-extrabold" numberOfLines={1}>
+                                ))}
+                            </View>
+                            <View style={{ width: 1, backgroundColor: '#E5E7EB' }} />
+                            <View style={{ flex: 1, paddingLeft: 12 }}>
+                                {configRows.map((row) => (
+                                    <Text
+                                        key={row.label}
+                                        className="text-[18px] text-[#111827] font-manrope-extrabold mb-1"
+                                        numberOfLines={1}
+                                    >
                                         {formatConfigPrice(row)}
                                     </Text>
-                                </View>
-                            ))}
+                                ))}
+                            </View>
                         </View>
                     ) : (
                         <Text className="text-[13px] text-[#4A43EC] font-manrope-extrabold mb-1" numberOfLines={1}>
