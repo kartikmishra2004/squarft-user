@@ -482,7 +482,7 @@ export default function Visit() {
                             <View className="flex-1 justify-between h-[58px] py-0.5 pr-2">
                               <View>
                                 <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                                  {getProjectPropertyCardConfig(visit) || typeLabel || visit.title || visit.name || "Property"}
+                                  {getProjectPropertyCardConfig(visit.variantDetails || visit) || typeLabel || visit.title || visit.name || "Property"}
                                 </Text>
                                 <Text className="text-[10.5px] font-manrope text-gray-500" numberOfLines={1}>
                                   {visit.projectName || visit.title || visit.name}
