@@ -29,6 +29,28 @@ const UUID_REGEX = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 export const isDealApiId = (value) => UUID_REGEX.test(String(value || '').trim());
 
+const normalizeDealKey = (value) => String(value || '').trim().replace(/^#/, '');
+
+const logDealUploadDebug = (...args) => {
+    if (globalThis.__DEV__ === false) return;
+    console.log('[DealDocumentUpload]', ...args);
+};
+
+const summarizeDealForDebug = (deal = {}) => ({
+    id: deal.id,
+    deal_id: deal.deal_id,
+    dealId: deal.dealId,
+    deal_code: deal.deal_code,
+    dealCode: deal.dealCode,
+    apiDealId: deal.apiDealId,
+    uuid: deal.uuid,
+    deal_uuid: deal.deal_uuid,
+    dealUuid: deal.dealUuid,
+    property_title: deal.property_title,
+    title: deal.title,
+    keys: Object.keys(deal).sort(),
+});
+
 const getDealApiId = (deal = {}) => {
     const candidates = [
         deal.apiDealId,
@@ -94,6 +116,15 @@ const buildFallbackPayments = (deal = {}) => {
     });
 };
 
+const normalizeDocument = (document = {}) => ({
+    ...document,
+    status: normalizeStatus(document.status, document.file_url || document.url ? 'verified' : 'required'),
+    title: document.title || document.name || 'Document',
+    name: document.name || document.title || 'Document',
+    file_url: document.file_url || document.url || null,
+    category: document.category || document.type || 'DOCUMENTS',
+});
+
 const normalizeTimelineItem = (item = {}, index = 0) => ({
     ...item,
     id: item.id ?? `${item.deal_id || 'timeline'}-${index}`,
@@ -118,8 +149,45 @@ const normalizeDeal = (deal = {}) => {
         city: cleanText(deal.city),
         area: cleanText(deal.area) || cleanText(deal.pref_location),
         payments: payments.length > 0 ? payments : buildFallbackPayments(deal),
+        documents: Array.isArray(deal.documents) ? deal.documents.map(normalizeDocument) : [],
         timeline: Array.isArray(deal.timeline) ? deal.timeline.map(normalizeTimelineItem) : [],
     };
+};
+
+const findDealApiId = (dealId, state) => {
+    if (isDealApiId(dealId)) {
+        const apiDealId = String(dealId).trim();
+        logDealUploadDebug('route id is already a UUID', { dealId: apiDealId });
+        return apiDealId;
+    }
+
+    const dealsState = state.deals || {};
+    const candidates = [
+        dealsState.currentDeal,
+        ...(Array.isArray(dealsState.deals) ? dealsState.deals : []),
+    ].filter(Boolean);
+    const requested = normalizeDealKey(dealId);
+    const matchedDeals = candidates.filter((deal) => [
+        deal.id,
+        deal.deal_id,
+        deal.dealId,
+        deal.deal_code,
+        deal.dealCode,
+        deal.displayId,
+        deal.display_id,
+    ].some((value) => normalizeDealKey(value) === requested));
+    const apiDealId = matchedDeals.map(getDealApiId).find(Boolean) || null;
+
+    logDealUploadDebug('resolved upload id', {
+        incomingDealId: dealId,
+        normalizedIncomingDealId: requested,
+        resolvedApiDealId: apiDealId,
+        currentDeal: summarizeDealForDebug(dealsState.currentDeal || {}),
+        matchedDeals: matchedDeals.map(summarizeDealForDebug),
+        firstFiveDeals: candidates.slice(0, 5).map(summarizeDealForDebug),
+    });
+
+    return apiDealId;
 };
 
 const normalizeMyDealsResponse = (payload = {}) => {
@@ -186,6 +254,34 @@ export const submitPaymentProof = createAsyncThunk(
     }
 );
 
+export const uploadDocument = createAsyncThunk(
+    'deals/uploadDocument',
+    async ({ dealId, name, type, file }, { getState, rejectWithValue }) => {
+        try {
+            const state = getState();
+            const token = state.auth.token;
+            const apiDealId = findDealApiId(dealId, state);
+
+            logDealUploadDebug('upload thunk input', {
+                dealId,
+                apiDealId,
+                name,
+                type,
+                fileName: file?.name,
+                fileType: file?.type,
+            });
+
+            if (!apiDealId) {
+                return rejectWithValue('Unable to upload: deal UUID is missing.');
+            }
+
+            return await dealsApi.uploadDocument(apiDealId, { name, type, file }, token);
+        } catch (e) {
+            return rejectWithValue(e.message);
+        }
+    }
+);
+
 const dealsSlice = createSlice({
     name: 'deals',
     initialState: {
@@ -198,6 +294,8 @@ const dealsSlice = createSlice({
         currentDealError: null,
         submitting: false,
         submitError: null,
+        uploading: false,
+        uploadError: null,
     },
     reducers: {
         clearCurrentDeal: (state) => {
@@ -206,6 +304,9 @@ const dealsSlice = createSlice({
         },
         clearSubmitError: (state) => {
             state.submitError = null;
+        },
+        clearUploadError: (state) => {
+            state.uploadError = null;
         },
     },
     extraReducers: (builder) => {
@@ -238,9 +339,23 @@ const dealsSlice = createSlice({
                     if (idx !== -1) state.currentDeal.payments[idx] = payment;
                 }
             })
-            .addCase(submitPaymentProof.rejected, (state, action) => { state.submitting = false; state.submitError = action.payload; });
+            .addCase(submitPaymentProof.rejected, (state, action) => { state.submitting = false; state.submitError = action.payload; })
+
+            // uploadDocument
+            .addCase(uploadDocument.pending, (state) => { state.uploading = true; state.uploadError = null; })
+            .addCase(uploadDocument.fulfilled, (state, action) => {
+                state.uploading = false;
+                const document = action.payload.data?.document || action.payload.data;
+                if (state.currentDeal) {
+                    state.currentDeal.documents = [
+                        ...(state.currentDeal.documents ?? []),
+                        normalizeDocument(document),
+                    ];
+                }
+            })
+            .addCase(uploadDocument.rejected, (state, action) => { state.uploading = false; state.uploadError = action.payload; });
     },
 });
 
-export const { clearCurrentDeal, clearSubmitError } = dealsSlice.actions;
+export const { clearCurrentDeal, clearSubmitError, clearUploadError } = dealsSlice.actions;
 export default dealsSlice.reducer;

@@ -166,4 +166,16 @@ export const dealsApi = {
             method: 'POST',
             body: JSON.stringify({ transaction_id }),
         }),
+
+    uploadDocument: (dealId, { name, type = 'kyc', file }, token) => {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('type', type);
+        formData.append('file', file);
+
+        return request(`/api/v1/deals/${encodeURIComponent(dealId)}/documents`, token, {
+            method: 'POST',
+            body: formData,
+        });
+    },
 };

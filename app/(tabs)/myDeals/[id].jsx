@@ -8,9 +8,10 @@ import { fetchDealById, clearCurrentDeal } from "../../../store/slices/dealsSlic
 
 import TabTimeline from "../../../components/myDeals/TabTimeline";
 import TabPayments from "../../../components/myDeals/TabPayments";
+import TabDocuments from "../../../components/myDeals/TabDocuments";
 import TabOverview from "../../../components/myDeals/TabOverview";
 
-const TABS = ["Timeline", "Payments", "Overview"];
+const TABS = ["Timeline", "Payments", "Documents", "Overview"];
 
 const formatValue = (val) => {
     const num = Number(val);
@@ -91,11 +92,13 @@ export default function DealDetails() {
 
     const totalStages = deal.timeline?.length || 8;
     const paidPct = Math.round(((deal.current_stage_index ?? 0) / totalStages) * 100);
+    const uploadDealId = deal.apiDealId || deal.deal_id || deal.dealId || deal.id || id;
 
     const activeTabContent = (() => {
         switch (activeTab) {
             case "Timeline": return <TabTimeline timeline={deal.timeline ?? []} currentStageIndex={deal.current_stage_index ?? 0} />;
             case "Payments": return <TabPayments payments={deal.payments ?? []} />;
+            case "Documents": return <TabDocuments documents={deal.documents ?? []} dealId={uploadDealId} />;
             default: return <TabOverview deal={deal} />;
         }
     })();
