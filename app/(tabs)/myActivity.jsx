@@ -11,6 +11,7 @@ import RecentTabContent from "../../components/myActivity/RecentTabContent";
 import { fetchContactedPropertiesThunk, fetchSavedPropertiesThunk } from "../../store/slices/propertiesSlice";
 import { selectSeenProjects } from "../../store/slices/projectViewTrackingSlice";
 import { selectRecentProjectsCount } from "../../store/slices/recentProjectsSlice";
+import { useRefetchOnForeground } from "../../hooks/useRefetchOnForeground";
 
 export default function Favourite() {
   const dispatch = useDispatch();
@@ -49,6 +50,8 @@ export default function Favourite() {
     const unsubscribe = navigation.addListener?.('tabPress', refreshActivity);
     return () => unsubscribe?.();
   }, [navigation, refreshActivity]);
+
+  useRefetchOnForeground(refreshActivity);
 
   return (
     <View className="flex-1 bg-white">

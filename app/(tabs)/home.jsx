@@ -34,6 +34,7 @@ import { fetchFeaturedProjectsThunk, fetchProjectListThunk } from "../../store/s
 import { LinearGradient } from "expo-linear-gradient";
 import { RecommendedProjectsSkeleton, FeaturedProjectsSkeleton, ProjectInFocusSkeleton, HighGrowthLocalitiesSkeleton } from "../../components/SkeletonLoader";
 import { buildProjectAddress, buildProjectPrice } from "../../services/projectDisplay";
+import { useRefetchOnForeground } from "../../hooks/useRefetchOnForeground";
 
 const CATEGORIES = [
   { id: "1", label: "Plot", image: require("../../assets/images/plot.png"), type: "Plot" },
@@ -331,6 +332,8 @@ export default function Home() {
 
     return () => unsubscribe?.();
   }, [navigation, refreshHomeData]);
+
+  useRefetchOnForeground(refreshHomeData);
 
   if (searchActive) {
     return (

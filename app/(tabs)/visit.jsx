@@ -10,6 +10,7 @@ import { addSiteVisit, removeSiteVisit } from "../../store/slices/propertiesSlic
 import { fetchVisitListThunk } from "../../store/slices/visitSlice";
 import { propertyApi } from "../../services/propertyApi";
 import PropertyDetailModal from "../../components/projectDetail/PropertyDetailModal";
+import { useRefetchOnForeground } from "../../hooks/useRefetchOnForeground";
 
 const siteVisitBanner = require("../../assets/images/sitevisit_banner.png");
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 82;
@@ -194,15 +195,20 @@ export default function Visit() {
   }, [tab]);
 
   // Fetch visits from API when user is logged in and on Upcoming/Past tabs
-  useEffect(() => {
+  const refreshVisits = useCallback(() => {
     if (isLoggedIn && token && (activeTab === "Upcoming" || activeTab === "Past")) {
       const status = activeTab === "Upcoming"
         ? UPCOMING_VISIT_STATUSES
         : ALL_VISIT_STATUSES;
-      console.log('🔍 Fetching visits with status:', status);
       dispatch(fetchVisitListThunk(status));
     }
   }, [activeTab, dispatch, isLoggedIn, token]);
+
+  useEffect(() => {
+    refreshVisits();
+  }, [refreshVisits]);
+
+  useRefetchOnForeground(refreshVisits);
 
   const currentVisitTime = Date.now();
 
