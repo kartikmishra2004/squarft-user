@@ -460,14 +460,16 @@ export default function Visit() {
                     const typeLabel = getVisitTypeLabel(visit);
                     return (
                       <View key={visit.id} className={`mx-3 mt-2.5 bg-white rounded-xl border relative overflow-hidden ${isSelected ? 'border-[#4A43EC] bg-[#F8F7FF]' : 'border-gray-200'}`}>
-                        <View className="flex-row items-center p-2.5 pl-3">
+                        <View className="flex-row p-2.5 pl-3">
                           <Pressable
-                            className="flex-1 flex-row items-center"
+                            className="flex-1 flex-row"
                             onPress={() => {
-                              setSelectedForBooking(isSelected ? [] : [visit.id]);
+                              setSelectedForBooking((prev) =>
+                                isSelected ? prev.filter((id) => id !== visit.id) : [...prev, visit.id]
+                              );
                             }}
                           >
-                            <View className={`w-[20px] h-[20px] rounded-full border items-center justify-center mr-2.5 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
+                            <View className={`w-[20px] h-[20px] rounded-full border items-center justify-center self-center mr-2.5 ${isSelected ? 'bg-[#4A43EC] border-[#4A43EC]' : 'border-gray-300'}`}>
                               {isSelected && <Feather name="check" size={12} color="white" />}
                             </View>
                             <Image
@@ -476,31 +478,29 @@ export default function Visit() {
                                   ? (typeof visit.image === 'string' ? { uri: visit.image } : visit.image)
                                   : (typeof visit.imageMain === 'string' ? { uri: visit.imageMain } : visit.imageMain)
                               }
-                              className="w-[58px] h-[58px] rounded-lg mr-2.5"
+                              className="w-[58px] rounded-lg mr-2.5"
                               resizeMode="cover"
                             />
-                            <View className="flex-1 justify-between h-[58px] py-0.5 pr-2">
-                              <View>
-                                <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
-                                  {getProjectPropertyCardConfig(visit.variantDetails || visit) || typeLabel || visit.title || visit.name || "Property"}
+                            <View className="flex-1 pr-2">
+                              <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                                {getProjectPropertyCardConfig(visit.variantDetails || visit) || visit.variantDetails?.title || visit.variant || typeLabel || visit.title || visit.name || "Property"}
+                              </Text>
+                              <Text className="text-[10.5px] font-manrope text-gray-500" numberOfLines={1}>
+                                {visit.projectName || visit.title || visit.name}
+                              </Text>
+                              {visit.location ? (
+                                <Text className="text-[#9CA3AF] text-[9.5px] font-manrope" numberOfLines={1}>
+                                  {visit.location}
                                 </Text>
-                                <Text className="text-[10.5px] font-manrope text-gray-500" numberOfLines={1}>
-                                  {visit.projectName || visit.title || visit.name}
-                                </Text>
-                                {visit.location ? (
-                                  <Text className="text-[#9CA3AF] text-[9.5px] font-manrope" numberOfLines={1}>
-                                    {visit.location}
-                                  </Text>
-                                ) : null}
-                              </View>
-                              <Text className="text-[11px] font-manrope-bold text-[#4A43EC]" numberOfLines={1}>
+                              ) : null}
+                              <Text className="text-[11px] font-manrope-bold text-[#4A43EC] mt-1" numberOfLines={1}>
                                 {visit.price || visit.priceINR || (visit.variants && visit.variants[0]?.priceRange)}
                               </Text>
                             </View>
                           </Pressable>
 
                           <Pressable
-                            className="items-center justify-center pl-1 pr-0.5 z-20"
+                            className="items-center justify-center self-center pl-1 pr-0.5 z-20"
                             onPress={() => router.push({
                               pathname: "/(screens)/project-detail",
                               params: { id: visit.projectId || fallbackId, from: "visit" },
@@ -836,7 +836,9 @@ export default function Visit() {
               </Text>
               <View className="flex-row items-center">
                 <Text className="text-[14px] font-manrope-bold text-gray-900" numberOfLines={1}>
-                  {selectedForBooking.length > 0 ? '1 property • 1.5 hrs' : 'None selected'}
+                  {selectedForBooking.length > 0
+                    ? `${selectedForBooking.length} ${selectedForBooking.length === 1 ? 'property' : 'properties'} • ${(selectedForBooking.length * 1.5).toFixed(1).replace(/\.0$/, '')} hrs`
+                    : 'None selected'}
                 </Text>
                 {selectedForBooking.length > 0 && (
                   <Pressable

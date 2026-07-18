@@ -4,7 +4,8 @@ import { Feather } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useSelector, useDispatch } from "react-redux";
 import { confirmVisits } from "../../store/slices/propertiesSlice";
-import { fetchAvailableSlotsThunk, fetchAvailableOfficersThunk, createSiteVisitThunk, updateSiteVisitThunk, clearAvailableSlots, clearAvailableOfficers } from "../../store/slices/visitSlice";
+import { createSiteVisitThunk, updateSiteVisitThunk } from "../../store/slices/visitSlice";
+import { visitApi } from "../../services/visitApi";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -12,8 +13,10 @@ import { currentUser } from "../../data/user";
 import PropertyDetailModal from "../../components/projectDetail/PropertyDetailModal";
 import { propertyApi } from "../../services/propertyApi";
 import { projectApi } from "../../services/projectApi";
+import { getProjectPropertyCardConfig } from "../../services/propertyConfiguration";
 
 const FALLBACK_PROPERTY_IMAGE = { uri: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" };
+const VISIT_DURATION_MINUTES = 90;
 
 const formatSlotTime = (value) =>
   new Date(value).toLocaleTimeString('en-US', {
@@ -45,6 +48,14 @@ const getMonthKey = (dateKey) => String(dateKey || '').slice(0, 7);
 const isFutureSlot = (slot, now) => {
   const slotTime = new Date(slot.slot_start);
   return !Number.isNaN(slotTime.getTime()) && slotTime > now;
+};
+
+const getSlotEnd = (slot) => {
+  if (!slot) return null;
+  if (slot.slot_end) return new Date(slot.slot_end);
+  const start = new Date(slot.slot_start);
+  if (Number.isNaN(start.getTime())) return null;
+  return new Date(start.getTime() + VISIT_DURATION_MINUTES * 60000);
 };
 
 const groupAvailableSlots = (slots) => {
@@ -81,6 +92,12 @@ const getVisitVariantLabel = (visit) => {
   if (Array.isArray(visit?.selectedUnits) && visit.selectedUnits[0]) return visit.selectedUnits[0];
   return visit?.unitType || visit?.type || visit?.title || visit?.name || "Selected Unit";
 };
+
+const getVisitTitleLabel = (visit) =>
+  getProjectPropertyCardConfig(visit?.variantDetails || visit) ||
+  visit?.variantDetails?.title ||
+  visit?.variant ||
+  getVisitVariantLabel(visit);
 
 const getSelectedVisitVariant = (visit) => {
   if (visit?.variantDetails) return visit.variantDetails;
@@ -215,12 +232,13 @@ export default function BookSiteVisit() {
   const dispatch = useDispatch();
   const rawBookedSiteVisits = useSelector((state) => state.properties.bookedSiteVisits);
   const { isLoggedIn, token } = useSelector((state) => state.auth);
-  const { availableSlots, slotMeta, availableOfficers, officerMeta, slotsLoading, officersLoading, creating } = useSelector((state) => state.visit);
 
-  // Deduplicate securely to prevent persisted duplicates lingering from old bug
-  const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.projectId || item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
+  // Deduplicate securely to prevent persisted duplicates lingering from old bug.
+  // Key by the item's own id (unique per property/variant) so multiple properties
+  // from the same project are kept, not collapsed into one.
+  const bookedSiteVisits = Array.from(new Map(rawBookedSiteVisits.map(item => [item.id.toString().replace(/_reschedule_.*/, ""), item])).values());
 
-  const { selectedIds, initialDate, initialTime, initialVisitors, initialNotes, rescheduleVisitId } = useLocalSearchParams();
+  const { selectedIds, initialDate, initialVisitors, initialNotes, rescheduleVisitId } = useLocalSearchParams();
 
   const todayKey = toLocalDateKey();
   const initialSelectedDate = normalizeFutureDateKey(initialDate, todayKey);
@@ -228,19 +246,44 @@ export default function BookSiteVisit() {
   const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
   const [calendarMonth, setCalendarMonth] = useState(initialSelectedDate);
   const scrollViewRef = useRef(null);
-  const [selectedTime, setSelectedTime] = useState(initialTime ? [initialTime] : []);
   const [visitors, setVisitors] = useState(initialVisitors ? parseInt(initialVisitors, 10) : 1);
   const [notes, setNotes] = useState(initialNotes || "");
-  const [selectedSalesOfficerId, setSelectedSalesOfficerId] = useState(null);
-  const [isOfficerDropdownOpen, setIsOfficerDropdownOpen] = useState(false);
   const [detailModalData, setDetailModalData] = useState(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [creating, setCreating] = useState(false);
   const insets = useSafeAreaInsets();
 
   const selectedPropertyIds = selectedIds ? selectedIds.split(",") : bookedSiteVisits.map(v => String(v.id));
+  const selectedPropertyIdsKey = selectedPropertyIds.join(",");
 
-  const firstProperty = bookedSiteVisits.find(v => selectedPropertyIds.includes(String(v.id)));
-  const propertyIdForSlots = getPropertyIdForVisit(firstProperty);
+  const selectedVisits = useMemo(
+    () => bookedSiteVisits.filter(v => selectedPropertyIds.includes(String(v.id))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bookedSiteVisits.map(v => v.id).join(","), selectedPropertyIdsKey]
+  );
+
+  // One booking slot per selected property: date is shared, but each property
+  // gets its own time slot + sales officer, locked in sequence.
+  const [bookings, setBookings] = useState([]);
+
+  useEffect(() => {
+    setBookings(selectedVisits.map((visit) => ({
+      visitId: visit.id,
+      visit,
+      propertyId: getPropertyIdForVisit(visit),
+      slots: [],
+      slotsLoading: false,
+      slotMeta: null,
+      slot: null,
+      officers: [],
+      officersLoading: false,
+      officerMeta: null,
+      officerDropdownOpen: false,
+      officerId: null,
+      locked: false,
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVisits.map(v => v.id).join(","), selectedDate]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -252,104 +295,110 @@ export default function BookSiteVisit() {
     if (selectedDate < currentTodayKey) {
       setSelectedDate(currentTodayKey);
       setCalendarMonth(currentTodayKey);
-      setSelectedTime([]);
     }
   }, [now, selectedDate]);
 
-  // The backend resolves the best branch for the property's city.
+  const activeIndex = bookings.findIndex((b) => !b.locked);
+  const activeBooking = activeIndex >= 0 ? bookings[activeIndex] : null;
+  const previousBooking = activeIndex > 0 ? bookings[activeIndex - 1] : null;
+  const minStartAfter = previousBooking ? getSlotEnd(previousBooking.slot) : null;
+  const allLocked = bookings.length > 0 && bookings.every((b) => b.locked);
+
+  const updateBookingAt = (index, patch) => {
+    setBookings((prev) => prev.map((b, i) => (i === index ? { ...b, ...(typeof patch === 'function' ? patch(b) : patch) } : b)));
+  };
+
+  // Fetch slots for whichever property is currently active
   useEffect(() => {
-    if (isLoggedIn && token && selectedDate && propertyIdForSlots) {
-      console.log('🕐 Fetching available slots:', {
-        property_id: propertyIdForSlots,
-        date: selectedDate
+    if (!activeBooking || !isLoggedIn || !token || !activeBooking.propertyId) return;
+    let cancelled = false;
+    const index = activeIndex;
+
+    updateBookingAt(index, { slotsLoading: true });
+    visitApi.getAvailableSlots(token, activeBooking.propertyId, selectedDate)
+      .then((res) => {
+        if (cancelled) return;
+        updateBookingAt(index, {
+          slots: res?.data || [],
+          slotMeta: res?.meta || null,
+          slotsLoading: false,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        updateBookingAt(index, { slots: [], slotMeta: null, slotsLoading: false });
       });
-      
-      dispatch(fetchAvailableSlotsThunk({
-        property_id: propertyIdForSlots,
-        date: selectedDate
-      }));
-    } else {
-      dispatch(clearAvailableSlots());
-    }
-  }, [dispatch, selectedDate, propertyIdForSlots, isLoggedIn, token]);
 
-  const futureAvailableSlots = useMemo(
-    () => availableSlots.filter(slot => isFutureSlot(slot, now)),
-    [availableSlots, now]
-  );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, activeIndex, activeBooking?.propertyId, isLoggedIn, token]);
 
-  useEffect(() => {
-    if (!selectedTime.length) return;
-    const availableLabels = new Set(futureAvailableSlots.map(slot => formatSlotTime(slot.slot_start)));
-    if (availableSlots.length > 0 && !availableLabels.has(selectedTime[0])) {
-      setSelectedTime([]);
-      setSelectedSalesOfficerId(null);
-      setIsOfficerDropdownOpen(false);
-    }
-  }, [availableSlots.length, futureAvailableSlots, selectedTime]);
+  const activeFutureSlots = useMemo(() => {
+    if (!activeBooking) return [];
+    return activeBooking.slots.filter((slot) =>
+      isFutureSlot(slot, now) && (!minStartAfter || new Date(slot.slot_start) >= minStartAfter)
+    );
+  }, [activeBooking, now, minStartAfter]);
 
-  useEffect(() => {
-    if (selectedTime.length) return;
-    setSelectedSalesOfficerId(null);
-    setIsOfficerDropdownOpen(false);
-  }, [selectedTime.length]);
-
-  const selectedTimeVal = Array.isArray(selectedTime) ? selectedTime[0] : selectedTime;
-  const selectedApiSlot = useMemo(
-    () => futureAvailableSlots.find(slot => formatSlotTime(slot.slot_start) === selectedTimeVal),
-    [futureAvailableSlots, selectedTimeVal]
-  );
-
-  useEffect(() => {
-    setSelectedSalesOfficerId(null);
-    setIsOfficerDropdownOpen(false);
-
-    if (isLoggedIn && token && propertyIdForSlots && selectedApiSlot?.slot_start) {
-      dispatch(fetchAvailableOfficersThunk({
-        property_id: propertyIdForSlots,
-        slot_start: selectedApiSlot.slot_start,
-        branch_id: slotMeta?.branch_id,
-      }));
-    } else {
-      dispatch(clearAvailableOfficers());
-    }
-  }, [dispatch, isLoggedIn, token, propertyIdForSlots, selectedApiSlot?.slot_start, slotMeta?.branch_id]);
-
-  // Clear slots when component unmounts
-  useEffect(() => {
-    return () => {
-      dispatch(clearAvailableSlots());
-      dispatch(clearAvailableOfficers());
-    };
-  }, [dispatch]);
-
-  const slotGroups = futureAvailableSlots.length > 0
-    ? groupAvailableSlots(futureAvailableSlots)
+  const slotGroups = activeFutureSlots.length > 0
+    ? groupAvailableSlots(activeFutureSlots)
     : { morning: [], afternoon: [], evening: [] };
 
-  const salesOfficers = useMemo(
-    () => (availableOfficers || []).map(normalizeOfficer).filter((officer) => officer.id),
-    [availableOfficers]
-  );
-  const selectedSalesOfficer = salesOfficers.find((officer) => officer.id === selectedSalesOfficerId);
-  const requiresSalesOfficerSelection = selectedTime.length > 0 && Boolean(officerMeta?.show_officer_dropdown);
-  const emptySlotTitle = !propertyIdForSlots
-    ? "Property unit missing"
-    : "No slots available";
-  const emptySlotMessage = !propertyIdForSlots
-    ? "Please reopen the project and add a specific unit to your site visit."
-    : "Try a different date.";
+  // Fetch sales officers once a slot is picked for the active property
+  useEffect(() => {
+    if (!activeBooking?.slot?.slot_start || !activeBooking?.propertyId) return;
+    let cancelled = false;
+    const index = activeIndex;
+
+    updateBookingAt(index, { officersLoading: true, officers: [], officerId: null });
+    visitApi.getAvailableOfficers(token, activeBooking.propertyId, activeBooking.slot.slot_start, activeBooking.slotMeta?.branch_id)
+      .then((res) => {
+        if (cancelled) return;
+        updateBookingAt(index, {
+          officers: res?.data || [],
+          officerMeta: res?.meta || null,
+          officersLoading: false,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        updateBookingAt(index, { officers: [], officerMeta: null, officersLoading: false });
+      });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, activeBooking?.slot?.slot_start, activeBooking?.propertyId]);
 
   const isPreviousMonthDisabled = getMonthKey(calendarMonth) <= getMonthKey(toLocalDateKey(now));
 
-  const handleSlotPress = (slot) => {
-    setSelectedTime([typeof slot === 'string' ? slot : formatSlotTime(slot.slot_start)]);
-    setSelectedSalesOfficerId(null);
-    setIsOfficerDropdownOpen(false);
+  const handleSlotPress = (index, slot) => {
+    updateBookingAt(index, { slot, officerId: null, officers: [], officerMeta: null, officerDropdownOpen: false });
   };
 
-  const isSlotSelected = (slot) =>
-    Array.isArray(selectedTime) ? selectedTime.includes(slot) : selectedTime === slot;
+  const handleLockBooking = (index) => {
+    const booking = bookings[index];
+    if (!booking?.slot) {
+      Alert.alert('Select Time', 'Please select a time slot for this property');
+      return;
+    }
+    const requiresOfficer = Boolean(booking.officerMeta?.show_officer_dropdown);
+    if (requiresOfficer && !booking.officerId) {
+      Alert.alert('Select Sales Officer', 'Please select a sales officer for this property');
+      return;
+    }
+    updateBookingAt(index, { locked: true, officerDropdownOpen: false });
+  };
+
+  const handleUnlockBooking = (index) => {
+    // Unlocking a property invalidates the sequential slots of everything after it
+    setBookings((prev) => prev.map((b, i) => (
+      i === index
+        ? { ...b, locked: false }
+        : i > index
+          ? { ...b, locked: false, slot: null, officerId: null, officers: [], officerMeta: null, slots: [] }
+          : b
+    )));
+  };
 
   const hydratePropertyDetailPayload = async (visit) => {
     const fallbackPayload = buildPropertyDetailPayload(visit);
@@ -469,8 +518,8 @@ export default function BookSiteVisit() {
     setDetailModalData(enrichedPayload);
   };
 
-  const renderSlotSection = (label, icon, slots) => (
-    <>
+  const renderSlotSection = (index, label, icon, slots) => (
+    <View key={label}>
       <View className="flex-row items-center mb-3.5">
         <Feather name={icon} size={12} color="#9CA3AF" />
         <Text className="text-[10px] font-manrope-extrabold text-[#6B7280] ml-2 uppercase tracking-[1px]">{label}</Text>
@@ -478,16 +527,17 @@ export default function BookSiteVisit() {
       <View className="flex-row flex-wrap gap-3 mb-5">
         {slots.map(slot => {
           const labelText = formatSlotTime(slot.slot_start);
+          const isSelected = bookings[index]?.slot?.slot_start === slot.slot_start;
           return (
             <Pressable
               key={slot.slot_start}
-              onPress={() => handleSlotPress(slot)}
-              className={`items-center justify-center rounded-xl border ${isSlotSelected(labelText) ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
+              onPress={() => handleSlotPress(index, slot)}
+              className={`items-center justify-center rounded-xl border ${isSelected ? 'bg-[#F2EFFF] border-[#B2A7FF]' : 'bg-white border-gray-200'}`}
               style={{ width: '30.5%', height: 44 }}
             >
               <Text
                 numberOfLines={1}
-                className={`text-[11.5px] font-manrope-bold tracking-wide ${isSlotSelected(labelText) ? 'text-[#4A43EC]' : 'text-[#111827]'}`}
+                className={`text-[11.5px] font-manrope-bold tracking-wide ${isSelected ? 'text-[#4A43EC]' : 'text-[#111827]'}`}
               >
                 {labelText}
               </Text>
@@ -495,7 +545,7 @@ export default function BookSiteVisit() {
           );
         })}
       </View>
-    </>
+    </View>
   );
 
   const handleConfirmVisit = async () => {
@@ -504,70 +554,44 @@ export default function BookSiteVisit() {
       return;
     }
 
-    if (selectedTime.length === 0) {
-      Alert.alert('Select Time', 'Please select a time slot for your visit');
-      return;
-    }
+    if (bookings.length === 0) return;
 
-    if (requiresSalesOfficerSelection && !selectedSalesOfficer) {
-      Alert.alert('Select Sales Officer', 'Please select a sales officer for your site visit');
-      return;
-    }
-
-    const itemsToBook = bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id));
-    if (itemsToBook.length === 0) return;
-
-    const bookingTargets = itemsToBook.map(item => ({
-      item,
-      propertyId: getPropertyIdForVisit(item),
-    }));
-    const missingProperty = bookingTargets.find(target => !target.propertyId);
+    const missingProperty = bookings.find((b) => !b.propertyId);
     if (missingProperty) {
       Alert.alert(
         'Property Not Available',
-        `${missingProperty.item.title || missingProperty.item.name || 'This property'} cannot be booked because its unit ID is missing. Please reopen the project and add a specific unit to your site visit.`
+        `${missingProperty.visit.title || missingProperty.visit.name || 'This property'} cannot be booked because its unit ID is missing. Please reopen the project and add a specific unit to your site visit.`
       );
       return;
     }
 
-    if (!selectedApiSlot) {
-      Alert.alert('Slot Unavailable', 'This time slot has already passed. Please choose another available slot.');
-      setSelectedTime([]);
+    if (!allLocked) {
+      Alert.alert('Finish Booking Setup', 'Please select and lock a time slot for every property before confirming.');
       return;
     }
-    
-    try {
-      const slotStart = selectedApiSlot.slot_start;
-      
-      console.log('📤 Creating site visit:', {
-        property_count: bookingTargets.length,
-        slot_start: slotStart,
-        user_note: notes || null,
-        branch_id: slotMeta?.branch_id,
-        officer_id: selectedSalesOfficer?.officer_id || null,
-        visitors_count: visitors,
-      });
 
-      const createdVisits = [];
-      for (const target of bookingTargets) {
-        const propertyName = target.item.title || target.item.name || 'the property';
-        
+    setCreating(true);
+    try {
+      console.log('📤 Creating site visits concurrently:', bookings.map(b => ({
+        property_id: b.propertyId,
+        slot_start: b.slot.slot_start,
+        officer_id: b.officerId,
+      })));
+
+      const createdVisits = await Promise.all(bookings.map(async (booking) => {
+        const propertyName = booking.visit.title || booking.visit.name || 'the property';
         const result = await dispatch(createSiteVisitThunk({
-          property_id: target.propertyId,
-          slot_start: slotStart,
+          property_id: booking.propertyId,
+          slot_start: booking.slot.slot_start,
           user_note: notes || null,
-          branch_id: slotMeta?.branch_id,
-          officer_id: selectedSalesOfficer?.officer_id,
+          branch_id: booking.slotMeta?.branch_id,
+          officer_id: booking.officerId,
           visitors_count: visitors,
-          property_name: propertyName, // Pass property name for notification
+          property_name: propertyName,
         })).unwrap();
 
-        createdVisits.push({
-          item: target.item,
-          propertyId: target.propertyId,
-          result,
-        });
-      }
+        return { booking, result };
+      }));
 
       console.log('✅ Site visits created:', createdVisits.length);
 
@@ -582,31 +606,34 @@ export default function BookSiteVisit() {
         }
       }
 
-      // Also update local Redux state for UI
       const dateObj = new Date(selectedDate);
       const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      const newUpcoming = createdVisits.map(({ item, propertyId, result }, index) => ({
-        id: result.data?.id || `${propertyId}_${Date.now()}_${index}`,
-        projectId: item.projectId || item.id.replace(/\d{13}$/, ""),
-        propertyIds: item.propertyIds?.length ? item.propertyIds : [propertyId],
-        title: item.title || item.name,
-        location: item.location,
-        image: item.image || item.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-        status: "UPCOMING",
-        dateFull: `${formattedDate} · ${selectedTimeVal || "10:00 AM"}`,
-        slot_start: result.data?.slot_start || slotStart,
-        slot_end: result.data?.slot_end,
-        isoDate: result.data?.slot_start || slotStart,
-        visitors: visitors,
-        notes: notes,
-        salesOfficerId: selectedSalesOfficer?.id || result.data?.officer_id,
-        salesOfficerName: selectedSalesOfficer?.name || "Assigned sales officer",
-        salesOfficerRole: selectedSalesOfficer?.role || "Sales Officer",
-        bookingId: result.data?.id || `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
-        visitorName: currentUser.name,
-        duration: "1.5 Hours",
-      }));
+      const newUpcoming = createdVisits.map(({ booking, result }, index) => {
+        const officer = booking.officers.find((o) => normalizeOfficer(o).id === booking.officerId);
+        const normalizedOfficer = officer ? normalizeOfficer(officer) : null;
+        return {
+          id: result.data?.id || `${booking.propertyId}_${Date.now()}_${index}`,
+          projectId: booking.visit.projectId || booking.visit.id.replace(/\d{13}$/, ""),
+          propertyIds: booking.visit.propertyIds?.length ? booking.visit.propertyIds : [booking.propertyId],
+          title: booking.visit.title || booking.visit.name,
+          location: booking.visit.location,
+          image: booking.visit.image || booking.visit.imageMain || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
+          status: "UPCOMING",
+          dateFull: `${formattedDate} · ${formatSlotTime(booking.slot.slot_start)}`,
+          slot_start: result.data?.slot_start || booking.slot.slot_start,
+          slot_end: result.data?.slot_end,
+          isoDate: result.data?.slot_start || booking.slot.slot_start,
+          visitors: visitors,
+          notes: notes,
+          salesOfficerId: normalizedOfficer?.id || result.data?.officer_id,
+          salesOfficerName: normalizedOfficer?.name || "Assigned sales officer",
+          salesOfficerRole: normalizedOfficer?.role || "Sales Officer",
+          bookingId: result.data?.id || `SQF-${Math.floor(10000 + Math.random() * 90000)}`,
+          visitorName: currentUser.name,
+          duration: "1.5 Hours",
+        };
+      });
 
       dispatch(confirmVisits(newUpcoming));
 
@@ -614,17 +641,17 @@ export default function BookSiteVisit() {
         pathname: '/(screens)/booking-status',
         params: {
           date: selectedDate,
-          time: selectedTimeVal,
+          time: formatSlotTime(bookings[0].slot.slot_start),
           propertyName: newUpcoming[0].title,
-          propertyId: newUpcoming[0].projectId
+          propertyId: newUpcoming[0].projectId,
+          bookingIds: newUpcoming.map((v) => v.id).join(","),
         }
       });
     } catch (error) {
       console.log('❌ Error creating site visit:', error);
-      
-      // Handle specific error messages with user-friendly alerts
+
       const errorMessage = error?.message || error || 'Failed to book site visit. Please try again.';
-      
+
       if (errorMessage.includes('No officers available')) {
         Alert.alert(
           'No Officers Available',
@@ -650,6 +677,8 @@ export default function BookSiteVisit() {
           [{ text: 'OK', style: 'default' }]
         );
       }
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -689,43 +718,8 @@ export default function BookSiteVisit() {
           keyboardDismissMode="on-drag"
         >
 
-          {/* Selected Properties */}
-          {bookedSiteVisits.filter(v => selectedPropertyIds.includes(v.id)).map((visit) => {
-            const imageObj = visit.image || visit.imageMain;
-            const imageSource = getImageSource(imageObj);
-
-            return (
-              <View key={visit.id} className="border border-gray-200 rounded-2xl p-4 flex-row mb-2 mt-2 bg-white">
-                <Image source={imageSource} className="w-[75px] h-[75px] rounded-[12px] mr-4 border border-gray-200" resizeMode="cover" />
-                <View className="flex-1 justify-center">
-                  <Text className="text-[#4A43EC] text-[9px] font-manrope-extrabold uppercase tracking-[1.5px] mb-1.5">
-                    SQUARFT PREMIUM
-                  </Text>
-                  <Text className="text-[14px] font-manrope-extrabold text-[#111827] mb-1" numberOfLines={1}>
-                    {visit.title || visit.name}
-                  </Text>
-                  <View className="flex-row items-center mb-1.5">
-                    <Feather name="map-pin" size={11} color="#9CA3AF" />
-                    <Text className="text-[11px] font-manrope text-[#6B7280] ml-1.5" numberOfLines={1}>
-                      {visit.location}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => handleViewDetails(visit)}
-                    className="flex-row items-center mt-0.5"
-                  >
-                    <Text className="text-[#4A43EC] text-[11px] font-manrope-bold">
-                      View Details
-                    </Text>
-                    <Feather name="chevron-right" size={12} color="#4A43EC" className="ml-1" />
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
-
-          {/* Select Date */}
-          <View className="mb-7 mt-3">
+          {/* Select Date (shared by every property) */}
+          <View className="mb-7 mt-1">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-[14px] font-manrope-bold text-[#111827]">Select Date</Text>
               <View className="flex-row items-center">
@@ -770,7 +764,6 @@ export default function BookSiteVisit() {
                   const currentTodayKey = toLocalDateKey(now);
                   if (day.dateString < currentTodayKey) return;
                   setSelectedDate(day.dateString);
-                  setSelectedTime([]);
                 }}
                 onMonthChange={(month) => setCalendarMonth(month.dateString)}
                 markingType={'custom'}
@@ -832,113 +825,195 @@ export default function BookSiteVisit() {
             </View>
           </View>
 
-          {/* Select Time Slot */}
-          <View className="mb-7">
-            <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Time Slot</Text>
+          {/* One block per selected property: card + its own slot/officer lock */}
+          {bookings.map((booking, index) => {
+            const visit = booking.visit;
+            const imageSource = getImageSource(visit.image || visit.imageMain);
+            const isActive = index === activeIndex;
+            const isUpcoming = activeIndex >= 0 && index > activeIndex;
+            const requiresOfficer = Boolean(booking.officerMeta?.show_officer_dropdown);
+            const selectedOfficer = booking.officers.map(normalizeOfficer).find((o) => o.id === booking.officerId);
 
-            {slotsLoading ? (
-              <View className="py-8 items-center justify-center">
-                <ActivityIndicator size="small" color="#4A43EC" />
-                <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">
-                  Checking available slots...
-                </Text>
-              </View>
-            ) : futureAvailableSlots.length > 0 ? (
-              <>
-                {slotGroups.morning.length > 0 && renderSlotSection("MORNING", "sunrise", slotGroups.morning)}
-                {slotGroups.afternoon.length > 0 && renderSlotSection("AFTERNOON", "sun", slotGroups.afternoon)}
-                {slotGroups.evening.length > 0 && renderSlotSection("EVENING", "sunset", slotGroups.evening)}
-              </>
-            ) : (
-              <View className="border border-dashed border-gray-200 rounded-2xl p-5 items-center bg-gray-50">
-                <Text className="text-[13px] font-manrope-bold text-[#111827]">
-                  {emptySlotTitle}
-                </Text>
-                <Text className="text-[11px] font-manrope text-[#6B7280] text-center mt-1">
-                  {emptySlotMessage}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {selectedTime.length > 0 && (
-            <View className="mb-7">
-              <Text className="text-[14px] font-manrope-bold text-[#111827] mb-4">Select Sales Officer</Text>
-              {officersLoading ? (
-                <View className="py-5 items-center justify-center border border-gray-200 rounded-2xl bg-white">
-                  <ActivityIndicator size="small" color="#4A43EC" />
-                  <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available sales officers...</Text>
-                </View>
-              ) : requiresSalesOfficerSelection ? (
-                <View className="relative">
-                  <Pressable
-                    onPress={() => {
-                      if (salesOfficers.length === 0) return;
-                      setIsOfficerDropdownOpen((value) => !value);
-                    }}
-                    disabled={salesOfficers.length === 0}
-                    className={`bg-white border rounded-2xl px-4 py-3.5 flex-row items-center justify-between ${selectedSalesOfficer ? 'border-[#B2A7FF]' : 'border-gray-200'} ${salesOfficers.length === 0 ? 'opacity-60' : ''}`}
-                  >
-                    <View className="flex-row items-center flex-1 pr-3">
-                      <View className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${selectedSalesOfficer ? 'bg-[#F2EFFF]' : 'bg-gray-100'}`}>
-                        <Feather name="user-check" size={16} color={selectedSalesOfficer ? "#4A43EC" : "#9CA3AF"} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className={`text-[13px] font-manrope-bold ${selectedSalesOfficer ? 'text-[#111827]' : 'text-[#9CA3AF]'}`} numberOfLines={1}>
-                          {selectedSalesOfficer?.name || (salesOfficers.length === 0 ? "No officers available" : "Choose sales officer")}
-                        </Text>
-                        <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
-                          {selectedSalesOfficer?.isPrevious ? "Previous sales officer" : selectedSalesOfficer?.role || "Required before booking"}
+            return (
+              <View key={booking.visitId} className={`mb-4 rounded-2xl border ${booking.locked ? 'border-[#4A43EC]' : 'border-gray-200'} overflow-hidden`}>
+                <View className={`flex-row p-3 ${booking.locked ? 'bg-[#F8F7FF]' : 'bg-white'}`}>
+                  <Image source={imageSource} className="w-[64px] rounded-xl mr-3" resizeMode="cover" />
+                  <View className="flex-1 justify-center">
+                    <Text className="text-[13px] font-manrope-bold text-gray-900 mb-0.5" numberOfLines={1}>
+                      {getVisitTitleLabel(visit) || "Property"}
+                    </Text>
+                    <Text className="text-[11px] font-manrope text-gray-500 mb-0.5" numberOfLines={1}>
+                      {visit.projectName || visit.title || visit.name}
+                    </Text>
+                    {visit.location ? (
+                      <View className="flex-row items-center">
+                        <Feather name="map-pin" size={10} color="#9CA3AF" />
+                        <Text className="text-[#9CA3AF] text-[10.5px] font-manrope ml-1" numberOfLines={1}>
+                          {visit.location}
                         </Text>
                       </View>
-                    </View>
-                    <Feather name={isOfficerDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#6B7280" />
-                  </Pressable>
-
-                  {isOfficerDropdownOpen && (
-                    <View className="mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                      {salesOfficers.map((officer, index) => {
-                        const isSelectedOfficer = officer.id === selectedSalesOfficerId;
-                        return (
-                          <Pressable
-                            key={officer.id}
-                            onPress={() => {
-                              setSelectedSalesOfficerId(officer.id);
-                              setIsOfficerDropdownOpen(false);
-                            }}
-                            className={`px-4 py-3.5 flex-row items-center justify-between ${index !== salesOfficers.length - 1 ? 'border-b border-gray-100' : ''} ${isSelectedOfficer ? 'bg-[#F8F7FF]' : 'bg-white'}`}
-                          >
-                            <View className="flex-1 pr-3">
-                              <Text className="text-[13px] font-manrope-bold text-[#111827]">{officer.name}</Text>
-                              <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5">
-                                {officer.isPrevious ? "Previous sales officer" : officer.role}
-                              </Text>
-                            </View>
-                            {isSelectedOfficer && <Feather name="check-circle" size={17} color="#4A43EC" />}
-                          </Pressable>
-                        );
-                      })}
+                    ) : null}
+                    <Pressable
+                      onPress={() => handleViewDetails(visit)}
+                      className="flex-row items-center mt-1"
+                    >
+                      <Text className="text-[#4A43EC] text-[11px] font-manrope-bold">View Details</Text>
+                      <Feather name="chevron-right" size={12} color="#4A43EC" style={{ marginLeft: 2 }} />
+                    </Pressable>
+                  </View>
+                  {booking.locked && (
+                    <View className="w-6 h-6 rounded-full bg-[#4A43EC] items-center justify-center self-start">
+                      <Feather name="check" size={13} color="white" />
                     </View>
                   )}
                 </View>
-              ) : (
-                <View className="rounded-2xl border border-gray-200 bg-[#F8F9FB] px-4 py-3.5 flex-row items-center">
-                  <View className="w-9 h-9 rounded-full items-center justify-center mr-3 bg-white border border-gray-200">
-                    <Feather name="user-check" size={16} color="#4A43EC" />
+
+                {booking.locked ? (
+                  <View className="px-3 pb-3 pt-1 flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <Feather name="clock" size={12} color="#4A43EC" />
+                      <Text className="text-[12px] font-manrope-bold text-[#4A43EC] ml-1.5">
+                        {formatSlotTime(booking.slot.slot_start)}
+                      </Text>
+                      {selectedOfficer && (
+                        <>
+                          <View className="w-1 h-1 rounded-full bg-gray-300 mx-2" />
+                          <Feather name="user-check" size={12} color="#6B7280" />
+                          <Text className="text-[12px] font-manrope text-[#6B7280] ml-1.5" numberOfLines={1}>
+                            {selectedOfficer.name}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                    <Pressable onPress={() => handleUnlockBooking(index)} className="px-2 py-1">
+                      <Text className="text-[11px] font-manrope-bold text-[#EF4444]">Edit</Text>
+                    </Pressable>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-[13px] font-manrope-bold text-[#111827]">Sales officer will be assigned</Text>
-                    <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
-                      An available officer will be assigned for this slot.
+                ) : isUpcoming ? (
+                  <View className="px-3 pb-3 pt-1">
+                    <Text className="text-[11.5px] font-manrope text-[#9CA3AF]">
+                      Lock the slot above first to schedule this property
                     </Text>
                   </View>
-                </View>
-              )}
-            </View>
-          )}
+                ) : isActive ? (
+                  <View className="px-3 pb-3 pt-1 border-t border-gray-100">
+                    <Text className="text-[12px] font-manrope-bold text-[#111827] mt-3 mb-3">
+                      Select Time Slot{minStartAfter ? ` (after ${formatSlotTime(minStartAfter)})` : ''}
+                    </Text>
+
+                    {booking.slotsLoading ? (
+                      <View className="py-6 items-center justify-center">
+                        <ActivityIndicator size="small" color="#4A43EC" />
+                        <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">
+                          Checking available slots...
+                        </Text>
+                      </View>
+                    ) : activeFutureSlots.length > 0 ? (
+                      <>
+                        {slotGroups.morning.length > 0 && renderSlotSection(index, "MORNING", "sunrise", slotGroups.morning)}
+                        {slotGroups.afternoon.length > 0 && renderSlotSection(index, "AFTERNOON", "sun", slotGroups.afternoon)}
+                        {slotGroups.evening.length > 0 && renderSlotSection(index, "EVENING", "sunset", slotGroups.evening)}
+                      </>
+                    ) : (
+                      <View className="border border-dashed border-gray-200 rounded-2xl p-5 items-center bg-gray-50 mb-2">
+                        <Text className="text-[13px] font-manrope-bold text-[#111827]">
+                          {!booking.propertyId ? "Property unit missing" : "No slots available"}
+                        </Text>
+                        <Text className="text-[11px] font-manrope text-[#6B7280] text-center mt-1">
+                          {!booking.propertyId ? "Please reopen the project and add a specific unit to your site visit." : "Try a different date."}
+                        </Text>
+                      </View>
+                    )}
+
+                    {booking.slot && (
+                      <View className="mt-1 mb-3">
+                        <Text className="text-[12px] font-manrope-bold text-[#111827] mb-3">Select Sales Officer</Text>
+                        {booking.officersLoading ? (
+                          <View className="py-5 items-center justify-center border border-gray-200 rounded-2xl bg-white">
+                            <ActivityIndicator size="small" color="#4A43EC" />
+                            <Text className="text-[12px] font-manrope text-[#6B7280] mt-3">Checking available sales officers...</Text>
+                          </View>
+                        ) : requiresOfficer ? (
+                          <View className="relative">
+                            <Pressable
+                              onPress={() => {
+                                if (booking.officers.length === 0) return;
+                                updateBookingAt(index, { officerDropdownOpen: !booking.officerDropdownOpen });
+                              }}
+                              disabled={booking.officers.length === 0}
+                              className={`bg-white border rounded-2xl px-4 py-3.5 flex-row items-center justify-between ${selectedOfficer ? 'border-[#B2A7FF]' : 'border-gray-200'} ${booking.officers.length === 0 ? 'opacity-60' : ''}`}
+                            >
+                              <View className="flex-row items-center flex-1 pr-3">
+                                <View className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${selectedOfficer ? 'bg-[#F2EFFF]' : 'bg-gray-100'}`}>
+                                  <Feather name="user-check" size={16} color={selectedOfficer ? "#4A43EC" : "#9CA3AF"} />
+                                </View>
+                                <View className="flex-1">
+                                  <Text className={`text-[13px] font-manrope-bold ${selectedOfficer ? 'text-[#111827]' : 'text-[#9CA3AF]'}`} numberOfLines={1}>
+                                    {selectedOfficer?.name || (booking.officers.length === 0 ? "No officers available" : "Choose sales officer")}
+                                  </Text>
+                                  <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                                    {selectedOfficer?.isPrevious ? "Previous sales officer" : selectedOfficer?.role || "Required before locking"}
+                                  </Text>
+                                </View>
+                              </View>
+                              <Feather name={booking.officerDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#6B7280" />
+                            </Pressable>
+
+                            {booking.officerDropdownOpen && (
+                              <View className="mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                                {booking.officers.map(normalizeOfficer).map((officer, officerIndex, arr) => {
+                                  const isSelectedOfficer = officer.id === booking.officerId;
+                                  return (
+                                    <Pressable
+                                      key={officer.id}
+                                      onPress={() => updateBookingAt(index, { officerId: officer.id, officerDropdownOpen: false })}
+                                      className={`px-4 py-3.5 flex-row items-center justify-between ${officerIndex !== arr.length - 1 ? 'border-b border-gray-100' : ''} ${isSelectedOfficer ? 'bg-[#F8F7FF]' : 'bg-white'}`}
+                                    >
+                                      <View className="flex-1 pr-3">
+                                        <Text className="text-[13px] font-manrope-bold text-[#111827]">{officer.name}</Text>
+                                        <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5">
+                                          {officer.isPrevious ? "Previous sales officer" : officer.role}
+                                        </Text>
+                                      </View>
+                                      {isSelectedOfficer && <Feather name="check-circle" size={17} color="#4A43EC" />}
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            )}
+                          </View>
+                        ) : (
+                          <View className="rounded-2xl border border-gray-200 bg-[#F8F9FB] px-4 py-3.5 flex-row items-center">
+                            <View className="w-9 h-9 rounded-full items-center justify-center mr-3 bg-white border border-gray-200">
+                              <Feather name="user-check" size={16} color="#4A43EC" />
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-[13px] font-manrope-bold text-[#111827]">Sales officer will be assigned</Text>
+                              <Text className="text-[11px] font-manrope text-[#6B7280] mt-0.5" numberOfLines={1}>
+                                An available officer will be assigned for this slot.
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    <Pressable
+                      onPress={() => handleLockBooking(index)}
+                      disabled={!booking.slot || (requiresOfficer && !booking.officerId)}
+                      className={`rounded-xl py-3 flex-row items-center justify-center ${booking.slot && (!requiresOfficer || booking.officerId) ? 'bg-[#4A43EC]' : 'bg-gray-300'}`}
+                    >
+                      <Text className="text-white font-manrope-bold text-[13px] mr-2">Lock this slot</Text>
+                      <Feather name="lock" size={14} color="white" />
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
 
           {/* Number of Visitors */}
-          <View className="bg-[#F8F9FB] rounded-[18px] p-4 flex-row justify-between items-center mb-8">
+          <View className="bg-[#F8F9FB] rounded-[18px] p-4 flex-row justify-between items-center mb-8 mt-2">
             <View>
               <Text className="text-[13px] font-manrope-bold text-[#111827] mb-0.5">Number of Visitors</Text>
               <Text className="text-[11px] font-manrope text-[#9CA3AF]">Including children</Text>
@@ -984,15 +1059,15 @@ export default function BookSiteVisit() {
           </View>
           <Pressable
             onPress={handleConfirmVisit}
-            disabled={creating}
-            className={`rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2 ${creating ? 'bg-gray-400' : 'bg-[#4A43EC]'}`}
+            disabled={creating || !allLocked}
+            className={`rounded-[16px] py-[15px] flex-row items-center justify-center mt-2 mb-2 ${creating || !allLocked ? 'bg-gray-400' : 'bg-[#4A43EC]'}`}
           >
             {creating ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
               <>
                 <Text className="text-white font-manrope-bold text-[15px] mr-2">
-                  Confirm Site Visit
+                  Confirm Site Visit{bookings.length > 1 ? `s (${bookings.length})` : ''}
                 </Text>
                 <Feather name="arrow-right" size={16} color="white" />
               </>
